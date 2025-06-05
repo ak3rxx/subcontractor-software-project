@@ -5,13 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Plus, Users, FileCheck, AlertCircle, Clock } from 'lucide-react';
+import { Plus, Users, FileCheck, AlertCircle, Clock, History, Table, Scan } from 'lucide-react';
 import SubcontractorForm from '@/components/SubcontractorForm';
 import SubcontractorList from '@/components/SubcontractorList';
 import PendingApprovals from '@/components/PendingApprovals';
+import ReviewLog from '@/components/ReviewLog';
+import TrackTableView from '@/components/TrackTableView';
+import PDFAutomationVerification from '@/components/PDFAutomationVerification';
 
 const SubcontractorOnboarding = () => {
-  const [activeTab, setActiveTab] = useState('list');
+  const [activeTab, setActiveTab] = useState('track');
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -59,12 +62,12 @@ const SubcontractorOnboarding = () => {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Documents Needed</CardTitle>
+                <CardTitle className="text-sm font-medium">Documents Processed</CardTitle>
                 <FileCheck className="w-4 h-4 text-gray-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">8</div>
-                <p className="text-xs text-red-500">3 expired</p>
+                <div className="text-2xl font-bold">142</div>
+                <p className="text-xs text-green-500">98% automation rate</p>
               </CardContent>
             </Card>
             
@@ -83,10 +86,35 @@ const SubcontractorOnboarding = () => {
           {/* Main Content Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
-              <TabsTrigger value="list">All Subcontractors</TabsTrigger>
-              <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
-              <TabsTrigger value="new">Add New</TabsTrigger>
+              <TabsTrigger value="track">
+                <Table className="w-4 h-4 mr-2" />
+                Track & Monitor
+              </TabsTrigger>
+              <TabsTrigger value="list">
+                <Users className="w-4 h-4 mr-2" />
+                Directory
+              </TabsTrigger>
+              <TabsTrigger value="pending">
+                <Clock className="w-4 h-4 mr-2" />
+                Pending Approvals
+              </TabsTrigger>
+              <TabsTrigger value="new">
+                <Plus className="w-4 h-4 mr-2" />
+                Submission Form
+              </TabsTrigger>
+              <TabsTrigger value="review-log">
+                <History className="w-4 h-4 mr-2" />
+                Review Log
+              </TabsTrigger>
+              <TabsTrigger value="pdf-verification">
+                <Scan className="w-4 h-4 mr-2" />
+                PDF Verification
+              </TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="track">
+              <TrackTableView />
+            </TabsContent>
             
             <TabsContent value="list">
               <SubcontractorList />
@@ -98,6 +126,14 @@ const SubcontractorOnboarding = () => {
             
             <TabsContent value="new">
               <SubcontractorForm />
+            </TabsContent>
+            
+            <TabsContent value="review-log">
+              <ReviewLog />
+            </TabsContent>
+            
+            <TabsContent value="pdf-verification">
+              <PDFAutomationVerification />
             </TabsContent>
           </Tabs>
         </div>
