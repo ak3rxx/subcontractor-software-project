@@ -21,8 +21,8 @@ const SubcontractorOnboarding = () => {
         <div className="container px-4 mx-auto">
           <div className="flex flex-col justify-between gap-4 mb-8 md:flex-row md:items-center">
             <div>
-              <h1 className="text-3xl font-bold">Subcontractor Onboarding</h1>
-              <p className="text-gray-600">Manage subcontractor registration and approval process</p>
+              <h1 className="text-3xl font-bold">Subcontractor Onboarding System</h1>
+              <p className="text-gray-600">Comprehensive system for managing subcontractor registration and approval processes</p>
             </div>
             <Button 
               className="bg-construction-blue hover:bg-blue-700"
