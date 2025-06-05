@@ -25,6 +25,11 @@ const Header = () => {
           }>
             Dashboard
           </NavLink>
+          <NavLink to="/subcontractor-onboarding" className={({isActive}) => 
+            isActive ? "text-construction-blue font-medium" : "text-gray-600 hover:text-construction-blue transition-colors"
+          }>
+            Subcontractors
+          </NavLink>
           <NavLink to="/features" className={({isActive}) => 
             isActive ? "text-construction-blue font-medium" : "text-gray-600 hover:text-construction-blue transition-colors"
           }>
