@@ -21,6 +21,7 @@ interface ChecklistItem {
   status: 'pass' | 'fail' | 'na' | '';
   comments: string;
   evidence?: File[];
+  isFireDoorOnly?: boolean;
 }
 
 const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
@@ -38,6 +39,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
   });
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [isFireDoor, setIsFireDoor] = useState(false);
 
   const templates = {
     'doors-jambs-hardware': {
@@ -61,6 +63,42 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
           id: '3',
           description: 'All door jambs delivered to partitions & signed off',
           requirements: 'Doors to be taken to the floors required and handed over to other trades for sign off',
+          status: '' as const,
+          comments: ''
+        },
+        {
+          id: '4',
+          description: 'Door jamb installed as per BCA Including plumb/Level/Enwind/Parallel Including back filling (AS1530.4)',
+          requirements: 'Including plumb/Level/Enwind/Parallel Including back filling (AS1530.4) Any gap to structural opening less then 15mm Allowance for mastic or grout fill. AS1530.4 As per door schedule & BCA Fire rated door jambs to structural openings Bogged and filled and sanded down',
+          status: '' as const,
+          comments: ''
+        },
+        {
+          id: '5',
+          description: 'Doors are painted Top & Bottom before installation',
+          requirements: 'Doors are painted on the top and bottom, fully sealed. Photos taken for evidence.',
+          status: '' as const,
+          comments: ''
+        },
+        {
+          id: '6',
+          description: 'Doors margins are 3mm and no more then 5mm',
+          requirements: 'Gaps & Margins are within BCA/Compliance standards of 3mm and no more then 5mm. Photo taken for evidence.',
+          status: '' as const,
+          comments: ''
+        },
+        {
+          id: '7',
+          description: 'Fire door clearance to floor/threshold is between 3mm and no more then 10mm Surface is flat and level (by others) including swing zone',
+          requirements: 'Meets AS1905.5-2015 And AS1530.4-2014 and BCA Requirements',
+          status: '' as const,
+          comments: '',
+          isFireDoorOnly: true
+        },
+        {
+          id: '8',
+          description: 'Hardware is correct and install as per manufacturers specification and door schedule/Door hardware schedule',
+          requirements: 'Installed as Manufacturer\'s specification, Installed as per door hardware/Door schedule.',
           status: '' as const,
           comments: ''
         }
@@ -145,6 +183,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     onClose();
   };
 
+  const filteredChecklist = checklist.filter(item => 
+    !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -217,17 +259,29 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Fire Door Checkbox - only show for doors template */}
+            {formData.template === 'doors-jambs-hardware' && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isFireDoor"
+                  checked={isFireDoor}
+                  onCheckedChange={(checked) => setIsFireDoor(checked as boolean)}
+                />
+                <Label htmlFor="isFireDoor">This is a Fire Door installation</Label>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Inspection Checklist */}
-        {checklist.length > 0 && (
+        {filteredChecklist.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Inspection Checklist</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {checklist.map((item) => (
+              {filteredChecklist.map((item) => (
                 <div key={item.id} className="border rounded-lg p-4 space-y-3">
                   <div>
                     <h4 className="font-medium">{item.description}</h4>
@@ -280,10 +334,13 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
 
                   <div className="space-y-2">
                     <Label>Upload Evidence Photos</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 cursor-pointer">
                       <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
                       <p className="text-sm text-gray-600">
                         Attach clear, timestamped photos for inspection evidence
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Click to browse or drag files here
                       </p>
                     </div>
                   </div>
