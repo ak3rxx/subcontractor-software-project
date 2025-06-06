@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Phone, Mail, MapPin, Building, File, X, CheckCircle } from 'lucide-react';
+import { Upload, Phone, Mail, MapPin, Building, File, X, CheckCircle, Users, Shield } from 'lucide-react';
 
 interface UploadedFile {
   name: string;
@@ -18,21 +19,30 @@ interface UploadedFile {
 const SubcontractorForm = () => {
   const [formData, setFormData] = useState({
     companyName: '',
-    contactPerson: '',
-    email: '',
-    phone: '',
+    abn: '',
+    director: '',
     address: '',
+    mainTelephone: '',
+    mobile: '',
+    mainContactEmail: '',
+    accountsContactEmail: '',
+    gstRegistered: false,
+    authorizedRepresentatives: '',
+    numberOfEmployees: '',
+    numberOfApprentices: '',
+    workersCompensationAmount: '',
+    publicLiabilityAmount: '',
     tradeType: '',
-    licenseNumber: '',
-    insuranceAmount: ''
+    licenseNumber: ''
   });
 
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFile>>({});
   const { toast } = useToast();
 
   const requiredDocuments = [
+    'Certificate of Currency - Workers Compensation',
+    'Certificate of Currency - Public Liability',
     'Business License',
-    'Insurance Certificate',
     'W-9 Form',
     'Safety Certification'
   ];
@@ -50,18 +60,26 @@ const SubcontractorForm = () => {
     // Reset form
     setFormData({
       companyName: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
+      abn: '',
+      director: '',
       address: '',
+      mainTelephone: '',
+      mobile: '',
+      mainContactEmail: '',
+      accountsContactEmail: '',
+      gstRegistered: false,
+      authorizedRepresentatives: '',
+      numberOfEmployees: '',
+      numberOfApprentices: '',
+      workersCompensationAmount: '',
+      publicLiabilityAmount: '',
       tradeType: '',
-      licenseNumber: '',
-      insuranceAmount: ''
+      licenseNumber: ''
     });
     setUploadedFiles({});
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -137,120 +155,254 @@ const SubcontractorForm = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Company Name</Label>
-              <div className="relative">
-                <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          {/* Company Information Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Company Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="companyName">Company Name in Full</Label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="companyName"
+                    placeholder="Enter full company name"
+                    value={formData.companyName}
+                    onChange={(e) => handleInputChange('companyName', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="abn">ABN</Label>
                 <Input
-                  id="companyName"
-                  placeholder="Enter company name"
-                  value={formData.companyName}
-                  onChange={(e) => handleInputChange('companyName', e.target.value)}
-                  className="pl-10"
+                  id="abn"
+                  placeholder="Enter ABN"
+                  value={formData.abn}
+                  onChange={(e) => handleInputChange('abn', e.target.value)}
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="contactPerson">Contact Person</Label>
-              <Input
-                id="contactPerson"
-                placeholder="Enter contact person name"
-                value={formData.contactPerson}
-                onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                required
+              <div className="space-y-2">
+                <Label htmlFor="director">Director</Label>
+                <Input
+                  id="director"
+                  placeholder="Enter director name"
+                  value={formData.director}
+                  onChange={(e) => handleInputChange('director', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="address">Address</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="address"
+                    placeholder="Enter complete business address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Information Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Contact Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="mainTelephone">Main Office Telephone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="mainTelephone"
+                    placeholder="Enter main telephone"
+                    value={formData.mainTelephone}
+                    onChange={(e) => handleInputChange('mainTelephone', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mobile">Mobile</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="mobile"
+                    placeholder="Enter mobile number"
+                    value={formData.mobile}
+                    onChange={(e) => handleInputChange('mobile', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mainContactEmail">Main Contact Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="mainContactEmail"
+                    type="email"
+                    placeholder="Enter main contact email"
+                    value={formData.mainContactEmail}
+                    onChange={(e) => handleInputChange('mainContactEmail', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="accountsContactEmail">Accounts Contact Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="accountsContactEmail"
+                    type="email"
+                    placeholder="Enter accounts contact email"
+                    value={formData.accountsContactEmail}
+                    onChange={(e) => handleInputChange('accountsContactEmail', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* GST Registration */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">GST Registration</h3>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="gstRegistered"
+                checked={formData.gstRegistered}
+                onCheckedChange={(checked) => handleInputChange('gstRegistered', checked as boolean)}
               />
+              <Label htmlFor="gstRegistered">GST Registered</Label>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          {/* Business Details Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Business Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="authorizedRepresentatives">Authorized Representatives</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter email address"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="pl-10"
+                  id="authorizedRepresentatives"
+                  placeholder="Enter authorized representatives"
+                  value={formData.authorizedRepresentatives}
+                  onChange={(e) => handleInputChange('authorizedRepresentatives', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tradeType">Trade Type</Label>
+                <Select value={formData.tradeType} onValueChange={(value) => handleInputChange('tradeType', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select trade type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="plumbing">Plumbing</SelectItem>
+                    <SelectItem value="hvac">HVAC</SelectItem>
+                    <SelectItem value="drywall">Drywall</SelectItem>
+                    <SelectItem value="flooring">Flooring</SelectItem>
+                    <SelectItem value="roofing">Roofing</SelectItem>
+                    <SelectItem value="painting">Painting</SelectItem>
+                    <SelectItem value="concrete">Concrete</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="licenseNumber">License Number</Label>
+                <Input
+                  id="licenseNumber"
+                  placeholder="Enter license number"
+                  value={formData.licenseNumber}
+                  onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
                   required
                 />
               </div>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          {/* Employee Information Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Employee Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="numberOfEmployees">Number of Employees</Label>
                 <Input
-                  id="phone"
-                  placeholder="Enter phone number"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="pl-10"
+                  id="numberOfEmployees"
+                  type="number"
+                  placeholder="Enter number of employees"
+                  value={formData.numberOfEmployees}
+                  onChange={(e) => handleInputChange('numberOfEmployees', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="numberOfApprentices">Number of Apprentices/Trainees</Label>
+                <Input
+                  id="numberOfApprentices"
+                  type="number"
+                  placeholder="Enter number of apprentices/trainees"
+                  value={formData.numberOfApprentices}
+                  onChange={(e) => handleInputChange('numberOfApprentices', e.target.value)}
                   required
                 />
               </div>
             </div>
+          </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="address">Business Address</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          {/* Insurance Information Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Insurance Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="workersCompensationAmount">Workers Compensation Coverage Amount</Label>
                 <Input
-                  id="address"
-                  placeholder="Enter complete business address"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="pl-10"
+                  id="workersCompensationAmount"
+                  placeholder="e.g., $1,000,000"
+                  value={formData.workersCompensationAmount}
+                  onChange={(e) => handleInputChange('workersCompensationAmount', e.target.value)}
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tradeType">Trade Type</Label>
-              <Select value={formData.tradeType} onValueChange={(value) => handleInputChange('tradeType', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trade type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="electrical">Electrical</SelectItem>
-                  <SelectItem value="plumbing">Plumbing</SelectItem>
-                  <SelectItem value="hvac">HVAC</SelectItem>
-                  <SelectItem value="drywall">Drywall</SelectItem>
-                  <SelectItem value="flooring">Flooring</SelectItem>
-                  <SelectItem value="roofing">Roofing</SelectItem>
-                  <SelectItem value="painting">Painting</SelectItem>
-                  <SelectItem value="concrete">Concrete</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="licenseNumber">License Number</Label>
-              <Input
-                id="licenseNumber"
-                placeholder="Enter license number"
-                value={formData.licenseNumber}
-                onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="insuranceAmount">Insurance Coverage Amount</Label>
-              <Input
-                id="insuranceAmount"
-                placeholder="e.g., $1,000,000"
-                value={formData.insuranceAmount}
-                onChange={(e) => handleInputChange('insuranceAmount', e.target.value)}
-                required
-              />
+              <div className="space-y-2">
+                <Label htmlFor="publicLiabilityAmount">Public Liability Coverage Amount</Label>
+                <Input
+                  id="publicLiabilityAmount"
+                  placeholder="e.g., $10,000,000"
+                  value={formData.publicLiabilityAmount}
+                  onChange={(e) => handleInputChange('publicLiabilityAmount', e.target.value)}
+                  required
+                />
+              </div>
             </div>
           </div>
 
