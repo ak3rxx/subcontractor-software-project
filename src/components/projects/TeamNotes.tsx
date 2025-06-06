@@ -302,8 +302,8 @@ const TeamNotes: React.FC<TeamNotesProps> = ({ projectName }) => {
               </div>
             </div>
           ))}
-        </Card>
-      )}
+        </CardContent>
+      </Card>
 
       {/* Instructions */}
       <Card>
