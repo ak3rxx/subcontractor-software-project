@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Building2, Calendar, Users, FileText, AlertTriangle, 
   Package, ClipboardCheck, MessageSquare, CheckCircle2,
-  TrendingUp, Clock, MapPin, Plus
+  TrendingUp, Clock, MapPin, Plus, BadgeDollarSign
 } from 'lucide-react';
 import ProgrammeTracker from './ProgrammeTracker';
 import DocumentManager from './DocumentManager';
@@ -16,6 +16,7 @@ import VariationManager from './VariationManager';
 import RFIManager from './RFIManager';
 import TaskManager from './TaskManager';
 import TeamNotes from './TeamNotes';
+import FinanceManager from './finance/FinanceManager';
 
 interface ProjectDashboardProps {
   projectData?: any;
@@ -95,7 +96,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview" className="flex items-center gap-1">
             <TrendingUp className="h-4 w-4" />
             Overview
@@ -111,6 +112,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
           <TabsTrigger value="variations" className="flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />
             Variations
+          </TabsTrigger>
+          <TabsTrigger value="finance" className="flex items-center gap-1">
+            <BadgeDollarSign className="h-4 w-4" />
+            Finance
           </TabsTrigger>
           <TabsTrigger value="rfis" className="flex items-center gap-1">
             <MessageSquare className="h-4 w-4" />
@@ -273,6 +278,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
         <TabsContent value="variations">
           <VariationManager projectName={project.projectName} />
+        </TabsContent>
+        
+        <TabsContent value="finance">
+          <FinanceManager projectName={project.projectName} />
         </TabsContent>
 
         <TabsContent value="rfis">
