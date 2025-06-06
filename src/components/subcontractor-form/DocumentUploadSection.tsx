@@ -2,8 +2,9 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Upload, CheckCircle, X } from 'lucide-react';
+import { Upload, CheckCircle, X, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface UploadedFile {
   name: string;
@@ -26,11 +27,26 @@ const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   const { toast } = useToast();
 
   const requiredDocuments = [
-    'Certificate of Currency - Workers Compensation',
-    'Certificate of Currency - Public Liability',
-    'Business License',
-    'W-9 Form',
-    'Safety Certification'
+    {
+      name: 'Certificate of Currency - Workers Compensation',
+      helpText: 'Upload current insurance certificate. Must include expiry date and coverage value.'
+    },
+    {
+      name: 'Certificate of Currency - Public Liability',
+      helpText: 'Upload current insurance certificate. Must include expiry date and coverage value.'
+    },
+    {
+      name: 'Trade/Builders License',
+      helpText: 'Upload current trade or builders license certificate.'
+    },
+    {
+      name: 'Trade/Qualification Certificates',
+      helpText: 'Upload relevant trade qualification certificates.'
+    },
+    {
+      name: 'SWMS (Safe Work Method Statement)',
+      helpText: 'Upload Safe Work Method Statement for your trade activities.'
+    }
   ];
 
   const handleFileUpload = (docType: string, file: File) => {
@@ -82,64 +98,79 @@ const DocumentUploadSection: React.FC<DocumentUploadSectionProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Required Documents (PDF Only)</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {requiredDocuments.map((docType) => (
-          <div key={docType} className="space-y-2">
-            <Label>{docType}</Label>
-            {!uploadedFiles[docType] ? (
-              <div 
-                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-construction-blue transition-colors cursor-pointer"
-                onDrop={(e) => handleFileDrop(docType, e)}
-                onDragOver={(e) => e.preventDefault()}
-                onDragEnter={(e) => e.preventDefault()}
-              >
-                <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-sm font-medium text-gray-700 mb-1">{docType}</p>
-                <p className="text-xs text-gray-500 mb-3">Drag & drop PDF file or click to upload</p>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => handleFileSelect(docType, e)}
-                  className="hidden"
-                  id={`file-${docType}`}
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  type="button"
-                  onClick={() => document.getElementById(`file-${docType}`)?.click()}
-                >
-                  Choose PDF File
-                </Button>
+    <TooltipProvider>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Required Documents (PDF Only)</h3>
+        <p className="text-sm text-amber-600 font-medium">
+          This onboarding must be completed before any site work begins.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {requiredDocuments.map((doc) => (
+            <div key={doc.name} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label>{doc.name}</Label>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <HelpCircle className="h-4 w-4 text-gray-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">{doc.helpText}</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-            ) : (
-              <div className="border border-green-200 bg-green-50 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <div>
-                      <p className="text-sm font-medium text-green-800">{uploadedFiles[docType].name}</p>
-                      <p className="text-xs text-green-600">{formatFileSize(uploadedFiles[docType].size)}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+              {!uploadedFiles[doc.name] ? (
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-construction-blue transition-colors cursor-pointer"
+                  onDrop={(e) => handleFileDrop(doc.name, e)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDragEnter={(e) => e.preventDefault()}
+                >
+                  <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <p className="text-sm font-medium text-gray-700 mb-1">{doc.name}</p>
+                  <p className="text-xs text-gray-500 mb-3">Drag & drop PDF file or click to upload</p>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => handleFileSelect(doc.name, e)}
+                    className="hidden"
+                    id={`file-${doc.name}`}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
                     type="button"
-                    onClick={() => onFileRemove(docType)}
-                    className="text-red-500 hover:text-red-700"
+                    onClick={() => document.getElementById(`file-${doc.name}`)?.click()}
                   >
-                    <X className="h-4 w-4" />
+                    Choose PDF File
                   </Button>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              ) : (
+                <div className="border border-green-200 bg-green-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <div>
+                        <p className="text-sm font-medium text-green-800">{uploadedFiles[doc.name].name}</p>
+                        <p className="text-xs text-green-600">{formatFileSize(uploadedFiles[doc.name].size)}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => onFileRemove(doc.name)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 

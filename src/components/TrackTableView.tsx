@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Download, Eye } from 'lucide-react';
+import { Search, Filter, Download, Eye, AlertTriangle, Clock } from 'lucide-react';
 
 const TrackTableView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [tradeFilter, setTradeFilter] = useState('all');
+  const [expiryFilter, setExpiryFilter] = useState('all');
 
   const subcontractors = [
     {
@@ -22,9 +23,11 @@ const TrackTableView = () => {
       status: "Active",
       submittedDate: "2024-05-15",
       approvedDate: "2024-05-20",
-      documentsCount: "4/4",
-      insuranceExpiry: "2025-05-15",
-      licenseExpiry: "2025-12-31"
+      documentsCount: "5/5",
+      workersCompExpiry: "2025-05-15",
+      publicLiabilityExpiry: "2025-05-15",
+      licenseExpiry: "2025-12-31",
+      reviewNotes: "All documents verified"
     },
     {
       id: 2,
@@ -34,9 +37,11 @@ const TrackTableView = () => {
       status: "Pending Documents",
       submittedDate: "2024-06-01",
       approvedDate: "-",
-      documentsCount: "3/4",
-      insuranceExpiry: "2024-12-15",
-      licenseExpiry: "2025-08-30"
+      documentsCount: "4/5",
+      workersCompExpiry: "2024-12-15",
+      publicLiabilityExpiry: "2024-12-15",
+      licenseExpiry: "2025-08-30",
+      reviewNotes: "Missing SWMS document"
     },
     {
       id: 3,
@@ -46,9 +51,11 @@ const TrackTableView = () => {
       status: "Under Review",
       submittedDate: "2024-06-03",
       approvedDate: "-",
-      documentsCount: "4/4",
-      insuranceExpiry: "2025-03-20",
-      licenseExpiry: "2024-11-15"
+      documentsCount: "5/5",
+      workersCompExpiry: "2025-03-20",
+      publicLiabilityExpiry: "2025-03-20",
+      licenseExpiry: "2024-07-15",
+      reviewNotes: "Awaiting approval from safety coordinator"
     },
     {
       id: 4,
@@ -58,9 +65,11 @@ const TrackTableView = () => {
       status: "Rejected",
       submittedDate: "2024-05-28",
       approvedDate: "-",
-      documentsCount: "2/4",
-      insuranceExpiry: "2024-08-10",
-      licenseExpiry: "2024-06-30"
+      documentsCount: "3/5",
+      workersCompExpiry: "2024-08-10",
+      publicLiabilityExpiry: "2024-08-10",
+      licenseExpiry: "2024-06-30",
+      reviewNotes: "Insufficient insurance coverage, expired license"
     }
   ];
 
@@ -74,19 +83,50 @@ const TrackTableView = () => {
     }
   };
 
+  const isExpiringWithin30Days = (dateString: string) => {
+    const expiryDate = new Date(dateString);
+    const today = new Date();
+    const daysDifference = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    return daysDifference <= 30 && daysDifference >= 0;
+  };
+
+  const isExpired = (dateString: string) => {
+    const expiryDate = new Date(dateString);
+    const today = new Date();
+    return expiryDate < today;
+  };
+
+  const getExpiryStatus = (workersCompExpiry: string, publicLiabilityExpiry: string, licenseExpiry: string) => {
+    if (isExpired(workersCompExpiry) || isExpired(publicLiabilityExpiry) || isExpired(licenseExpiry)) {
+      return { color: 'text-red-600', icon: <AlertTriangle className="h-4 w-4" />, text: 'Expired' };
+    }
+    if (isExpiringWithin30Days(workersCompExpiry) || isExpiringWithin30Days(publicLiabilityExpiry) || isExpiringWithin30Days(licenseExpiry)) {
+      return { color: 'text-amber-600', icon: <Clock className="h-4 w-4" />, text: 'Expiring Soon' };
+    }
+    return { color: 'text-green-600', icon: null, text: 'Current' };
+  };
+
   const filteredSubcontractors = subcontractors.filter(sub => {
     const matchesSearch = sub.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sub.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || sub.status === statusFilter;
     const matchesTrade = tradeFilter === 'all' || sub.tradeType === tradeFilter;
-    return matchesSearch && matchesStatus && matchesTrade;
+    
+    let matchesExpiry = true;
+    if (expiryFilter === 'expired') {
+      matchesExpiry = isExpired(sub.workersCompExpiry) || isExpired(sub.publicLiabilityExpiry) || isExpired(sub.licenseExpiry);
+    } else if (expiryFilter === 'expiring') {
+      matchesExpiry = isExpiringWithin30Days(sub.workersCompExpiry) || isExpiringWithin30Days(sub.publicLiabilityExpiry) || isExpiringWithin30Days(sub.licenseExpiry);
+    }
+    
+    return matchesSearch && matchesStatus && matchesTrade && matchesExpiry;
   });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tracking Dashboard</CardTitle>
-        <CardDescription>Comprehensive view of all subcontractor applications and statuses</CardDescription>
+        <CardTitle>Subcontractor Tracking Dashboard</CardTitle>
+        <CardDescription>Comprehensive view of all subcontractor applications and compliance status</CardDescription>
       </CardHeader>
       <CardContent>
         {/* Filters and Search */}
@@ -127,6 +167,17 @@ const TrackTableView = () => {
             </SelectContent>
           </Select>
 
+          <Select value={expiryFilter} onValueChange={setExpiryFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by expiry" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Expiry Status</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+              <SelectItem value="expiring">Expiring Within 30 Days</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -142,43 +193,59 @@ const TrackTableView = () => {
                 <TableHead>Contact</TableHead>
                 <TableHead>Trade</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead>Approved</TableHead>
                 <TableHead>Documents</TableHead>
-                <TableHead>Insurance Expiry</TableHead>
+                <TableHead>Workers Comp Expiry</TableHead>
+                <TableHead>Public Liability Expiry</TableHead>
                 <TableHead>License Expiry</TableHead>
+                <TableHead>Review Notes</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSubcontractors.map((sub) => (
-                <TableRow key={sub.id}>
-                  <TableCell className="font-medium">{sub.companyName}</TableCell>
-                  <TableCell>{sub.contactPerson}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{sub.tradeType}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(sub.status)}>
-                      {sub.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">{sub.submittedDate}</TableCell>
-                  <TableCell className="text-sm">{sub.approvedDate}</TableCell>
-                  <TableCell>
-                    <span className={sub.documentsCount === '4/4' ? 'text-green-600' : 'text-red-600'}>
-                      {sub.documentsCount}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm">{sub.insuranceExpiry}</TableCell>
-                  <TableCell className="text-sm">{sub.licenseExpiry}</TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm">
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredSubcontractors.map((sub) => {
+                const expiryStatus = getExpiryStatus(sub.workersCompExpiry, sub.publicLiabilityExpiry, sub.licenseExpiry);
+                return (
+                  <TableRow key={sub.id}>
+                    <TableCell className="font-medium">{sub.companyName}</TableCell>
+                    <TableCell>{sub.contactPerson}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{sub.tradeType}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(sub.status)}>
+                        {sub.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className={sub.documentsCount === '5/5' ? 'text-green-600' : 'text-red-600'}>
+                        {sub.documentsCount}
+                      </span>
+                    </TableCell>
+                    <TableCell className={`text-sm ${isExpired(sub.workersCompExpiry) ? 'text-red-600 font-semibold' : isExpiringWithin30Days(sub.workersCompExpiry) ? 'text-amber-600' : ''}`}>
+                      {sub.workersCompExpiry}
+                    </TableCell>
+                    <TableCell className={`text-sm ${isExpired(sub.publicLiabilityExpiry) ? 'text-red-600 font-semibold' : isExpiringWithin30Days(sub.publicLiabilityExpiry) ? 'text-amber-600' : ''}`}>
+                      {sub.publicLiabilityExpiry}
+                    </TableCell>
+                    <TableCell className={`text-sm ${isExpired(sub.licenseExpiry) ? 'text-red-600 font-semibold' : isExpiringWithin30Days(sub.licenseExpiry) ? 'text-amber-600' : ''}`}>
+                      {sub.licenseExpiry}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-xs truncate">{sub.reviewNotes}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {expiryStatus.icon && (
+                          <span className={expiryStatus.color} title={expiryStatus.text}>
+                            {expiryStatus.icon}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -187,6 +254,16 @@ const TrackTableView = () => {
           <p className="text-sm text-gray-600">
             Showing {filteredSubcontractors.length} of {subcontractors.length} entries
           </p>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span>Expired</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <span>Expiring Soon</span>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
