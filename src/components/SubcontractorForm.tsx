@@ -45,6 +45,7 @@ const SubcontractorForm = () => {
     authorizedRepresentative: false,
     signatureDate: '',
     signatureFullName: '',
+    digitalSignature: '',
     approvedBy: '',
     approvedDate: '',
     adminNotes: ''
@@ -57,11 +58,20 @@ const SubcontractorForm = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate required checkboxes
+    // Validate required checkboxes and signature
     if (!formData.documentsCurrentAndTrue || !formData.complySafety || !formData.authorizedRepresentative) {
       toast({
         title: "Declaration Required",
         description: "Please complete all declaration checkboxes before submitting.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.digitalSignature.trim()) {
+      toast({
+        title: "Digital Signature Required",
+        description: "Please provide your digital signature before submitting.",
         variant: "destructive"
       });
       return;
@@ -101,6 +111,7 @@ const SubcontractorForm = () => {
       authorizedRepresentative: false,
       signatureDate: '',
       signatureFullName: '',
+      digitalSignature: '',
       approvedBy: '',
       approvedDate: '',
       adminNotes: ''

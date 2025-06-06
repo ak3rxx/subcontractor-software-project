@@ -3,6 +3,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { FileText } from 'lucide-react';
 
 interface DeclarationSectionProps {
@@ -14,6 +15,7 @@ interface DeclarationSectionProps {
     authorizedRepresentative: boolean;
     signatureDate: string;
     signatureFullName: string;
+    digitalSignature: string;
   };
   onInputChange: (field: string, value: string | boolean) => void;
 }
@@ -89,6 +91,21 @@ const DeclarationSection: React.FC<DeclarationSectionProps> = ({
             required
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="digitalSignature">Digital Signature *</Label>
+        <Textarea
+          id="digitalSignature"
+          placeholder="Type your full legal name here as your digital signature"
+          value={formData.digitalSignature}
+          onChange={(e) => onInputChange('digitalSignature', e.target.value)}
+          className="min-h-[80px] font-cursive italic border-2 border-blue-200 bg-blue-50"
+          required
+        />
+        <p className="text-xs text-gray-600">
+          By typing your name above, you are providing a legally binding digital signature
+        </p>
       </div>
     </div>
   );
