@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { X, Upload, Plus, Trash2 } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Link, Calendar } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 interface MaterialHandoverFormProps {
   onClose: () => void;
@@ -23,8 +23,34 @@ interface MaterialItem {
   notes: string;
 }
 
+// Sample scheduled deliveries for demonstration
+const scheduledDeliveries = [
+  {
+    id: 'DEL-20240115-ABC1',
+    projectName: 'Riverside Apartments',
+    plannedDate: '2024-01-15',
+    tradeSupplier: 'Timber Supply Co',
+    materialDescription: '90x45 Framing Timber, Galvanized Nails',
+    quantityExpected: '120 pieces',
+    deliveryLocation: 'Level 3, North Wing',
+    priority: 'normal'
+  },
+  {
+    id: 'DEL-20240114-XYZ2',
+    projectName: 'Commercial Plaza',
+    plannedDate: '2024-01-14',
+    tradeSupplier: 'Door & Hardware Plus',
+    materialDescription: 'Door Hardware Sets, Hinges',
+    quantityExpected: '15 sets',
+    deliveryLocation: 'Ground Floor Lobby',
+    priority: 'high'
+  }
+];
+
 const MaterialHandoverForm: React.FC<MaterialHandoverFormProps> = ({ onClose }) => {
   const { toast } = useToast();
+  const [isLinkedDelivery, setIsLinkedDelivery] = useState(true);
+  const [selectedDelivery, setSelectedDelivery] = useState('');
   const [formData, setFormData] = useState({
     projectName: '',
     handoverDate: '',
@@ -44,6 +70,30 @@ const MaterialHandoverForm: React.FC<MaterialHandoverFormProps> = ({ onClose }) 
   ]);
 
   const [requiresCompliance, setRequiresCompliance] = useState(false);
+
+  // Handle delivery selection and auto-fill
+  const handleDeliverySelection = (deliveryId: string) => {
+    setSelectedDelivery(deliveryId);
+    const delivery = scheduledDeliveries.find(d => d.id === deliveryId);
+    
+    if (delivery) {
+      setFormData(prev => ({
+        ...prev,
+        projectName: delivery.projectName,
+        supplier: delivery.tradeSupplier,
+        deliveryLocation: delivery.deliveryLocation
+      }));
+      
+      // Auto-fill material items from delivery
+      setMaterialItems([{
+        id: '1',
+        description: delivery.materialDescription,
+        quantity: delivery.quantityExpected,
+        condition: 'good',
+        notes: ''
+      }]);
+    }
+  };
 
   const addMaterialItem = () => {
     const newItem: MaterialItem = {
@@ -78,94 +128,194 @@ const MaterialHandoverForm: React.FC<MaterialHandoverFormProps> = ({ onClose }) 
       return;
     }
 
-    console.log('Material Handover Submission:', { formData, materialItems });
+    console.log('Material Handover Submission:', { 
+      formData, 
+      materialItems, 
+      linkedDelivery: isLinkedDelivery ? selectedDelivery : null 
+    });
     
     toast({
-      title: "Material Handover Submitted",
-      description: "Handover record has been created and notifications sent to relevant team members.",
+      title: "Material Handover Completed",
+      description: isLinkedDelivery 
+        ? `Handover for delivery ${selectedDelivery} has been recorded and delivery marked as complete.`
+        : "Handover record has been created and notifications sent to relevant team members.",
     });
 
     onClose();
   };
 
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return <Badge className="bg-red-100 text-red-800">🔴 High Priority</Badge>;
+      case 'low':
+        return <Badge className="bg-green-100 text-green-800">🟢 Low Priority</Badge>;
+      default:
+        return <Badge className="bg-yellow-100 text-yellow-800">🟡 Normal</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">New Material Handover</h3>
+        <h3 className="text-lg font-semibold">Material Handover</h3>
         <Button variant="outline" size="sm" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section A: Project & Submission Info */}
+        {/* Delivery Linking Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Project & Submission Information</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Link className="h-4 w-4" />
+              Link to Scheduled Delivery
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="projectName">Project Name</Label>
-                <Select value={formData.projectName} onValueChange={(value) => setFormData(prev => ({ ...prev, projectName: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="riverside-apartments">Riverside Apartments</SelectItem>
-                    <SelectItem value="commercial-plaza">Commercial Plaza</SelectItem>
-                    <SelectItem value="warehouse-extension">Warehouse Extension</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="handoverDate">Date of Handover</Label>
-                <Input
-                  id="handoverDate"
-                  type="date"
-                  value={formData.handoverDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, handoverDate: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="submittedBy">Submitted By</Label>
-                <Input
-                  id="submittedBy"
-                  value={formData.submittedBy}
-                  onChange={(e) => setFormData(prev => ({ ...prev, submittedBy: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Material Supplier / Trade</Label>
-                <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select supplier/trade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="timber-supply-co">Timber Supply Co</SelectItem>
-                    <SelectItem value="steel-fabricators">Steel Fabricators Ltd</SelectItem>
-                    <SelectItem value="door-hardware-plus">Door & Hardware Plus</SelectItem>
-                    <SelectItem value="electrical-supplies">Electrical Supplies</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="deliveryLocation">Delivery Location / Site Area / Level</Label>
-                <Input
-                  id="deliveryLocation"
-                  placeholder="e.g. Level 3, North Wing, Grid A1-B3"
-                  value={formData.deliveryLocation}
-                  onChange={(e) => setFormData(prev => ({ ...prev, deliveryLocation: e.target.value }))}
-                  required
-                />
-              </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="linkDelivery"
+                checked={isLinkedDelivery}
+                onCheckedChange={(checked) => setIsLinkedDelivery(checked as boolean)}
+              />
+              <Label htmlFor="linkDelivery">This handover is for a scheduled delivery</Label>
             </div>
+
+            {isLinkedDelivery && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="scheduledDelivery">Select Scheduled Delivery</Label>
+                  <Select value={selectedDelivery} onValueChange={handleDeliverySelection}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose from scheduled deliveries..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {scheduledDeliveries.map((delivery) => (
+                        <SelectItem key={delivery.id} value={delivery.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{delivery.id} - {delivery.tradeSupplier}</span>
+                            <span className="text-xs text-gray-500 ml-2">{delivery.plannedDate}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedDelivery && (
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Selected Delivery Details
+                    </h4>
+                    {(() => {
+                      const delivery = scheduledDeliveries.find(d => d.id === selectedDelivery);
+                      if (!delivery) return null;
+                      return (
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Project:</span> {delivery.projectName}
+                          </div>
+                          <div>
+                            <span className="font-medium">Planned Date:</span> {delivery.plannedDate}
+                          </div>
+                          <div>
+                            <span className="font-medium">Supplier:</span> {delivery.tradeSupplier}
+                          </div>
+                          <div>
+                            <span className="font-medium">Location:</span> {delivery.deliveryLocation}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium">Materials:</span> {delivery.materialDescription}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium">Expected Quantity:</span> {delivery.quantityExpected}
+                          </div>
+                          <div>
+                            {getPriorityBadge(delivery.priority)}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Section B: Material Details */}
+        {/* Project & Submission Info - only show if not linked or no delivery selected */}
+        {(!isLinkedDelivery || !selectedDelivery) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Project & Submission Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="projectName">Project Name</Label>
+                  <Select value={formData.projectName} onValueChange={(value) => setFormData(prev => ({ ...prev, projectName: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="riverside-apartments">Riverside Apartments</SelectItem>
+                      <SelectItem value="commercial-plaza">Commercial Plaza</SelectItem>
+                      <SelectItem value="warehouse-extension">Warehouse Extension</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="handoverDate">Date of Handover</Label>
+                  <Input
+                    id="handoverDate"
+                    type="date"
+                    value={formData.handoverDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, handoverDate: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="submittedBy">Submitted By</Label>
+                  <Input
+                    id="submittedBy"
+                    value={formData.submittedBy}
+                    onChange={(e) => setFormData(prev => ({ ...prev, submittedBy: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="supplier">Material Supplier / Trade</Label>
+                  <Select value={formData.supplier} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select supplier/trade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="timber-supply-co">Timber Supply Co</SelectItem>
+                      <SelectItem value="steel-fabricators">Steel Fabricators Ltd</SelectItem>
+                      <SelectItem value="door-hardware-plus">Door & Hardware Plus</SelectItem>
+                      <SelectItem value="electrical-supplies">Electrical Supplies</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="deliveryLocation">Delivery Location / Site Area / Level</Label>
+                  <Input
+                    id="deliveryLocation"
+                    placeholder="e.g. Level 3, North Wing, Grid A1-B3"
+                    value={formData.deliveryLocation}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deliveryLocation: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Material Details */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -249,7 +399,7 @@ const MaterialHandoverForm: React.FC<MaterialHandoverFormProps> = ({ onClose }) 
           </CardContent>
         </Card>
 
-        {/* Section C: Evidence Uploads */}
+        {/* Evidence & Documentation */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Evidence & Documentation</CardTitle>
@@ -307,7 +457,7 @@ const MaterialHandoverForm: React.FC<MaterialHandoverFormProps> = ({ onClose }) 
           </CardContent>
         </Card>
 
-        {/* Section D: Sign-Off & Handover */}
+        {/* Sign-Off & Handover */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Sign-Off & Handover</CardTitle>
