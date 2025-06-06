@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from 'react-router-dom';
@@ -28,6 +29,11 @@ const Header = () => {
             isActive ? "text-construction-blue font-medium" : "text-gray-600 hover:text-construction-blue transition-colors"
           }>
             Onboarding System
+          </NavLink>
+          <NavLink to="/projects" className={({isActive}) => 
+            isActive ? "text-construction-blue font-medium" : "text-gray-600 hover:text-construction-blue transition-colors"
+          }>
+            Projects
           </NavLink>
           <NavLink to="/features" className={({isActive}) => 
             isActive ? "text-construction-blue font-medium" : "text-gray-600 hover:text-construction-blue transition-colors"
