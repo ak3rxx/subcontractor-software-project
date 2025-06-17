@@ -26,6 +26,25 @@ export interface Project {
   updated_at: string;
 }
 
+const transformProjectData = (project: ProjectRow): Project => {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description || undefined,
+    project_type: project.project_type || undefined,
+    status: (project.status as Project['status']) || 'planning',
+    start_date: project.start_date || undefined,
+    estimated_completion: project.estimated_completion || undefined,
+    actual_completion: project.actual_completion || undefined,
+    site_address: project.site_address || undefined,
+    project_manager_id: project.project_manager_id || undefined,
+    client_id: project.client_id || undefined,
+    total_budget: project.total_budget || undefined,
+    created_at: project.created_at || '',
+    updated_at: project.updated_at || ''
+  };
+};
+
 export const useProjects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,24 +70,7 @@ export const useProjects = () => {
         return;
       }
 
-      // Transform the data to match our Project interface
-      const transformedProjects: Project[] = (data || []).map((project: ProjectRow) => ({
-        id: project.id,
-        name: project.name,
-        description: project.description || undefined,
-        project_type: project.project_type || undefined,
-        status: (project.status as Project['status']) || 'planning',
-        start_date: project.start_date || undefined,
-        estimated_completion: project.estimated_completion || undefined,
-        actual_completion: project.actual_completion || undefined,
-        site_address: project.site_address || undefined,
-        project_manager_id: project.project_manager_id || undefined,
-        client_id: project.client_id || undefined,
-        total_budget: project.total_budget || undefined,
-        created_at: project.created_at || '',
-        updated_at: project.updated_at || ''
-      }));
-
+      const transformedProjects = (data || []).map(transformProjectData);
       setProjects(transformedProjects);
     } catch (error) {
       console.error('Error:', error);
@@ -97,7 +99,7 @@ export const useProjects = () => {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([insertData])
+        .insert(insertData)
         .select()
         .single();
 
@@ -116,24 +118,7 @@ export const useProjects = () => {
         description: "Project created successfully"
       });
 
-      // Transform the returned data to match our Project interface
-      const newProject: Project = {
-        id: data.id,
-        name: data.name,
-        description: data.description || undefined,
-        project_type: data.project_type || undefined,
-        status: (data.status as Project['status']) || 'planning',
-        start_date: data.start_date || undefined,
-        estimated_completion: data.estimated_completion || undefined,
-        actual_completion: data.actual_completion || undefined,
-        site_address: data.site_address || undefined,
-        project_manager_id: data.project_manager_id || undefined,
-        client_id: data.client_id || undefined,
-        total_budget: data.total_budget || undefined,
-        created_at: data.created_at || '',
-        updated_at: data.updated_at || ''
-      };
-
+      const newProject = transformProjectData(data);
       setProjects(prev => [newProject, ...prev]);
       return newProject;
     } catch (error) {
@@ -174,24 +159,7 @@ export const useProjects = () => {
         return null;
       }
 
-      // Transform the returned data to match our Project interface
-      const updatedProject: Project = {
-        id: data.id,
-        name: data.name,
-        description: data.description || undefined,
-        project_type: data.project_type || undefined,
-        status: (data.status as Project['status']) || 'planning',
-        start_date: data.start_date || undefined,
-        estimated_completion: data.estimated_completion || undefined,
-        actual_completion: data.actual_completion || undefined,
-        site_address: data.site_address || undefined,
-        project_manager_id: data.project_manager_id || undefined,
-        client_id: data.client_id || undefined,
-        total_budget: data.total_budget || undefined,
-        created_at: data.created_at || '',
-        updated_at: data.updated_at || ''
-      };
-
+      const updatedProject = transformProjectData(data);
       setProjects(prev => 
         prev.map(project => 
           project.id === id ? updatedProject : project
