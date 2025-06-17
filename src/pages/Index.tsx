@@ -1,260 +1,231 @@
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import { CheckIcon, Building, Shield, Calendar, FileCheck, Database } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  Building2, CheckCircle, Clock, DollarSign, FileText, 
+  Users, Calendar, AlertTriangle, BarChart3, Shield,
+  Zap, Cloud, Smartphone, ArrowRight, LogIn
+} from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const features = [
+    {
+      icon: Building2,
+      title: "Project Management",
+      description: "Comprehensive project tracking with real-time updates and milestone management"
+    },
+    {
+      icon: DollarSign,
+      title: "Finance Management",
+      description: "Budget planning, cost tracking, and financial reporting with variance analysis"
+    },
+    {
+      icon: CheckCircle,
+      title: "Quality Assurance",
+      description: "QA/ITP management with inspection checklists and digital sign-offs"
+    },
+    {
+      icon: FileText,
+      title: "Document Control",
+      description: "Centralized document management with version control and approval workflows"
+    },
+    {
+      icon: AlertTriangle,
+      title: "Variations & RFIs",
+      description: "Streamlined change management and request for information processes"
+    },
+    {
+      icon: Users,
+      title: "Team Collaboration",
+      description: "Real-time communication and task management across all project stakeholders"
+    }
+  ];
+
+  const benefits = [
+    {
+      icon: Zap,
+      title: "Increased Efficiency",
+      description: "Reduce project delivery time by up to 30% with streamlined workflows"
+    },
+    {
+      icon: Shield,
+      title: "Risk Mitigation",
+      description: "Proactive issue identification and resolution to prevent costly delays"
+    },
+    {
+      icon: BarChart3,
+      title: "Better Decision Making",
+      description: "Real-time insights and analytics for informed project decisions"
+    },
+    {
+      icon: Cloud,
+      title: "Anywhere Access",
+      description: "Cloud-based platform accessible from any device, anywhere"
+    }
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-      
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative bg-gradient-to-b from-blue-50 to-white py-20 md:py-32">
-          <div className="container px-4 mx-auto">
-            <div className="max-w-4xl mx-auto text-center">
-              <h1 className="mb-6 text-4xl font-bold tracking-tight text-construction-black md:text-6xl">
-                Construction Management <span className="text-construction-blue">Simplified</span>
-              </h1>
-              <p className="mb-10 text-xl text-gray-600">
-                The all-in-one platform designed to streamline operations, reduce risks, and increase profitability for construction contractors.
-              </p>
-              <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4 justify-center">
-                <Button size="lg" className="text-lg bg-construction-blue hover:bg-blue-700">
-                  Start Free Trial
-                </Button>
-                <Button size="lg" variant="outline" className="text-lg">
-                  Schedule Demo
-                </Button>
-              </div>
-            </div>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-8 w-8 text-blue-600" />
+            <span className="text-xl font-bold text-gray-900">BuildTrack Pro</span>
           </div>
-          
-          <div className="absolute left-0 right-0 hidden lg:block">
-            <div className="flex justify-center mt-16">
-              <div className="w-3/4 h-[400px] bg-gray-200 rounded-lg shadow-xl">
-                {/* This would be an image or screenshot of the dashboard */}
-                <div className="flex items-center justify-center w-full h-full bg-gray-100 rounded-lg">
-                  <p className="text-xl font-medium text-gray-500">Dashboard Preview</p>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate('/auth')}>
+              <LogIn className="h-4 w-4 mr-2" />
+              Sign In
+            </Button>
+            <Button onClick={() => navigate('/auth')}>
+              Get Started
+            </Button>
           </div>
-        </section>
-        
-        {/* Features Section */}
-        <section className="py-20 md:py-32">
-          <div className="container px-4 mx-auto">
-            <div className="max-w-3xl mx-auto mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Comprehensive Features for Construction Professionals</h2>
-              <p className="text-xl text-gray-600">
-                Everything you need to manage your construction business efficiently in one platform
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {/* Feature 1 */}
-              <Card className="feature-card animated-element">
-                <CardHeader>
-                  <Building className="w-10 h-10 text-construction-blue mb-2" />
-                  <CardTitle>Project Management</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Centralize all project details, track progress, and manage resources efficiently from a single dashboard.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="link" className="p-0 text-construction-blue">Learn more</Button>
-                </CardFooter>
-              </Card>
-              
-              {/* Feature 2 */}
-              <Card className="feature-card animated-element">
-                <CardHeader>
-                  <FileCheck className="w-10 h-10 text-construction-blue mb-2" />
-                  <CardTitle>Document Management</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Store, organize, and manage all your construction documents in one secure location with version control.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="link" className="p-0 text-construction-blue">Learn more</Button>
-                </CardFooter>
-              </Card>
-              
-              {/* Feature 3 */}
-              <Card className="feature-card animated-element">
-                <CardHeader>
-                  <Shield className="w-10 h-10 text-construction-blue mb-2" />
-                  <CardTitle>Risk Assessment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Identify, track, and mitigate potential risks with our comprehensive risk assessment tools.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="link" className="p-0 text-construction-blue">Learn more</Button>
-                </CardFooter>
-              </Card>
-              
-              {/* Feature 4 */}
-              <Card className="feature-card animated-element">
-                <CardHeader>
-                  <Database className="w-10 h-10 text-construction-blue mb-2" />
-                  <CardTitle>Client Portal</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Provide clients with a dedicated portal for seamless communication and project updates.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="link" className="p-0 text-construction-blue">Learn more</Button>
-                </CardFooter>
-              </Card>
-              
-              {/* Feature 5 */}
-              <Card className="feature-card animated-element">
-                <CardHeader>
-                  <Calendar className="w-10 h-10 text-construction-blue mb-2" />
-                  <CardTitle>Scheduling</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Create, manage, and optimize project schedules with our intuitive scheduling tools.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="link" className="p-0 text-construction-blue">Learn more</Button>
-                </CardFooter>
-              </Card>
-              
-              {/* Feature 6 */}
-              <Card className="feature-card animated-element">
-                <CardHeader>
-                  <Building className="w-10 h-10 text-construction-blue mb-2" />
-                  <CardTitle>Estimation Tool</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Create accurate cost estimates quickly and efficiently to win more bids.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="link" className="p-0 text-construction-blue">Learn more</Button>
-                </CardFooter>
-              </Card>
-            </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
+        <div className="container mx-auto px-4 text-center">
+          <Badge className="mb-4 bg-blue-100 text-blue-800">
+            Professional Construction Management
+          </Badge>
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+            Complete Project Management for
+            <span className="text-blue-600"> Construction Teams</span>
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Streamline your construction projects with our comprehensive platform. 
+            Manage budgets, track quality, handle variations, and collaborate with your team - all in one place.
+          </p>
+          <div className="flex justify-center gap-4">
+            <Button size="lg" onClick={() => navigate('/auth')} className="text-lg px-8">
+              Start Free Trial
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button size="lg" variant="outline" className="text-lg px-8">
+              Watch Demo
+            </Button>
           </div>
-        </section>
-        
-        {/* Benefits Section */}
-        <section className="py-20 bg-gray-50 md:py-32">
-          <div className="container px-4 mx-auto">
-            <div className="max-w-3xl mx-auto mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Why Choose ConstructBuild</h2>
-              <p className="text-xl text-gray-600">
-                Our platform is designed specifically for construction contractors to help you succeed
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-y-12 md:grid-cols-2 lg:gap-x-20">
-              <div className="space-y-6">
-                <div className="flex">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-construction-blue">
-                      <CheckIcon className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-xl font-semibold">Reduced Risk</h3>
-                    <p className="mt-2 text-gray-600">Our systematic approach helps identify and mitigate risks before they become costly problems.</p>
-                  </div>
-                </div>
-                
-                <div className="flex">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-construction-blue">
-                      <CheckIcon className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-xl font-semibold">Improved Efficiency</h3>
-                    <p className="mt-2 text-gray-600">Streamline workflows and eliminate redundant tasks to save time and boost productivity.</p>
-                  </div>
-                </div>
-                
-                <div className="flex">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-construction-blue">
-                      <CheckIcon className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-xl font-semibold">Better Client Relationships</h3>
-                    <p className="mt-2 text-gray-600">Keep clients informed and satisfied with transparent communication and professional service.</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-6">
-                <div className="flex">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-construction-blue">
-                      <CheckIcon className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-xl font-semibold">Increased Profitability</h3>
-                    <p className="mt-2 text-gray-600">Better project management and cost control lead directly to improved bottom line results.</p>
-                  </div>
-                </div>
-                
-                <div className="flex">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-construction-blue">
-                      <CheckIcon className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-xl font-semibold">Compliance Assurance</h3>
-                    <p className="mt-2 text-gray-600">Stay on top of permits, licenses, and regulatory requirements with automated reminders.</p>
-                  </div>
-                </div>
-                
-                <div className="flex">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-construction-blue">
-                      <CheckIcon className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-xl font-semibold">Scalable Solution</h3>
-                    <p className="mt-2 text-gray-600">Our platform grows with your business, from small contractors to large construction firms.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Everything You Need to Manage Construction Projects
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              From initial planning to project completion, our platform provides all the tools 
+              your team needs to deliver projects on time and on budget.
+            </p>
           </div>
-        </section>
-        
-        {/* CTA Section */}
-        <section className="py-20 text-white bg-construction-blue md:py-32">
-          <div className="container px-4 mx-auto">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="mb-6 text-3xl font-bold md:text-5xl">Ready to Transform Your Construction Business?</h2>
-              <p className="mb-10 text-xl opacity-90">
-                Join thousands of successful contractors who have streamlined their operations with ConstructBuild
-              </p>
-              <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4 justify-center">
-                <Button size="lg" className="text-construction-blue bg-construction-yellow hover:bg-yellow-400">
-                  Start Your Free Trial
-                </Button>
-                <Button size="lg" variant="outline" className="text-white border-white hover:bg-blue-700">
-                  Schedule a Demo
-                </Button>
-              </div>
-            </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <Card key={index} className="h-full hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <feature.icon className="h-12 w-12 text-blue-600 mb-4" />
+                  <CardTitle className="text-xl">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base">
+                    {feature.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </section>
-      </main>
-      
-      <Footer />
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Proven Results for Construction Teams
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Join thousands of construction professionals who trust BuildTrack Pro 
+              to deliver successful projects.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {benefits.map((benefit, index) => (
+              <div key={index} className="text-center">
+                <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                  <benefit.icon className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-gray-600">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-blue-600">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Ready to Transform Your Project Management?
+          </h2>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Start your free trial today and see how BuildTrack Pro can help you 
+            deliver better projects, faster.
+          </p>
+          <Button size="lg" variant="secondary" onClick={() => navigate('/auth')} className="text-lg px-8">
+            Get Started Free
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 bg-gray-900">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Building2 className="h-6 w-6 text-blue-400" />
+            <span className="text-lg font-bold text-white">BuildTrack Pro</span>
+          </div>
+          <p className="text-gray-400">
+            © 2024 BuildTrack Pro. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
