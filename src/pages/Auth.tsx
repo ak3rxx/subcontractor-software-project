@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +17,7 @@ const Auth = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('login');
 
   const [loginData, setLoginData] = useState({
     email: '',
@@ -95,6 +95,10 @@ const Auth = () => {
         title: "Account Created!",
         description: "Please check your email to verify your account."
       });
+      // Switch to login tab after successful signup
+      setActiveTab('login');
+      // Pre-fill the email in login form
+      setLoginData(prev => ({ ...prev, email: signupData.email }));
     }
     
     setLoading(false);
@@ -119,7 +123,7 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login" className="flex items-center gap-2">
                   <LogIn className="h-4 w-4" />
