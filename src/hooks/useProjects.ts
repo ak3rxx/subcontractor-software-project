@@ -22,6 +22,7 @@ export interface Project {
   project_manager_id?: string;
   client_id?: string;
   total_budget?: number;
+  organization_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -40,12 +41,13 @@ const transformProjectData = (project: ProjectRow): Project => {
     project_manager_id: project.project_manager_id || undefined,
     client_id: project.client_id || undefined,
     total_budget: project.total_budget || undefined,
+    organization_id: project.organization_id || undefined,
     created_at: project.created_at || '',
     updated_at: project.updated_at || ''
   };
 };
 
-export const useProjects = () => {
+export const useProjects = (organizationId?: string) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -55,10 +57,17 @@ export const useProjects = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
+
+      // Filter by organization if provided
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching projects:', error);
@@ -94,7 +103,8 @@ export const useProjects = () => {
         site_address: projectData.site_address,
         project_manager_id: user.id,
         client_id: projectData.client_id,
-        total_budget: projectData.total_budget
+        total_budget: projectData.total_budget,
+        organization_id: organizationId || projectData.organization_id
       };
 
       const { data, error } = await supabase
@@ -139,7 +149,8 @@ export const useProjects = () => {
         actual_completion: updates.actual_completion,
         site_address: updates.site_address,
         client_id: updates.client_id,
-        total_budget: updates.total_budget
+        total_budget: updates.total_budget,
+        organization_id: updates.organization_id
       };
 
       const { data, error } = await supabase
@@ -175,7 +186,7 @@ export const useProjects = () => {
 
   useEffect(() => {
     fetchProjects();
-  }, [user]);
+  }, [user, organizationId]);
 
   return {
     projects,
