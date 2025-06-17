@@ -192,6 +192,8 @@ const Auth = () => {
                           <SelectItem value="finance_manager">Finance Manager</SelectItem>
                           <SelectItem value="site_supervisor">Site Supervisor</SelectItem>
                           <SelectItem value="client">Client</SelectItem>
+                          <SelectItem value="subcontractor">Subcontractor</SelectItem>
+                          <SelectItem value="full_access">Full Access</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
