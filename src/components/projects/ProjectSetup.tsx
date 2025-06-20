@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { X, Building2, Calendar, MapPin } from 'lucide-react';
+import { X, Building2, Calendar } from 'lucide-react';
 
 interface ProjectSetupProps {
   onClose: () => void;
@@ -16,6 +16,7 @@ interface ProjectSetupProps {
 
 const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }) => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     projectName: '',
     projectType: '',
@@ -25,33 +26,46 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
     estimatedCompletion: '',
     projectStatus: 'planning',
     description: '',
-    projectManager: '',
     contactEmail: '',
     contactPhone: ''
   });
 
-  // Auto-generate project ID
-  React.useEffect(() => {
-    const generateProjectId = () => {
-      const date = new Date();
-      const id = `PRJ-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-      setFormData(prev => ({ ...prev, projectId: id }));
-    };
-    generateProjectId();
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Project Setup:', formData);
-    
-    toast({
-      title: "Project Created Successfully",
-      description: `${formData.projectName} has been set up. Cloud storage folders will be created automatically.`,
-    });
+    if (!formData.projectName.trim()) {
+      toast({
+        title: "Error",
+        description: "Project name is required",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    onProjectCreated?.(formData);
-    onClose();
+    setLoading(true);
+    console.log('Submitting project data:', formData);
+    
+    try {
+      // Call the parent's project creation handler
+      const success = await onProjectCreated?.(formData);
+      
+      if (success !== false) {
+        toast({
+          title: "Project Created Successfully",
+          description: `${formData.projectName} has been set up and is ready to use.`,
+        });
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create project",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +75,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
           <Building2 className="h-5 w-5 text-blue-600" />
           <h3 className="text-lg font-semibold">New Project Setup</h3>
         </div>
-        <Button variant="outline" size="sm" onClick={onClose}>
+        <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -81,11 +95,16 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                   onChange={(e) => setFormData(prev => ({ ...prev, projectName: e.target.value }))}
                   placeholder="e.g. Riverside Apartments Development"
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="projectType">Project Type</Label>
-                <Select value={formData.projectType} onValueChange={(value) => setFormData(prev => ({ ...prev, projectType: value }))}>
+                <Select 
+                  value={formData.projectType} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, projectType: value }))}
+                  disabled={loading}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select project type" />
                   </SelectTrigger>
@@ -109,6 +128,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                 onChange={(e) => setFormData(prev => ({ ...prev, siteAddress: e.target.value }))}
                 placeholder="Full site address including postcode"
                 rows={2}
+                disabled={loading}
               />
             </div>
 
@@ -120,16 +140,26 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                   value={formData.clientBuilder}
                   onChange={(e) => setFormData(prev => ({ ...prev, clientBuilder: e.target.value }))}
                   placeholder="e.g. ABC Construction Ltd"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="projectManager">Project Manager</Label>
-                <Input
-                  id="projectManager"
-                  value={formData.projectManager}
-                  onChange={(e) => setFormData(prev => ({ ...prev, projectManager: e.target.value }))}
-                  placeholder="Assigned PM name"
-                />
+                <Label htmlFor="projectStatus">Project Status</Label>
+                <Select 
+                  value={formData.projectStatus} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, projectStatus: value }))}
+                  disabled={loading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planning">🟡 Planning</SelectItem>
+                    <SelectItem value="in-progress">🟢 In Progress</SelectItem>
+                    <SelectItem value="paused">🟠 Paused</SelectItem>
+                    <SelectItem value="complete">✅ Complete</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -141,6 +171,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                   type="date"
                   value={formData.startDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -150,23 +181,9 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                   type="date"
                   value={formData.estimatedCompletion}
                   onChange={(e) => setFormData(prev => ({ ...prev, estimatedCompletion: e.target.value }))}
+                  disabled={loading}
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="projectStatus">Project Status</Label>
-              <Select value={formData.projectStatus} onValueChange={(value) => setFormData(prev => ({ ...prev, projectStatus: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planning">🟡 Planning</SelectItem>
-                  <SelectItem value="in-progress">🟢 In Progress</SelectItem>
-                  <SelectItem value="paused">🟠 Paused</SelectItem>
-                  <SelectItem value="complete">✅ Complete</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">
@@ -177,6 +194,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Brief project overview, scope, or special requirements"
                 rows={3}
+                disabled={loading}
               />
             </div>
           </CardContent>
@@ -196,6 +214,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                   value={formData.contactEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
                   placeholder="project.manager@company.com"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -205,6 +224,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
                   value={formData.contactPhone}
                   onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
                   placeholder="+61 XXX XXX XXX"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -217,23 +237,23 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
             Automatic Setup
           </h4>
           <p className="text-sm text-blue-800">
-            Upon project creation, the following will be automatically set up:
+            Upon project creation, the following will be ready:
           </p>
           <ul className="text-sm text-blue-700 mt-2 space-y-1">
-            <li>• Cloud storage folders (/Drawings, /Specifications, /Contracts, /Safety Docs, /Site Photos)</li>
             <li>• Project dashboard with key metrics</li>
-            <li>• Initial programme milestones</li>
-            <li>• Document checklist</li>
+            <li>• QA/ITP inspection tracking</li>
+            <li>• Material handover management</li>
+            <li>• Document management system</li>
           </ul>
         </div>
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button type="submit" className="flex items-center gap-2">
+          <Button type="submit" className="flex items-center gap-2" disabled={loading}>
             <Building2 className="h-4 w-4" />
-            Create Project
+            {loading ? 'Creating...' : 'Create Project'}
           </Button>
         </div>
       </form>

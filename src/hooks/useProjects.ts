@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,28 +61,27 @@ export const useProjects = (organizationId?: string) => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // If no organization, get all projects for this user
-      // If organization is provided, filter by organization
+      // If organization is provided, filter by organization, otherwise get user's projects
       if (organizationId) {
         query = query.eq('organization_id', organizationId);
       } else {
-        // Get projects where user is project manager or where organization_id is null
-        query = query.or(`project_manager_id.eq.${user.id},organization_id.is.null`);
+        // Get projects where user is project manager
+        query = query.eq('project_manager_id', user.id);
       }
 
       const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching projects:', error);
-        // Don't show error toast if it's just RLS blocking access
-        if (!error.message.includes('policy')) {
+        // Only show error toast for non-RLS errors
+        if (!error.message.includes('policy') && !error.message.includes('permission')) {
           toast({
             title: "Error",
             description: "Failed to fetch projects",
             variant: "destructive"
           });
         }
-        setProjects([]); // Set empty array on error
+        setProjects([]);
         return;
       }
 
@@ -91,30 +89,32 @@ export const useProjects = (organizationId?: string) => {
       setProjects(transformedProjects);
     } catch (error) {
       console.error('Error:', error);
-      setProjects([]); // Set empty array on error
+      setProjects([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const createProject = async (projectData: Partial<Project>) => {
+  const createProject = async (projectData: any) => {
     if (!user) return null;
 
     try {
+      // Map the form data to database structure
       const insertData: ProjectInsert = {
-        name: projectData.name || '',
+        name: projectData.projectName || projectData.name || '',
         description: projectData.description,
-        project_type: projectData.project_type,
-        status: projectData.status,
-        start_date: projectData.start_date,
-        estimated_completion: projectData.estimated_completion,
-        actual_completion: projectData.actual_completion,
-        site_address: projectData.site_address,
+        project_type: projectData.projectType,
+        status: projectData.projectStatus || projectData.status || 'planning',
+        start_date: projectData.startDate,
+        estimated_completion: projectData.estimatedCompletion,
+        site_address: projectData.siteAddress,
         project_manager_id: user.id,
-        client_id: projectData.client_id,
-        total_budget: projectData.total_budget,
-        organization_id: organizationId || projectData.organization_id
+        client_id: projectData.clientBuilder ? null : null, // We'll need to handle clients separately
+        total_budget: projectData.totalBudget || null,
+        organization_id: organizationId || null
       };
+
+      console.log('Creating project with data:', insertData);
 
       const { data, error } = await supabase
         .from('projects')
@@ -126,7 +126,7 @@ export const useProjects = (organizationId?: string) => {
         console.error('Error creating project:', error);
         toast({
           title: "Error",
-          description: "Failed to create project",
+          description: `Failed to create project: ${error.message}`,
           variant: "destructive"
         });
         return null;
@@ -142,6 +142,11 @@ export const useProjects = (organizationId?: string) => {
       return newProject;
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create project",
+        variant: "destructive"
+      });
       return null;
     }
   };

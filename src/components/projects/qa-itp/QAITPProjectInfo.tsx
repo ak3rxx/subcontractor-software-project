@@ -31,6 +31,14 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
   onFireDoorChange,
   onTemplateChange
 }) => {
+  const handleProjectChange = (projectId: string) => {
+    const selectedProject = projects.find(p => p.id === projectId);
+    onFormDataChange('projectId', projectId);
+    if (selectedProject) {
+      onFormDataChange('projectName', selectedProject.name);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -40,7 +48,7 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="projectId">Project</Label>
-            <Select value={formData.projectId} onValueChange={(value) => onFormDataChange('projectId', value)}>
+            <Select value={formData.projectId} onValueChange={handleProjectChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
               </SelectTrigger>

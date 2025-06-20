@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOrganizations } from '@/hooks/useOrganizations';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
@@ -77,30 +76,39 @@ const transformChecklistItemData = (item: QAChecklistItemRow): QAChecklistItem =
   };
 };
 
-export const useQAInspections = () => {
+export const useQAInspections = (projectId?: string) => {
   const [inspections, setInspections] = useState<QAInspection[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const { currentOrganization } = useOrganizations();
   const { toast } = useToast();
 
   const fetchInspections = async () => {
-    if (!user || !currentOrganization) return;
+    if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('qa_inspections')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
+
+      // Filter by project if provided
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching QA inspections:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch QA inspections",
-          variant: "destructive"
-        });
+        // Only show error toast for non-RLS errors
+        if (!error.message.includes('policy') && !error.message.includes('permission')) {
+          toast({
+            title: "Error",
+            description: "Failed to fetch QA inspections",
+            variant: "destructive"
+          });
+        }
+        setInspections([]);
         return;
       }
 
@@ -108,6 +116,7 @@ export const useQAInspections = () => {
       setInspections(transformedInspections);
     } catch (error) {
       console.error('Error:', error);
+      setInspections([]);
     } finally {
       setLoading(false);
     }
@@ -117,7 +126,7 @@ export const useQAInspections = () => {
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'organization_id' | 'inspection_number'>,
     checklistItems: Omit<QAChecklistItem, 'id' | 'inspection_id'>[]
   ) => {
-    if (!user || !currentOrganization) return null;
+    if (!user) return null;
 
     try {
       // Generate inspection number
@@ -138,8 +147,10 @@ export const useQAInspections = () => {
         ...inspectionData,
         inspection_number: numberData,
         created_by: user.id,
-        organization_id: currentOrganization.id
+        organization_id: '' // We'll handle organization later
       };
+
+      console.log('Creating QA inspection with data:', insertData);
 
       const { data: inspectionResult, error: inspectionError } = await supabase
         .from('qa_inspections')
@@ -151,7 +162,7 @@ export const useQAInspections = () => {
         console.error('Error creating inspection:', inspectionError);
         toast({
           title: "Error",
-          description: "Failed to create inspection",
+          description: `Failed to create inspection: ${inspectionError.message}`,
           variant: "destructive"
         });
         return null;
@@ -171,6 +182,11 @@ export const useQAInspections = () => {
         if (checklistError) {
           console.error('Error creating checklist items:', checklistError);
           // Don't fail the whole operation, just log the error
+          toast({
+            title: "Warning",
+            description: "Inspection created but some checklist items failed to save",
+            variant: "destructive"
+          });
         }
       }
 
@@ -184,6 +200,11 @@ export const useQAInspections = () => {
       return newInspection;
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create inspection",
+        variant: "destructive"
+      });
       return null;
     }
   };
@@ -210,7 +231,7 @@ export const useQAInspections = () => {
 
   useEffect(() => {
     fetchInspections();
-  }, [user, currentOrganization]);
+  }, [user, projectId]);
 
   return {
     inspections,
