@@ -506,6 +506,132 @@ export type Database = {
           },
         ]
       }
+      qa_checklist_items: {
+        Row: {
+          comments: string | null
+          created_at: string | null
+          description: string
+          evidence_files: string[] | null
+          id: string
+          inspection_id: string
+          item_id: string
+          requirements: string
+          status: string | null
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string | null
+          description: string
+          evidence_files?: string[] | null
+          id?: string
+          inspection_id: string
+          item_id: string
+          requirements: string
+          status?: string | null
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string | null
+          description?: string
+          evidence_files?: string[] | null
+          id?: string
+          inspection_id?: string
+          item_id?: string
+          requirements?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qa_checklist_items_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "qa_inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qa_inspections: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          digital_signature: string
+          id: string
+          inspection_date: string
+          inspection_number: string
+          inspection_type: string
+          inspector_name: string
+          is_fire_door: boolean | null
+          location_reference: string
+          organization_id: string
+          overall_status: string
+          project_id: string
+          project_name: string
+          task_area: string
+          template_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          digital_signature: string
+          id?: string
+          inspection_date: string
+          inspection_number: string
+          inspection_type: string
+          inspector_name: string
+          is_fire_door?: boolean | null
+          location_reference: string
+          organization_id: string
+          overall_status: string
+          project_id: string
+          project_name: string
+          task_area: string
+          template_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          digital_signature?: string
+          id?: string
+          inspection_date?: string
+          inspection_number?: string
+          inspection_type?: string
+          inspector_name?: string
+          is_fire_door?: boolean | null
+          location_reference?: string
+          organization_id?: string
+          overall_status?: string
+          project_id?: string
+          project_name?: string
+          task_area?: string
+          template_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qa_inspections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qa_inspections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qa_inspections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfis: {
         Row: {
           assigned_to: string | null
@@ -775,7 +901,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_inspection_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

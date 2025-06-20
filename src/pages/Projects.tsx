@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, ClipboardCheck, Package, Building2, Calendar, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@/hooks/useProjects';
+import { useOrganizations } from '@/hooks/useOrganizations';
+import OrganizationSelector from '@/components/OrganizationSelector';
 import QAITPForm from '@/components/projects/QAITPForm';
 import QAITPTracker from '@/components/projects/QAITPTracker';
 import MaterialHandover from '@/components/projects/MaterialHandover';
@@ -15,7 +17,8 @@ import ProjectDashboard from '@/components/projects/ProjectDashboard';
 
 const Projects = () => {
   const { user, signOut } = useAuth();
-  const { projects, loading, createProject } = useProjects();
+  const { currentOrganization } = useOrganizations();
+  const { projects, loading, createProject } = useProjects(currentOrganization?.id);
   const [activeQAForm, setActiveQAForm] = useState(false);
   const [showProjectSetup, setShowProjectSetup] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -40,9 +43,23 @@ const Projects = () => {
     }
   };
 
+  if (!currentOrganization) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="text-center py-12">
+          <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Organization Selected</h2>
+          <p className="text-gray-600">Please select an organization to manage projects.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedProject) {
     return (
       <div className="container mx-auto py-6 space-y-6">
+        <OrganizationSelector />
+        
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Button 
@@ -74,10 +91,17 @@ const Projects = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      <OrganizationSelector />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Projects Management</h1>
           <p className="text-muted-foreground">Manage projects, quality assurance, and material handovers</p>
+          {currentOrganization && (
+            <p className="text-sm text-gray-600 mt-1">
+              Organization: <span className="font-medium">{currentOrganization.name}</span>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">

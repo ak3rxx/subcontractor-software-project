@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Project } from '@/hooks/useProjects';
 
 interface QAITPProjectInfoProps {
   formData: {
+    projectId: string;
     projectName: string;
     taskArea: string;
     locationReference: string;
@@ -15,6 +17,7 @@ interface QAITPProjectInfoProps {
     template: string;
   };
   isFireDoor: boolean;
+  projects: Project[];
   onFormDataChange: (field: string, value: string) => void;
   onFireDoorChange: (checked: boolean) => void;
   onTemplateChange: (templateKey: string) => void;
@@ -23,6 +26,7 @@ interface QAITPProjectInfoProps {
 const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
   formData,
   isFireDoor,
+  projects,
   onFormDataChange,
   onFireDoorChange,
   onTemplateChange
@@ -35,13 +39,19 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="projectName">Project Name</Label>
-            <Input
-              id="projectName"
-              value={formData.projectName}
-              onChange={(e) => onFormDataChange('projectName', e.target.value)}
-              required
-            />
+            <Label htmlFor="projectId">Project</Label>
+            <Select value={formData.projectId} onValueChange={(value) => onFormDataChange('projectId', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="taskArea">Task/Area being inspected</Label>
