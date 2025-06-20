@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AddressInput } from '@/components/ui/address-input';
 import { useToast } from '@/hooks/use-toast';
 import { X, Building2, Calendar } from 'lucide-react';
 
@@ -129,12 +130,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
 
             <div className="space-y-2">
               <Label htmlFor="siteAddress">Site Address</Label>
-              <Textarea
-                id="siteAddress"
+              <AddressInput
                 value={formData.siteAddress}
-                onChange={(e) => setFormData(prev => ({ ...prev, siteAddress: e.target.value }))}
-                placeholder="Full site address including postcode"
-                rows={2}
+                onChange={(value) => setFormData(prev => ({ ...prev, siteAddress: value }))}
+                placeholder="Start typing the site address..."
                 disabled={loading}
               />
             </div>
