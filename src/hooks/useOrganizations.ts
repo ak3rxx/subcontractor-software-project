@@ -37,7 +37,7 @@ export const useOrganizations = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizationUsers, setOrganizationUsers] = useState<OrganizationUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false to not block UI
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -45,6 +45,7 @@ export const useOrganizations = () => {
     if (!user) return;
 
     try {
+      setLoading(true);
       const { data: orgUsers, error } = await supabase
         .from('organization_users')
         .select(`
@@ -56,11 +57,7 @@ export const useOrganizations = () => {
 
       if (error) {
         console.error('Error fetching organizations:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch organizations",
-          variant: "destructive"
-        });
+        // Don't show error toast as organization is optional
         return;
       }
 
@@ -176,7 +173,9 @@ export const useOrganizations = () => {
   };
 
   useEffect(() => {
-    fetchUserOrganizations();
+    if (user) {
+      fetchUserOrganizations();
+    }
   }, [user]);
 
   useEffect(() => {

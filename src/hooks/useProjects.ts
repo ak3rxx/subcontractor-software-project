@@ -62,20 +62,28 @@ export const useProjects = (organizationId?: string) => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Filter by organization if provided
+      // If no organization, get all projects for this user
+      // If organization is provided, filter by organization
       if (organizationId) {
         query = query.eq('organization_id', organizationId);
+      } else {
+        // Get projects where user is project manager or where organization_id is null
+        query = query.or(`project_manager_id.eq.${user.id},organization_id.is.null`);
       }
 
       const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching projects:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch projects",
-          variant: "destructive"
-        });
+        // Don't show error toast if it's just RLS blocking access
+        if (!error.message.includes('policy')) {
+          toast({
+            title: "Error",
+            description: "Failed to fetch projects",
+            variant: "destructive"
+          });
+        }
+        setProjects([]); // Set empty array on error
         return;
       }
 
@@ -83,6 +91,7 @@ export const useProjects = (organizationId?: string) => {
       setProjects(transformedProjects);
     } catch (error) {
       console.error('Error:', error);
+      setProjects([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
