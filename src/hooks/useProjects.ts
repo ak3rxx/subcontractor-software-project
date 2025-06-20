@@ -22,7 +22,6 @@ export interface Project {
   project_manager_id?: string;
   client_id?: string;
   total_budget?: number;
-  organization_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -41,7 +40,6 @@ const transformProjectData = (project: ProjectRow): Project => {
     project_manager_id: project.project_manager_id || undefined,
     client_id: project.client_id || undefined,
     total_budget: project.total_budget || undefined,
-    organization_id: project.organization_id || undefined,
     created_at: project.created_at || '',
     updated_at: project.updated_at || ''
   };
@@ -102,8 +100,8 @@ export const useProjects = () => {
         estimated_completion: projectData.estimatedCompletion,
         site_address: projectData.siteAddress,
         project_manager_id: user.id,
-        total_budget: projectData.totalBudget || null,
-        organization_id: null // Always null to avoid organization dependencies
+        total_budget: projectData.totalBudget || null
+        // Removed organization_id completely
       };
 
       console.log('Creating project with data:', insertData);
@@ -156,7 +154,7 @@ export const useProjects = () => {
         site_address: updates.site_address,
         client_id: updates.client_id,
         total_budget: updates.total_budget
-        // Don't update organization_id to avoid RLS issues
+        // Removed organization_id completely
       };
 
       const { data, error } = await supabase
