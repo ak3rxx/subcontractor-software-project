@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { X, Building2, Calendar } from 'lucide-react';
 
 interface ProjectSetupProps {
   onClose: () => void;
-  onProjectCreated?: (projectData: any) => void;
+  onProjectCreated?: (projectData: any) => Promise<any>;
 }
 
 const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }) => {
@@ -46,10 +45,18 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
     console.log('Submitting project data:', formData);
     
     try {
-      // Call the parent's project creation handler
-      const success = await onProjectCreated?.(formData);
-      
-      if (success !== false) {
+      if (onProjectCreated) {
+        const result = await onProjectCreated(formData);
+        
+        if (result) {
+          toast({
+            title: "Project Created Successfully",
+            description: `${formData.projectName} has been set up and is ready to use.`,
+          });
+          onClose();
+        }
+      } else {
+        // Fallback if no handler provided
         toast({
           title: "Project Created Successfully",
           description: `${formData.projectName} has been set up and is ready to use.`,
