@@ -7,8 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, ClipboardCheck, Package, Building2, Calendar, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@/hooks/useProjects';
-import { useOrganizations } from '@/hooks/useOrganizations';
-import OrganizationSelector from '@/components/OrganizationSelector';
 import QAITPForm from '@/components/projects/QAITPForm';
 import QAITPTracker from '@/components/projects/QAITPTracker';
 import MaterialHandover from '@/components/projects/MaterialHandover';
@@ -17,8 +15,7 @@ import ProjectDashboard from '@/components/projects/ProjectDashboard';
 
 const Projects = () => {
   const { user, signOut } = useAuth();
-  const { currentOrganization } = useOrganizations();
-  const { projects, loading, createProject } = useProjects(currentOrganization?.id);
+  const { projects, loading, createProject } = useProjects();
   const [activeQAForm, setActiveQAForm] = useState(false);
   const [showProjectSetup, setShowProjectSetup] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -46,8 +43,6 @@ const Projects = () => {
   if (selectedProject) {
     return (
       <div className="container mx-auto py-6 space-y-6">
-        <OrganizationSelector />
-        
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Button 
@@ -98,8 +93,6 @@ const Projects = () => {
           </Button>
         </div>
       </div>
-
-      <OrganizationSelector />
 
       {showProjectSetup && (
         <ProjectSetup 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +47,7 @@ const transformProjectData = (project: ProjectRow): Project => {
   };
 };
 
-export const useProjects = (organizationId?: string) => {
+export const useProjects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -56,20 +57,12 @@ export const useProjects = (organizationId?: string) => {
     if (!user) return;
 
     try {
-      let query = supabase
+      // Simplified query - just get projects where user is project manager
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('project_manager_id', user.id)
         .order('created_at', { ascending: false });
-
-      // If organization is provided, filter by organization, otherwise get user's projects
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-      } else {
-        // Get projects where user is project manager
-        query = query.eq('project_manager_id', user.id);
-      }
-
-      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching projects:', error);
@@ -99,7 +92,7 @@ export const useProjects = (organizationId?: string) => {
     if (!user) return null;
 
     try {
-      // Map the form data to database structure
+      // Simplified project creation without organization dependencies
       const insertData: ProjectInsert = {
         name: projectData.projectName || projectData.name || '',
         description: projectData.description,
@@ -109,9 +102,8 @@ export const useProjects = (organizationId?: string) => {
         estimated_completion: projectData.estimatedCompletion,
         site_address: projectData.siteAddress,
         project_manager_id: user.id,
-        client_id: projectData.clientBuilder ? null : null, // We'll need to handle clients separately
         total_budget: projectData.totalBudget || null,
-        organization_id: organizationId || null
+        organization_id: null // Always null to avoid organization dependencies
       };
 
       console.log('Creating project with data:', insertData);
@@ -163,8 +155,8 @@ export const useProjects = (organizationId?: string) => {
         actual_completion: updates.actual_completion,
         site_address: updates.site_address,
         client_id: updates.client_id,
-        total_budget: updates.total_budget,
-        organization_id: updates.organization_id
+        total_budget: updates.total_budget
+        // Don't update organization_id to avoid RLS issues
       };
 
       const { data, error } = await supabase
@@ -200,7 +192,7 @@ export const useProjects = (organizationId?: string) => {
 
   useEffect(() => {
     fetchProjects();
-  }, [user, organizationId]);
+  }, [user]);
 
   return {
     projects,
