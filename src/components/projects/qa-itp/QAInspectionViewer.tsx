@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -198,6 +199,38 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       default:
         return <Badge variant="outline">Not Checked</Badge>;
     }
+  };
+
+  const renderEvidenceFiles = (files: string[] | File[] | null) => {
+    if (!files || files.length === 0) return null;
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium text-gray-700">Evidence Files:</Label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {files.map((file, index) => {
+            const isFileObject = file instanceof File;
+            const fileName = isFileObject ? file.name : file;
+            const fileType = isFileObject ? file.type : '';
+            
+            return (
+              <div key={index} className="border rounded p-2 text-center">
+                {(isFileObject && file.type.startsWith('image/')) || (!isFileObject && fileName.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
+                  <img 
+                    src={isFileObject ? URL.createObjectURL(file) : fileName} 
+                    alt={fileName}
+                    className="evidence-image w-full h-20 object-cover rounded mb-1"
+                  />
+                ) : (
+                  <FileText className="h-8 w-8 mx-auto mb-1 text-gray-400" />
+                )}
+                <p className="text-xs text-gray-600 truncate">{fileName}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -457,7 +490,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                           </div>
 
                           <FileUpload
-                            files={item.evidence_files as File[] || []}
+                            files={Array.isArray(item.evidence_files) && item.evidence_files.every(f => f instanceof File) ? item.evidence_files as File[] : []}
                             onFilesChange={(files) => handleChecklistItemFileChange(item.id, files)}
                             label="Evidence Photos/Documents"
                             accept="image/*,.pdf,.doc,.docx"
@@ -472,27 +505,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                               <p className="text-sm text-gray-600 mt-1">{item.comments}</p>
                             </div>
                           )}
-                          {item.evidence_files && item.evidence_files.length > 0 && (
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium text-gray-700">Evidence Files:</Label>
-                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                {(item.evidence_files as File[]).map((file, fileIndex) => (
-                                  <div key={fileIndex} className="border rounded p-2 text-center">
-                                    {file.type.startsWith('image/') ? (
-                                      <img 
-                                        src={URL.createObjectURL(file)} 
-                                        alt={file.name}
-                                        className="w-full h-20 object-cover rounded mb-1"
-                                      />
-                                    ) : (
-                                      <FileText className="h-8 w-8 mx-auto mb-1 text-gray-400" />
-                                    )}
-                                    <p className="text-xs text-gray-600 truncate">{file.name}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          {renderEvidenceFiles(item.evidence_files)}
                         </>
                       )}
                     </div>

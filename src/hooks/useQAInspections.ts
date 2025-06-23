@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +36,7 @@ export interface QAChecklistItem {
   requirements: string;
   status: 'pass' | 'fail' | 'na' | '';
   comments: string | null;
-  evidence_files: string[] | null;
+  evidence_files: string[] | File[] | null;
 }
 
 const transformInspectionData = (inspection: QAInspectionRow): QAInspection => {
