@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Filter, FileText, AlertTriangle, Eye, Edit } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Filter, FileText, AlertTriangle, Eye, Edit, Trash2 } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
+import { useToast } from '@/hooks/use-toast';
 import QAInspectionViewer from './qa-itp/QAInspectionViewer';
 
 interface QAITPTrackerProps {
@@ -13,11 +15,14 @@ interface QAITPTrackerProps {
 }
 
 const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
-  const { inspections, loading } = useQAInspections();
+  const { inspections, loading, bulkDeleteInspections } = useQAInspections();
   const { projects } = useProjects();
+  const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [selectedInspections, setSelectedInspections] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -43,6 +48,53 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
   const getProjectName = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
     return project?.name || 'Unknown Project';
+  };
+
+  const handleSelectInspection = (inspectionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedInspections(prev => [...prev, inspectionId]);
+    } else {
+      setSelectedInspections(prev => prev.filter(id => id !== inspectionId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedInspections(filteredInspections.map(i => i.id));
+    } else {
+      setSelectedInspections([]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedInspections.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedInspections.length} inspection(s)? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    try {
+      const success = await bulkDeleteInspections(selectedInspections);
+      if (success) {
+        setSelectedInspections([]);
+        toast({
+          title: "Success",
+          description: `Successfully deleted ${selectedInspections.length} inspection(s)`,
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting inspections:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete inspections",
+        variant: "destructive"
+      });
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   if (selectedInspectionId) {
@@ -99,6 +151,31 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
         </Select>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedInspections.length > 0 && (
+        <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
+          <span className="text-sm font-medium">
+            {selectedInspections.length} inspection(s) selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {bulkDeleting ? 'Deleting...' : 'Delete Selected'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedInspections([])}
+          >
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Quick Filters */}
       <div className="flex gap-2 flex-wrap">
         <Button variant="outline" size="sm" className="text-red-600 border-red-200">
@@ -119,6 +196,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left">
+                  <Checkbox
+                    checked={selectedInspections.length === filteredInspections.length && filteredInspections.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Inspection #
                 </th>
@@ -148,6 +231,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredInspections.map((inspection) => (
                 <tr key={inspection.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <Checkbox
+                      checked={selectedInspections.includes(inspection.id)}
+                      onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
+                    />
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {inspection.inspection_number}
                   </td>

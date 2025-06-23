@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   canEdit = true 
 }) => {
   const { toast } = useToast();
-  const { getChecklistItems, getInspectionById, updateInspection, refetch } = useQAInspections();
+  const { getChecklistItems, getInspectionById, updateInspection, deleteInspection, refetch } = useQAInspections();
   const { changeHistory, recordChange } = useQAChangeHistory(inspectionId);
   const [inspection, setInspection] = useState<QAInspection | null>(null);
   const [checklistItems, setChecklistItems] = useState<QAChecklistItem[]>([]);
@@ -39,6 +38,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [attachmentFiles, setAttachmentFiles] = useState<UploadedFile[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
@@ -131,6 +131,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       // Update the original data for future change tracking
       setOriginalInspection(inspection);
       setOriginalChecklistItems(checklistItems);
+      
+      toast({
+        title: "Success",
+        description: "Inspection saved successfully",
+      });
     } catch (error) {
       console.error('Error saving inspection:', error);
       toast({
@@ -140,6 +145,37 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!inspection) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete inspection ${inspection.inspection_number}? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      const success = await deleteInspection(inspectionId);
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Inspection deleted successfully",
+        });
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error deleting inspection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete inspection",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -320,14 +356,25 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
               {exportingPDF ? 'Exporting...' : 'Export PDF'}
             </Button>
             {canEdit && (
-              <Button
-                variant={editMode ? "destructive" : "outline"}
-                size="sm"
-                onClick={() => setEditMode(!editMode)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                {editMode ? 'Cancel Edit' : 'Edit Inspection'}
-              </Button>
+              <>
+                <Button
+                  variant={editMode ? "destructive" : "outline"}
+                  size="sm"
+                  onClick={() => setEditMode(!editMode)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  {editMode ? 'Cancel Edit' : 'Edit Inspection'}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  {deleting ? 'Deleting...' : 'Delete Inspection'}
+                </Button>
+              </>
             )}
           </div>
         </div>

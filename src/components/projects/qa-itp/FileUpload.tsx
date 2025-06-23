@@ -1,9 +1,9 @@
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, X, FileText, Image } from 'lucide-react';
-import { useFileUpload, UploadedFile } from '@/hooks/useFileUpload';
+import { UploadedFile } from '@/hooks/useFileUpload';
 
 interface FileUploadProps {
   onFilesChange?: (files: UploadedFile[]) => void;
@@ -12,7 +12,7 @@ interface FileUploadProps {
   maxFiles?: number;
   className?: string;
   label?: string;
-  files?: File[] | UploadedFile[];
+  files?: UploadedFile[] | File[];
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({
@@ -24,66 +24,86 @@ const FileUpload: React.FC<FileUploadProps> = ({
   label = "Upload Files",
   files = []
 }) => {
-  const { uploadedFiles, uploading, uploadFiles, removeFile } = useFileUpload();
+  const [currentFiles, setCurrentFiles] = useState<UploadedFile[]>([]);
+  const [uploading, setUploading] = useState(false);
 
-  // Convert File[] to UploadedFile[] if needed
-  const convertFilesToUploaded = useCallback(async (fileList: File[] | UploadedFile[]): Promise<UploadedFile[]> => {
-    if (fileList.length === 0) return [];
+  // Convert incoming files to UploadedFile format
+  const convertToUploadedFiles = useCallback((fileList: UploadedFile[] | File[]): UploadedFile[] => {
+    if (!fileList || fileList.length === 0) return [];
     
-    // Check if already UploadedFile[]
-    if (fileList.length > 0 && 'id' in fileList[0]) {
-      return fileList as UploadedFile[];
-    }
-    
-    // Convert File[] to UploadedFile[]
-    return Promise.all((fileList as File[]).map(async (file): Promise<UploadedFile> => {
-      const url = URL.createObjectURL(file);
+    return fileList.map((file, index) => {
+      // If it's already an UploadedFile, return as is
+      if ('id' in file && 'url' in file) {
+        return file as UploadedFile;
+      }
+      
+      // If it's a File, convert to UploadedFile
+      const fileObj = file as File;
       return {
-        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file,
-        url,
-        name: file.name,
-        size: file.size,
-        type: file.type
+        id: `file-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+        file: fileObj,
+        url: URL.createObjectURL(fileObj),
+        name: fileObj.name,
+        size: fileObj.size,
+        type: fileObj.type
       };
-    }));
+    });
   }, []);
 
   // Initialize with provided files
   useEffect(() => {
-    if (files.length > 0) {
-      convertFilesToUploaded(files).then(converted => {
-        // Only update if different
-        if (converted.length !== uploadedFiles.length || 
-            !converted.every((f, i) => uploadedFiles[i]?.id === f.id)) {
-          onFilesChange?.(converted);
-        }
-      });
+    if (files && files.length > 0) {
+      const convertedFiles = convertToUploadedFiles(files);
+      setCurrentFiles(convertedFiles);
+    } else {
+      setCurrentFiles([]);
     }
-  }, [files, convertFilesToUploaded, onFilesChange, uploadedFiles]);
+  }, [files, convertToUploadedFiles]);
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = Array.from(event.target.files || []);
-    if (fileList.length === 0) return;
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) return;
 
     // Check file limit
-    if (uploadedFiles.length + fileList.length > maxFiles) {
+    if (currentFiles.length + selectedFiles.length > maxFiles) {
+      console.warn(`Maximum ${maxFiles} files allowed`);
       return;
     }
 
-    const newFiles = await uploadFiles(fileList);
-    const allFiles = uploadedFiles.concat(newFiles);
-    onFilesChange?.(allFiles);
+    setUploading(true);
     
-    // Reset input
-    event.target.value = '';
-  }, [uploadFiles, uploadedFiles, maxFiles, onFilesChange]);
+    try {
+      const newUploadedFiles = selectedFiles.map((file, index) => ({
+        id: `file-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+        type: file.type
+      }));
+
+      const updatedFiles = [...currentFiles, ...newUploadedFiles];
+      setCurrentFiles(updatedFiles);
+      onFilesChange?.(updatedFiles);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+    } finally {
+      setUploading(false);
+      // Reset input
+      event.target.value = '';
+    }
+  }, [currentFiles, maxFiles, onFilesChange]);
 
   const handleRemoveFile = useCallback((fileId: string) => {
-    removeFile(fileId);
-    const updatedFiles = uploadedFiles.filter(f => f.id !== fileId);
+    const fileToRemove = currentFiles.find(f => f.id === fileId);
+    if (fileToRemove) {
+      URL.revokeObjectURL(fileToRemove.url);
+    }
+    
+    const updatedFiles = currentFiles.filter(f => f.id !== fileId);
+    setCurrentFiles(updatedFiles);
     onFilesChange?.(updatedFiles);
-  }, [removeFile, uploadedFiles, onFilesChange]);
+  }, [currentFiles, onFilesChange]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -99,7 +119,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors relative">
         <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
         <div className="space-y-2">
           <p className="text-sm text-gray-600">
@@ -115,24 +135,24 @@ const FileUpload: React.FC<FileUploadProps> = ({
           multiple={multiple}
           onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={uploading || uploadedFiles.length >= maxFiles}
+          disabled={uploading || currentFiles.length >= maxFiles}
         />
         <Button
           variant="outline"
           className="mt-4"
-          disabled={uploading || uploadedFiles.length >= maxFiles}
+          disabled={uploading || currentFiles.length >= maxFiles}
         >
           {uploading ? 'Uploading...' : 'Choose Files'}
         </Button>
       </div>
 
-      {uploadedFiles.length > 0 && (
+      {currentFiles.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">
-            {label} ({uploadedFiles.length}/{maxFiles})
+            {label} ({currentFiles.length}/{maxFiles})
           </h4>
           <div className="grid gap-2">
-            {uploadedFiles.map((file) => (
+            {currentFiles.map((file) => (
               <Card key={file.id} className="p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
