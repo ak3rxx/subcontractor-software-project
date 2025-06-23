@@ -19,7 +19,7 @@ interface VariationManagerProps {
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId }) => {
   const { toast } = useToast();
-  const { variations, loading, createVariation, sendVariationEmail } = useVariations(projectId);
+  const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
   const [showNewVariation, setShowNewVariation] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [emailingSending, setEmailSending] = useState<string | null>(null);
@@ -243,6 +243,10 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       setAttachedFiles([]);
       setShowNewVariation(false);
     }
+  };
+
+  const handleVariationUpdate = async (id: string, updates: any) => {
+    await updateVariation(id, updates);
   };
 
   if (loading) {
@@ -617,6 +621,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         variation={selectedVariation}
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
+        onUpdate={handleVariationUpdate}
       />
     </div>
   );
