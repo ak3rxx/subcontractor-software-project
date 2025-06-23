@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, Upload, Paperclip, MapPin } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
+import VariationDetailsModal from './VariationDetailsModal';
 
 interface VariationManagerProps {
   projectName: string;
@@ -22,6 +23,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [showNewVariation, setShowNewVariation] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [emailingSending, setEmailSending] = useState<string | null>(null);
+  const [selectedVariation, setSelectedVariation] = useState<any>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [newVariation, setNewVariation] = useState({
     title: '',
     description: '',
@@ -34,6 +37,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     justification: '',
     location: ''
   });
+
+  const handleViewDetails = (variation: any) => {
+    setSelectedVariation(variation);
+    setShowDetailsModal(true);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -563,7 +571,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" title="View Details">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          title="View Details"
+                          onClick={() => handleViewDetails(variation)}
+                        >
                           <FileText className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -598,6 +611,13 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           )}
         </CardContent>
       </Card>
+
+      {/* Variation Details Modal */}
+      <VariationDetailsModal
+        variation={selectedVariation}
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+      />
     </div>
   );
 };
