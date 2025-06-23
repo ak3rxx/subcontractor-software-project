@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +23,6 @@ export interface QAInspection {
   inspection_date: string;
   digital_signature: string;
   overall_status: 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress';
-  date_of_amendments?: string | null;
   created_by: string;
   organization_id: string;
   created_at: string;
@@ -57,7 +55,6 @@ const transformInspectionData = (inspection: QAInspectionRow): QAInspection => {
     inspection_date: inspection.inspection_date,
     digital_signature: inspection.digital_signature,
     overall_status: inspection.overall_status as QAInspection['overall_status'],
-    date_of_amendments: inspection.date_of_amendments,
     created_by: inspection.created_by,
     organization_id: inspection.organization_id,
     created_at: inspection.created_at || '',
