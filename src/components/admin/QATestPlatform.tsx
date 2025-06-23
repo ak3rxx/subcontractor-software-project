@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,12 +30,12 @@ const QATestPlatform: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
   const { toast } = useToast();
 
-  // Mock test data for checklist item
+  // Mock test data for checklist item - fix status type
   const [testChecklistItem, setTestChecklistItem] = useState<ChecklistItem>({
     id: 'test-item-1',
     description: 'Test Door Frame Alignment',
     requirements: 'Door frame must be plumb and square within 3mm tolerance',
-    status: '',
+    status: 'pass', // Changed from empty string to valid status
     comments: '',
     evidenceFiles: [],
     isFireDoorOnly: false
@@ -158,7 +157,7 @@ const QATestPlatform: React.FC = () => {
     try {
       switch (scenarioId) {
         case 'change-history-tracking':
-          // Simulate rapid changes to test debouncing
+          // Simulate rapid changes to test debouncing - fix status type
           handleChecklistChange('test-item-1', 'status', 'pass');
           await new Promise(resolve => setTimeout(resolve, 100));
           handleChecklistChange('test-item-1', 'status', 'fail');
@@ -237,7 +236,7 @@ const QATestPlatform: React.FC = () => {
       id: 'test-item-1',
       description: 'Test Door Frame Alignment',
       requirements: 'Door frame must be plumb and square within 3mm tolerance',
-      status: '',
+      status: 'pass', // Changed from empty string to valid status
       comments: '',
       evidenceFiles: [],
       isFireDoorOnly: false
