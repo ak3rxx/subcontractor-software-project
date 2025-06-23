@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MapPin, Calendar, DollarSign, Clock, User, Mail, FileText, Edit, Check, X, Download, Paperclip } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import VariationApprovalWorkflow from './VariationApprovalWorkflow';
 
 interface Variation {
   id: string;
@@ -28,6 +29,7 @@ interface Variation {
   justification?: string;
   approved_by?: string;
   approval_date?: string;
+  approval_comments?: string;
   email_sent?: boolean;
   email_sent_date?: string;
   attachments?: any[];
@@ -111,28 +113,6 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
     }
   };
 
-  const handleApproval = async (approved: boolean) => {
-    if (!onUpdate) return;
-
-    try {
-      await onUpdate(variation.id, {
-        status: approved ? 'approved' : 'rejected',
-        approved_by: user?.id,
-        approval_date: new Date().toISOString().split('T')[0]
-      });
-      toast({
-        title: "Success",
-        description: `Variation ${approved ? 'approved' : 'rejected'} successfully`
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update variation status",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleAttachmentView = (attachment: any) => {
     // In a real implementation, this would open/download the attachment
     console.log('Viewing attachment:', attachment);
@@ -179,7 +159,7 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex justify-between items-start">
             <div>
@@ -188,323 +168,264 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
                 Variation {variation.variation_number}
               </DialogTitle>
               <DialogDescription>
-                Detailed information for this variation
+                Detailed information and approval workflow for this variation
               </DialogDescription>
-              {/* Debug info - shows permissions */}
-              <div className="text-xs text-gray-500 mt-1">
-                Debug: User = {userEmail}, Role = {userRole}, Full Access = {isFullAccessUser.toString()}, Can edit = {canEdit.toString()}, Can approve = {canApprove.toString()}
-              </div>
             </div>
             <div className="flex gap-2">
-              {canEdit && !isEditing && (
+              {canEdit && !isEditing && variation.status === 'draft' && (
                 <Button variant="outline" size="sm" onClick={handleEdit}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
               )}
-              {canApprove && variation.status === 'pending' && (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleApproval(true)}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Approve
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleApproval(false)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Reject
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Header Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              {isEditing ? (
-                <div className="space-y-2">
-                  <Label htmlFor="edit-title">Title</Label>
-                  <Input
-                    id="edit-title"
-                    value={editData.title}
-                    onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-                  />
-                </div>
-              ) : (
-                <h3 className="text-lg font-semibold">{variation.title}</h3>
-              )}
-              <div className="flex items-center gap-2 mt-2">
-                {getStatusBadge(variation.status)}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content - Left Side */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 {isEditing ? (
-                  <Select 
-                    value={editData.priority} 
-                    onValueChange={(value) => setEditData(prev => ({ ...prev, priority: value }))}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  getPriorityBadge(variation.priority)
-                )}
-              </div>
-            </div>
-            <div className="text-right">
-              {isEditing ? (
-                <div className="space-y-2">
-                  <Label htmlFor="edit-cost">Cost Impact ($)</Label>
-                  <Input
-                    id="edit-cost"
-                    type="number"
-                    value={editData.cost_impact}
-                    onChange={(e) => setEditData(prev => ({ ...prev, cost_impact: parseFloat(e.target.value) || 0 }))}
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-green-600">
-                    {formatCurrency(variation.cost_impact)}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-title">Title</Label>
+                    <Input
+                      id="edit-title"
+                      value={editData.title}
+                      onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                    />
                   </div>
-                  <div className="text-sm text-gray-600">Cost Impact</div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Submitted:</span>
-                <span>{variation.submitted_date}</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Location:</span>
-                {isEditing ? (
-                  <Input
-                    value={editData.location}
-                    onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
-                    className="flex-1"
-                  />
                 ) : (
-                  <span>{variation.location}</span>
+                  <h3 className="text-lg font-semibold">{variation.title}</h3>
                 )}
-              </div>
-
-              {variation.submitted_by && (
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="font-medium">Submitted by:</span>
-                  <span>{variation.submitted_by}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Time Impact:</span>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    value={editData.time_impact}
-                    onChange={(e) => setEditData(prev => ({ ...prev, time_impact: parseInt(e.target.value) || 0 }))}
-                    className="w-20"
-                  />
-                ) : (
-                  <span>
-                    {variation.time_impact > 0 ? `+${variation.time_impact}d` : 
-                     variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Category:</span>
-                {isEditing ? (
-                  <Select 
-                    value={editData.category} 
-                    onValueChange={(value) => setEditData(prev => ({ ...prev, category: value }))}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="electrical">Electrical</SelectItem>
-                      <SelectItem value="plumbing">Plumbing</SelectItem>
-                      <SelectItem value="structural">Structural</SelectItem>
-                      <SelectItem value="fixtures">Fixtures & Fittings</SelectItem>
-                      <SelectItem value="finishes">Finishes</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Badge variant="outline" className="capitalize">
-                    {variation.category}
-                  </Badge>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Client Email:</span>
-                {isEditing ? (
-                  <Input
-                    type="email"
-                    value={editData.client_email}
-                    onChange={(e) => setEditData(prev => ({ ...prev, client_email: e.target.value }))}
-                    className="flex-1"
-                  />
-                ) : (
-                  <span className="text-sm">{variation.client_email}</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Description */}
-          <div>
-            <h4 className="font-medium mb-2">Description</h4>
-            {isEditing ? (
-              <Textarea
-                value={editData.description}
-                onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-              />
-            ) : (
-              <p className="text-gray-700 bg-gray-50 p-3 rounded-md">
-                {variation.description}
-              </p>
-            )}
-          </div>
-
-          {/* Justification */}
-          <div>
-            <h4 className="font-medium mb-2">Justification</h4>
-            {isEditing ? (
-              <Textarea
-                value={editData.justification}
-                onChange={(e) => setEditData(prev => ({ ...prev, justification: e.target.value }))}
-                rows={2}
-              />
-            ) : (
-              <p className="text-gray-700 bg-gray-50 p-3 rounded-md">
-                {variation.justification}
-              </p>
-            )}
-          </div>
-
-          {/* Attachments */}
-          {variation.attachments && variation.attachments.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-medium mb-2">Attachments</h4>
-                <div className="space-y-2">
-                  {variation.attachments.map((attachment, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                      <div className="flex items-center gap-2">
-                        <Paperclip className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium">{attachment.name}</span>
-                        <span className="text-xs text-gray-500">
-                          ({(attachment.size / 1024 / 1024).toFixed(2)} MB)
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleAttachmentView(attachment)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Approval Information */}
-          {(variation.approved_by || variation.approval_date) && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-medium mb-2">Approval Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {variation.approved_by && (
-                    <div>
-                      <span className="font-medium">Approved by:</span>
-                      <span className="ml-2">{variation.approved_by}</span>
-                    </div>
-                  )}
-                  {variation.approval_date && (
-                    <div>
-                      <span className="font-medium">Approval date:</span>
-                      <span className="ml-2">{variation.approval_date}</span>
-                    </div>
+                <div className="flex items-center gap-2 mt-2">
+                  {getStatusBadge(variation.status)}
+                  {isEditing ? (
+                    <Select 
+                      value={editData.priority} 
+                      onValueChange={(value) => setEditData(prev => ({ ...prev, priority: value }))}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    getPriorityBadge(variation.priority)
                   )}
                 </div>
               </div>
-            </>
-          )}
+              <div className="text-right">
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-cost">Cost Impact ($)</Label>
+                    <Input
+                      id="edit-cost"
+                      type="number"
+                      value={editData.cost_impact}
+                      onChange={(e) => setEditData(prev => ({ ...prev, cost_impact: parseFloat(e.target.value) || 0 }))}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-green-600">
+                      {formatCurrency(variation.cost_impact)}
+                    </div>
+                    <div className="text-sm text-gray-600">Cost Impact</div>
+                  </>
+                )}
+              </div>
+            </div>
 
-          {/* Email Status */}
-          {variation.email_sent && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="font-medium mb-2">Email Status</h4>
+            <Separator />
+
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">
-                    ✓ Email Sent
-                  </Badge>
-                  {variation.email_sent_date && (
-                    <span className="text-sm text-gray-600">
-                      on {new Date(variation.email_sent_date).toLocaleDateString()}
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span className="font-medium">Submitted:</span>
+                  <span>{variation.submitted_date}</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-gray-500" />
+                  <span className="font-medium">Location:</span>
+                  {isEditing ? (
+                    <Input
+                      value={editData.location}
+                      onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
+                      className="flex-1"
+                    />
+                  ) : (
+                    <span>{variation.location}</span>
+                  )}
+                </div>
+
+                {variation.submitted_by && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Submitted by:</span>
+                    <span>{variation.submitted_by}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span className="font-medium">Time Impact:</span>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editData.time_impact}
+                      onChange={(e) => setEditData(prev => ({ ...prev, time_impact: parseInt(e.target.value) || 0 }))}
+                      className="w-20"
+                    />
+                  ) : (
+                    <span>
+                      {variation.time_impact > 0 ? `+${variation.time_impact}d` : 
+                       variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
                     </span>
                   )}
                 </div>
-              </div>
-            </>
-          )}
 
-          {/* Edit Actions */}
-          {isEditing && (
-            <>
-              <Separator />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave}>
-                  Save Changes
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Category:</span>
+                  {isEditing ? (
+                    <Select 
+                      value={editData.category} 
+                      onValueChange={(value) => setEditData(prev => ({ ...prev, category: value }))}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="electrical">Electrical</SelectItem>
+                        <SelectItem value="plumbing">Plumbing</SelectItem>
+                        <SelectItem value="structural">Structural</SelectItem>
+                        <SelectItem value="fixtures">Fixtures & Fittings</SelectItem>
+                        <SelectItem value="finishes">Finishes</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant="outline" className="capitalize">
+                      {variation.category}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  <span className="font-medium">Client Email:</span>
+                  {isEditing ? (
+                    <Input
+                      type="email"
+                      value={editData.client_email}
+                      onChange={(e) => setEditData(prev => ({ ...prev, client_email: e.target.value }))}
+                      className="flex-1"
+                    />
+                  ) : (
+                    <span className="text-sm">{variation.client_email}</span>
+                  )}
+                </div>
               </div>
-            </>
-          )}
+            </div>
+
+            <Separator />
+
+            {/* Description */}
+            <div>
+              <h4 className="font-medium mb-2">Description</h4>
+              {isEditing ? (
+                <Textarea
+                  value={editData.description}
+                  onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                />
+              ) : (
+                <p className="text-gray-700 bg-gray-50 p-3 rounded-md">
+                  {variation.description}
+                </p>
+              )}
+            </div>
+
+            {/* Justification */}
+            <div>
+              <h4 className="font-medium mb-2">Justification</h4>
+              {isEditing ? (
+                <Textarea
+                  value={editData.justification}
+                  onChange={(e) => setEditData(prev => ({ ...prev, justification: e.target.value }))}
+                  rows={2}
+                />
+              ) : (
+                <p className="text-gray-700 bg-gray-50 p-3 rounded-md">
+                  {variation.justification}
+                </p>
+              )}
+            </div>
+
+            {/* Attachments */}
+            {variation.attachments && variation.attachments.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2">Attachments</h4>
+                  <div className="space-y-2">
+                    {variation.attachments.map((attachment, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <Paperclip className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm font-medium">{attachment.name}</span>
+                          <span className="text-xs text-gray-500">
+                            ({(attachment.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAttachmentView(attachment)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Edit Actions */}
+            {isEditing && (
+              <>
+                <Separator />
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave}>
+                    Save Changes
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Approval Workflow - Right Side */}
+          <div className="lg:col-span-1">
+            <VariationApprovalWorkflow 
+              variation={variation}
+              onUpdate={onUpdate || (() => Promise.resolve())}
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>

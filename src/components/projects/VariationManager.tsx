@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, Upload, Paperclip, MapPin } from 'lucide-react';
+import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, Upload, Paperclip, MapPin, MessageSquare } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
 import VariationDetailsModal from './VariationDetailsModal';
 
@@ -183,7 +183,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>;
       case 'draft':
         return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
       default:
@@ -242,6 +242,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       });
       setAttachedFiles([]);
       setShowNewVariation(false);
+      
+      toast({
+        title: "Success",
+        description: "Variation created as draft. You can now submit it for approval."
+      });
     }
   };
 
@@ -272,7 +277,35 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <FileText className="h-8 w-8 mx-auto text-gray-500 mb-2" />
+            <div className="text-2xl font-bold">{variations.length}</div>
+            <div className="text-sm text-gray-600">Total</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <MessageSquare className="h-8 w-8 mx-auto text-gray-500 mb-2" />
+            <div className="text-2xl font-bold">
+              {variations.filter(v => v.status === 'draft').length}
+            </div>
+            <div className="text-sm text-gray-600">Draft</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <AlertTriangle className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
+            <div className="text-2xl font-bold">
+              {variations.filter(v => v.status === 'pending').length}
+            </div>
+            <div className="text-sm text-gray-600">Pending</div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="p-4 text-center">
             <DollarSign className="h-8 w-8 mx-auto text-green-500 mb-2" />
@@ -290,24 +323,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
               {variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.time_impact, 0)}
             </div>
             <div className="text-sm text-gray-600">Days Extension</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 text-center">
-            <AlertTriangle className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
-            <div className="text-2xl font-bold">
-              {variations.filter(v => v.status === 'pending').length}
-            </div>
-            <div className="text-sm text-gray-600">Pending Approval</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 text-center">
-            <FileText className="h-8 w-8 mx-auto text-gray-500 mb-2" />
-            <div className="text-2xl font-bold">{variations.length}</div>
-            <div className="text-sm text-gray-600">Total Variations</div>
           </CardContent>
         </Card>
       </div>

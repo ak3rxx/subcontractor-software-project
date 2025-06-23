@@ -76,6 +76,7 @@ export const useVariations = (projectId: string) => {
         attachments: [], // Not in database, default to empty array
         approved_by: item.approved_by,
         approval_date: item.approval_date,
+        approval_comments: item.approval_comments || '', // Add approval comments field
         email_sent: item.email_sent || false,
         email_sent_date: item.email_sent_date,
         email_sent_by: item.email_sent_by,
@@ -224,6 +225,7 @@ export const useVariations = (projectId: string) => {
         attachments: [],
         approved_by: data.approved_by,
         approval_date: data.approval_date,
+        approval_comments: data.approval_comments || '', // Add approval comments field
         email_sent: data.email_sent || false,
         email_sent_date: data.email_sent_date,
         email_sent_by: data.email_sent_by,
