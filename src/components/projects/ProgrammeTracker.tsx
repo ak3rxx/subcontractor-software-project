@@ -8,6 +8,7 @@ import MilestoneSummaryCards from './programme/MilestoneSummaryCards';
 import MilestoneForm from './programme/MilestoneForm';
 import MilestoneTable from './programme/MilestoneTable';
 import OutlookOverview from './programme/OutlookOverview';
+import WeeklyCalendarView from './programme/WeeklyCalendarView';
 
 interface ProgrammeTrackerProps {
   projectName: string;
@@ -46,8 +47,12 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName }) => {
 
       {/* Programme Outlook Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Weekly Calendar
+          </TabsTrigger>
           <TabsTrigger value="one-week" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
             1 Week Outlook
@@ -63,6 +68,17 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName }) => {
           <OutlookOverview 
             oneWeekOutlook={oneWeekOutlook}
             threeWeekLookAhead={threeWeekLookAhead}
+          />
+        </TabsContent>
+
+        <TabsContent value="calendar" className="space-y-4">
+          <WeeklyCalendarView milestones={oneWeekOutlook} />
+          
+          {/* Overall Project Milestones */}
+          <MilestoneTable
+            milestones={milestones}
+            title="Overall Project Milestones"
+            showLinkedModule={true}
           />
         </TabsContent>
 
