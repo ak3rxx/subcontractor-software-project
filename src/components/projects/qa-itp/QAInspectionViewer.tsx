@@ -277,7 +277,8 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           url: file,
           name: file.split('/').pop() || file,
           size: 0,
-          type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 'application/octet-stream'
+          type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 
+                file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream'
         } as UploadedFile;
       } else {
         // Handle File objects
@@ -296,17 +297,49 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const renderEvidenceFiles = (files: string[] | File[] | null) => {
     if (!files || files.length === 0) return null;
 
+    // Check if there are any PDF files
+    const pdfFiles = files.filter(file => {
+      const fileName = file instanceof File ? file.name : file;
+      const fileType = file instanceof File ? file.type : '';
+      return fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+    });
+
     return (
       <div className="space-y-2">
         <Label className="text-sm font-medium text-gray-700">Evidence Files:</Label>
+        
+        {/* PDF Files Notation */}
+        {pdfFiles.length > 0 && (
+          <div className="p-3 rounded-lg border bg-amber-50 border-amber-200 mb-3">
+            <div className="flex items-start gap-2">
+              <FileText className="h-4 w-4 text-amber-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">PDF Documents:</p>
+                <ul className="text-xs text-amber-700 mt-1 space-y-1">
+                  {pdfFiles.map((file, index) => {
+                    const fileName = file instanceof File ? file.name : file;
+                    return (
+                      <li key={index} className="flex items-center gap-1">
+                        <span>•</span>
+                        <span className="font-mono">{fileName}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {files.map((file, index) => {
             const isFileObject = file instanceof File;
             const fileName = isFileObject ? file.name : file;
             const fileType = isFileObject ? file.type : '';
+            const isPDF = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
             
             return (
-              <div key={index} className="border rounded p-2 text-center relative group">
+              <div key={index} className={`border rounded p-2 text-center relative group ${isPDF ? 'border-amber-200 bg-amber-50' : ''}`}>
                 {(isFileObject && file.type.startsWith('image/')) || (!isFileObject && fileName.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
                   <img 
                     src={isFileObject ? URL.createObjectURL(file) : fileName} 
@@ -314,9 +347,12 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                     className="evidence-image w-full h-20 object-cover rounded mb-1"
                   />
                 ) : (
-                  <FileText className="h-8 w-8 mx-auto mb-1 text-gray-400" />
+                  <FileText className={`h-8 w-8 mx-auto mb-1 ${isPDF ? 'text-amber-600' : 'text-gray-400'}`} />
                 )}
-                <p className="text-xs text-gray-600 truncate">{fileName}</p>
+                <p className={`text-xs truncate ${isPDF ? 'text-amber-900 font-medium' : 'text-gray-600'}`}>
+                  {fileName}
+                  {isPDF && <span className="block text-amber-600">(PDF)</span>}
+                </p>
                 
                 {/* Download button */}
                 <Button

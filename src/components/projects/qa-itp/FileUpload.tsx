@@ -100,6 +100,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return file.type.startsWith('image/');
   };
 
+  const isPDF = (file: UploadedFile) => {
+    return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  };
+
+  // Get PDF files for special notation
+  const pdfFiles = currentFiles.filter(isPDF);
+
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors relative">
@@ -138,6 +145,27 @@ const FileUpload: React.FC<FileUploadProps> = ({
         </div>
       )}
 
+      {/* PDF Files Notation */}
+      {pdfFiles.length > 0 && (
+        <div className="p-3 rounded-lg border bg-amber-50 border-amber-200">
+          <div className="flex items-start gap-2">
+            <FileText className="h-4 w-4 text-amber-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">PDF Documents Attached:</p>
+              <ul className="text-xs text-amber-700 mt-1 space-y-1">
+                {pdfFiles.map((file) => (
+                  <li key={file.id} className="flex items-center gap-1">
+                    <span>•</span>
+                    <span className="font-mono">{file.name}</span>
+                    <span className="text-amber-600">({formatFileSize(file.size)})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {currentFiles.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">
@@ -145,7 +173,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           </h4>
           <div className="grid gap-2">
             {currentFiles.map((file) => (
-              <Card key={file.id} className="p-3">
+              <Card key={file.id} className={`p-3 ${isPDF(file) ? 'border-amber-200 bg-amber-50' : ''}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1">
                     {isImage(file) ? (
@@ -158,11 +186,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
                         />
                       </div>
                     ) : (
-                      <FileText className="h-8 w-8 text-gray-500" />
+                      <FileText className={`h-8 w-8 ${isPDF(file) ? 'text-amber-600' : 'text-gray-500'}`} />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className={`text-sm font-medium truncate ${isPDF(file) ? 'text-amber-900' : 'text-gray-900'}`}>
                         {file.name}
+                        {isPDF(file) && <span className="ml-2 text-xs text-amber-600 font-normal">(PDF)</span>}
                       </p>
                       <p className="text-xs text-gray-500">
                         {formatFileSize(file.size)}
