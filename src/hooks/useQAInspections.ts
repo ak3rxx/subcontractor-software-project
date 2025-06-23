@@ -25,7 +25,6 @@ export interface QAInspection {
   digital_signature: string;
   overall_status: 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress';
   created_by: string;
-  organization_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -57,7 +56,6 @@ const transformInspectionData = (inspection: QAInspectionRow): QAInspection => {
     digital_signature: inspection.digital_signature,
     overall_status: inspection.overall_status as QAInspection['overall_status'],
     created_by: inspection.created_by,
-    organization_id: inspection.organization_id,
     created_at: inspection.created_at || '',
     updated_at: inspection.updated_at || ''
   };
@@ -123,30 +121,12 @@ export const useQAInspections = (projectId?: string) => {
   };
 
   const createInspection = async (
-    inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'organization_id' | 'inspection_number'>,
+    inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
     checklistItems: Omit<QAChecklistItem, 'id' | 'inspection_id'>[]
   ) => {
     if (!user) return null;
 
     try {
-      // Get user's organization first
-      const { data: orgUser, error: orgError } = await supabase
-        .from('organization_users')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single();
-
-      if (orgError || !orgUser) {
-        console.error('Error fetching user organization:', orgError);
-        toast({
-          title: "Error",
-          description: "Could not find your organization. Please contact support.",
-          variant: "destructive"
-        });
-        return null;
-      }
-
       // Generate inspection number
       const { data: numberData, error: numberError } = await supabase
         .rpc('generate_inspection_number');
@@ -165,7 +145,7 @@ export const useQAInspections = (projectId?: string) => {
         ...inspectionData,
         inspection_number: numberData,
         created_by: user.id,
-        organization_id: orgUser.organization_id
+        organization_id: user.id  // Use user ID as placeholder for now
       };
 
       console.log('Creating QA inspection with data:', insertData);
