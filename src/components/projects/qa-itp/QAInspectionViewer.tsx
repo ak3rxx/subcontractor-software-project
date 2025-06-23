@@ -300,7 +300,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         </Button>
       </div>
 
-      <div ref={printRef} className="print-content">
+      <div ref={printRef} className="print-content" data-inspection-viewer>
         <Tabs defaultValue="inspection" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="inspection">Inspection Details</TabsTrigger>
@@ -329,7 +329,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-sm font-medium text-gray-600">Project</Label>
-                    <div className="text-sm">{inspection.project_name}</div>
+                    <div className="text-sm" data-project-name>{inspection.project_name}</div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-sm font-medium text-gray-600">Overall Status</Label>
@@ -349,7 +349,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         </SelectContent>
                       </Select>
                     ) : (
-                      getStatusBadge(inspection.overall_status)
+                      <div data-overall-status>{getStatusBadge(inspection.overall_status)}</div>
                     )}
                   </div>
                 </div>
@@ -366,7 +366,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         onChange={(e) => handleInspectionFieldChange('task_area', e.target.value)}
                       />
                     ) : (
-                      <div className="text-sm">{inspection.task_area}</div>
+                      <div className="text-sm" data-task-area>{inspection.task_area}</div>
                     )}
                   </div>
                   <div className="space-y-1">
@@ -377,7 +377,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         onChange={(e) => handleInspectionFieldChange('location_reference', e.target.value)}
                       />
                     ) : (
-                      <div className="text-sm">{inspection.location_reference}</div>
+                      <div className="text-sm" data-location-reference>{inspection.location_reference}</div>
                     )}
                   </div>
                 </div>
@@ -394,7 +394,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         onChange={(e) => handleInspectionFieldChange('inspector_name', e.target.value)}
                       />
                     ) : (
-                      <div className="text-sm">{inspection.inspector_name}</div>
+                      <div className="text-sm" data-inspector-name>{inspection.inspector_name}</div>
                     )}
                   </div>
                   <div className="space-y-1">
@@ -409,7 +409,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         onChange={(e) => handleInspectionFieldChange('inspection_date', e.target.value)}
                       />
                     ) : (
-                      <div className="text-sm">{new Date(inspection.inspection_date).toLocaleDateString()}</div>
+                      <div className="text-sm" data-inspection-date>{new Date(inspection.inspection_date).toLocaleDateString()}</div>
                     )}
                   </div>
                 </div>
@@ -431,13 +431,13 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                   </div>
                 ) : (
                   checklistItems.map((item) => (
-                    <div key={item.id} className="border rounded-lg p-4 space-y-3">
+                    <div key={item.id} className="border rounded-lg p-4 space-y-3" data-checklist-item>
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h4 className="font-medium">{item.description}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{item.requirements}</p>
+                          <h4 className="font-medium" data-item-description>{item.description}</h4>
+                          <p className="text-sm text-gray-600 mt-1" data-item-requirements>{item.requirements}</p>
                         </div>
-                        <div className="ml-4">
+                        <div className="ml-4" data-item-status>
                           {getItemStatusBadge(item.status)}
                         </div>
                       </div>
@@ -501,7 +501,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                           {item.comments && (
                             <div className="bg-gray-50 p-3 rounded-md">
                               <Label className="text-sm font-medium text-gray-700">Comments:</Label>
-                              <p className="text-sm text-gray-600 mt-1">{item.comments}</p>
+                              <p className="text-sm text-gray-600 mt-1" data-item-comments>{item.comments}</p>
                             </div>
                           )}
                           {renderEvidenceFiles(item.evidence_files)}

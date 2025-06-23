@@ -94,16 +94,16 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
       <CardContent className="space-y-4">
         <div className="max-h-96 overflow-y-auto space-y-3">
           {changeHistory.map((entry) => (
-            <div key={entry.id} className="border rounded-lg p-3 space-y-2">
+            <div key={entry.id} className="border rounded-lg p-3 space-y-2" data-history-item>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   {getChangeTypeIcon(entry.change_type)}
                   {getChangeTypeBadge(entry.change_type)}
-                  <span className="text-sm font-medium">{formatFieldName(entry.field_name)}</span>
+                  <span className="text-sm font-medium" data-history-field>{formatFieldName(entry.field_name)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <User className="h-3 w-3" />
-                  {entry.user_name}
+                  <span data-history-user>{entry.user_name}</span>
                 </div>
               </div>
               
@@ -116,19 +116,19 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
               <div className="text-sm space-y-1">
                 {entry.old_value && (
                   <div className="text-red-700">
-                    <strong>From:</strong> {entry.old_value}
+                    <strong>From:</strong> <span data-history-old-value>{entry.old_value}</span>
                   </div>
                 )}
                 {entry.new_value && (
                   <div className="text-green-700">
-                    <strong>To:</strong> {entry.new_value}
+                    <strong>To:</strong> <span data-history-new-value>{entry.new_value}</span>
                   </div>
                 )}
               </div>
               
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <Clock className="h-3 w-3" />
-                {formatTimestamp(entry)}
+                <span data-history-timestamp>{formatTimestamp(entry)}</span>
               </div>
             </div>
           ))}
