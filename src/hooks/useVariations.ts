@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -213,13 +212,9 @@ export const useVariations = (projectId: string) => {
       if (updates.email_sent_date !== undefined) dbUpdates.email_sent_date = updates.email_sent_date;
       if (updates.email_sent_by !== undefined) dbUpdates.email_sent_by = updates.email_sent_by;
       
-      // Handle field mappings
+      // Handle field mappings from interface to database
       if (updates.submitted_by !== undefined) dbUpdates.requested_by = updates.submitted_by;
       if (updates.submitted_date !== undefined) dbUpdates.request_date = updates.submitted_date;
-      
-      // Handle the request_date and requested_by for submission
-      if (updates.request_date !== undefined) dbUpdates.request_date = updates.request_date;
-      if (updates.requested_by !== undefined) dbUpdates.requested_by = updates.requested_by;
 
       console.log('Database updates:', dbUpdates);
 
