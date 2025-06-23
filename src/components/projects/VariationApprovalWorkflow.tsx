@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,6 +23,8 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   const { toast } = useToast();
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [retractionReason, setRetractionReason] = useState('');
+  const [retractionStatus, setRetractionStatus] = useState<'draft' | 'rejected'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userRole = user?.role || 'user';
@@ -30,6 +33,9 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   
   // Allow approval for project managers, admins, or the full access user
   const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser;
+  
+  // Allow retraction only for project managers, admins, or the full access user
+  const canRetract = (['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser) && variation.status === 'approved';
   
   // Allow submission if variation is in draft status
   const canSubmitForApproval = variation.status === 'draft';
@@ -93,6 +99,46 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
       toast({
         title: "Error",
         description: "Failed to update variation status",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRetraction = async () => {
+    if (!retractionReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for retracting the approval",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updateData = {
+        status: retractionStatus,
+        approved_by: null,
+        approval_date: null,
+        approval_comments: `RETRACTED: ${retractionReason} | Previous approval comments: ${variation.approval_comments || 'None'}`
+      };
+
+      await onUpdate(variation.id, updateData);
+      
+      toast({
+        title: "Success",
+        description: `Approval retracted and variation reverted to ${retractionStatus}`
+      });
+      
+      // Clear form
+      setRetractionReason('');
+      setRetractionStatus('draft');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to retract approval",
         variant: "destructive"
       });
     } finally {
@@ -279,6 +325,57 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
               </Button>
             </div>
           </div>
+        )}
+
+        {/* Retraction Section - Only for Project Managers on Approved Variations */}
+        {canRetract && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-orange-700">Retract Approval (Project Manager Only)</h4>
+              <p className="text-sm text-gray-600">
+                This will retract the approval and revert the variation to the selected status. 
+                This action should only be used when necessary.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col space-y-2">
+                  <Label htmlFor="retraction-status">Revert To</Label>
+                  <Select value={retractionStatus} onValueChange={(value: 'draft' | 'rejected') => setRetractionStatus(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col space-y-2">
+                  <Label htmlFor="retraction-reason">Retraction Reason *</Label>
+                  <Textarea
+                    id="retraction-reason"
+                    value={retractionReason}
+                    onChange={(e) => setRetractionReason(e.target.value)}
+                    placeholder="Explain why you are retracting this approval..."
+                    rows={3}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleRetraction}
+                disabled={isSubmitting || !retractionReason.trim()}
+                variant="outline"
+                className="border-orange-500 text-orange-700 hover:bg-orange-50"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Processing...' : 'Retract Approval'}
+              </Button>
+            </div>
+          </>
         )}
 
         {/* Current Status Info */}
