@@ -148,8 +148,8 @@ export const useVariations = (projectId: string) => {
         description: `Variation ${data.variation_number} created successfully`
       });
 
-      // Transform the returned data to match our interface
-      const transformedData = {
+      // Transform the returned data to match our interface exactly
+      const transformedData: Variation = {
         id: data.id,
         project_id: data.project_id,
         variation_number: data.variation_number,
@@ -160,7 +160,7 @@ export const useVariations = (projectId: string) => {
         request_date: data.request_date || data.created_at.split('T')[0],
         cost_impact: data.cost_impact || 0,
         time_impact: 0,
-        status: data.status as 'draft' | 'pending' | 'approved' | 'rejected',
+        status: data.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
         category: data.category || '',
         priority: data.priority as 'high' | 'normal' | 'low',
         client_email: data.client_email || '',

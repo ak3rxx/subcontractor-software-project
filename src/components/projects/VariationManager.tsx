@@ -344,11 +344,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="submittedBy">Submitted By</Label>
+                  <Label htmlFor="requestedBy">Requested By</Label>
                   <Input
-                    id="submittedBy"
-                    value={newVariation.submittedBy}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, submittedBy: e.target.value }))}
+                    id="requestedBy"
+                    value={newVariation.requested_by}
+                    onChange={(e) => setNewVariation(prev => ({ ...prev, requested_by: e.target.value }))}
                     placeholder="Your name"
                     required
                   />
