@@ -23,6 +23,7 @@ export interface Variation {
   attachments: any[];
   approved_by?: string;
   approval_date?: string;
+  approval_comments?: string;
   email_sent?: boolean;
   email_sent_date?: string;
   email_sent_by?: string;
@@ -76,7 +77,7 @@ export const useVariations = (projectId: string) => {
         attachments: [], // Not in database, default to empty array
         approved_by: item.approved_by,
         approval_date: item.approval_date,
-        approval_comments: item.approval_comments || '', // Add approval comments field
+        approval_comments: item.approval_comments || '',
         email_sent: item.email_sent || false,
         email_sent_date: item.email_sent_date,
         email_sent_by: item.email_sent_by,
@@ -166,6 +167,7 @@ export const useVariations = (projectId: string) => {
         attachments: [],
         approved_by: data.approved_by,
         approval_date: data.approval_date,
+        approval_comments: data.approval_comments || '',
         email_sent: data.email_sent || false,
         email_sent_date: data.email_sent_date,
         email_sent_by: data.email_sent_by,
@@ -225,7 +227,7 @@ export const useVariations = (projectId: string) => {
         attachments: [],
         approved_by: data.approved_by,
         approval_date: data.approval_date,
-        approval_comments: data.approval_comments || '', // Add approval comments field
+        approval_comments: data.approval_comments || '',
         email_sent: data.email_sent || false,
         email_sent_date: data.email_sent_date,
         email_sent_by: data.email_sent_by,

@@ -825,6 +825,7 @@ export type Database = {
       }
       variations: {
         Row: {
+          approval_comments: string | null
           approval_date: string | null
           approved_by: string | null
           category: string | null
@@ -848,6 +849,7 @@ export type Database = {
           variation_number: string
         }
         Insert: {
+          approval_comments?: string | null
           approval_date?: string | null
           approved_by?: string | null
           category?: string | null
@@ -871,6 +873,7 @@ export type Database = {
           variation_number: string
         }
         Update: {
+          approval_comments?: string | null
           approval_date?: string | null
           approved_by?: string | null
           category?: string | null
