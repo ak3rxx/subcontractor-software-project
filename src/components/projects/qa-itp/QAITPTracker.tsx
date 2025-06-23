@@ -185,14 +185,29 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
 
       {/* Quick Filters */}
       <div className="flex gap-2 flex-wrap">
-        <Button variant="outline" size="sm" className="text-red-600 border-red-200">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-600 border-red-200"
+          onClick={() => setFilterStatus('fail')}
+        >
           <AlertTriangle className="h-3 w-3 mr-1" />
           Failed Inspections ({inspections.filter(i => i.overall_status === 'fail').length})
         </Button>
-        <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-yellow-600 border-yellow-200"
+          onClick={() => setFilterStatus('pending-reinspection')}
+        >
           Pending Reinspection ({inspections.filter(i => i.overall_status === 'pending-reinspection').length})
         </Button>
-        <Button variant="outline" size="sm" className="text-blue-600 border-blue-200">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-blue-600 border-blue-200"
+          onClick={() => setFilterStatus('incomplete-in-progress')}
+        >
           In Progress ({inspections.filter(i => i.overall_status === 'incomplete-in-progress').length})
         </Button>
       </div>

@@ -97,13 +97,12 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="buildingReference">Building Reference</Label>
+            <Label htmlFor="buildingReference">Location Reference (Optional)</Label>
             <Input
               id="buildingReference"
-              placeholder="e.g. Grid A1-B2"
+              placeholder="e.g. Grid A1-B2, Room 101"
               value={formData.buildingReference}
               onChange={(e) => onFormDataChange('buildingReference', e.target.value)}
-              required
             />
           </div>
         </div>

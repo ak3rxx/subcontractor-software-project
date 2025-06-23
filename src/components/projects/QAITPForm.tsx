@@ -69,6 +69,18 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     ));
   };
 
+  const checkForIncompleteItems = () => {
+    const filteredChecklist = checklist.filter(item => 
+      !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
+    );
+
+    const incompleteItems = filteredChecklist.filter(item => 
+      !item.status || item.status === ''
+    );
+
+    return incompleteItems;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -90,6 +102,19 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       return;
     }
 
+    // Check for incomplete items
+    const incompleteItems = checkForIncompleteItems();
+    if (incompleteItems.length > 0) {
+      toast({
+        title: "Incomplete Items Found",
+        description: `${incompleteItems.length} checklist items are not checked. The inspection will be marked as incomplete.`,
+        variant: "destructive"
+      });
+      
+      // Auto-set status to incomplete if there are unchecked items
+      setFormData(prev => ({ ...prev, overallStatus: 'incomplete-in-progress' }));
+    }
+
     setSubmitting(true);
 
     try {
@@ -98,7 +123,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       );
 
       // Combine building, level, and building reference for location_reference
-      const locationReference = `${formData.building} - ${formData.level} - ${formData.buildingReference}`;
+      // Building reference is optional now
+      const locationParts = [formData.building, formData.level];
+      if (formData.buildingReference.trim()) {
+        locationParts.push(formData.buildingReference);
+      }
+      const locationReference = locationParts.join(' - ');
 
       const inspectionData = {
         project_id: formData.projectId,
