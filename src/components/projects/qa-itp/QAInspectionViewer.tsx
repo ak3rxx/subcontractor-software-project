@@ -22,6 +22,11 @@ interface QAInspectionViewerProps {
   canEdit?: boolean;
 }
 
+interface UploadedFile {
+  file: File;
+  url: string;
+}
+
 const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({ 
   inspectionId, 
   onClose, 
@@ -38,7 +43,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
-  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentFiles, setAttachmentFiles] = useState<UploadedFile[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,9 +96,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  const handleChecklistItemFileChange = (itemId: string, files: File[]) => {
+  const handleChecklistItemFileChange = (itemId: string, files: UploadedFile[]) => {
+    // Convert UploadedFile[] to File[] for storage
+    const fileObjects = files.map(f => f.file);
     setChecklistItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, evidence_files: files } : item
+      item.id === itemId ? { ...item, evidence_files: fileObjects } : item
     ));
   };
 
@@ -230,6 +237,10 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         </div>
       </div>
     );
+  };
+
+  const handleAttachmentFileChange = (files: UploadedFile[]) => {
+    setAttachmentFiles(files);
   };
 
   if (loading) {
@@ -489,7 +500,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                           </div>
 
                           <FileUpload
-                            files={Array.isArray(item.evidence_files) && item.evidence_files.every(f => f instanceof File) ? item.evidence_files as File[] : []}
+                            files={Array.isArray(item.evidence_files) ? item.evidence_files : []}
                             onFilesChange={(files) => handleChecklistItemFileChange(item.id, files)}
                             label="Evidence Photos/Documents"
                             accept="image/*,.pdf,.doc,.docx"
@@ -522,8 +533,8 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
               <CardContent>
                 {editMode ? (
                   <FileUpload
-                    files={attachmentFiles}
-                    onFilesChange={setAttachmentFiles}
+                    files={attachmentFiles.map(f => f.file)}
+                    onFilesChange={handleAttachmentFileChange}
                     label="General Inspection Attachments"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                     maxFiles={10}
@@ -538,7 +549,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                           <div key={index} className="border rounded p-3 text-center">
                             {file.type.startsWith('image/') ? (
                               <img 
-                                src={URL.createObjectURL(file)} 
+                                src={file.url} 
                                 alt={file.name}
                                 className="w-full h-24 object-cover rounded mb-2"
                               />

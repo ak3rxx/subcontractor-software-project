@@ -1,5 +1,5 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, X, FileText, Image } from 'lucide-react';
@@ -11,6 +11,8 @@ interface FileUploadProps {
   multiple?: boolean;
   maxFiles?: number;
   className?: string;
+  label?: string;
+  files?: File[] | UploadedFile[];
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({
@@ -18,21 +20,60 @@ const FileUpload: React.FC<FileUploadProps> = ({
   accept = "*/*",
   multiple = true,
   maxFiles = 10,
-  className = ""
+  className = "",
+  label = "Upload Files",
+  files = []
 }) => {
   const { uploadedFiles, uploading, uploadFiles, removeFile } = useFileUpload();
 
+  // Convert File[] to UploadedFile[] if needed
+  const convertFilesToUploaded = useCallback(async (fileList: File[] | UploadedFile[]): Promise<UploadedFile[]> => {
+    if (fileList.length === 0) return [];
+    
+    // Check if already UploadedFile[]
+    if (fileList.length > 0 && 'id' in fileList[0]) {
+      return fileList as UploadedFile[];
+    }
+    
+    // Convert File[] to UploadedFile[]
+    return Promise.all((fileList as File[]).map(async (file): Promise<UploadedFile> => {
+      const url = URL.createObjectURL(file);
+      return {
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        url,
+        name: file.name,
+        size: file.size,
+        type: file.type
+      };
+    }));
+  }, []);
+
+  // Initialize with provided files
+  useEffect(() => {
+    if (files.length > 0) {
+      convertFilesToUploaded(files).then(converted => {
+        // Only update if different
+        if (converted.length !== uploadedFiles.length || 
+            !converted.every((f, i) => uploadedFiles[i]?.id === f.id)) {
+          onFilesChange?.(converted);
+        }
+      });
+    }
+  }, [files, convertFilesToUploaded, onFilesChange, uploadedFiles]);
+
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
+    const fileList = Array.from(event.target.files || []);
+    if (fileList.length === 0) return;
 
     // Check file limit
-    if (uploadedFiles.length + files.length > maxFiles) {
+    if (uploadedFiles.length + fileList.length > maxFiles) {
       return;
     }
 
-    const newFiles = await uploadFiles(files);
-    onFilesChange?.(uploadedFiles.concat(newFiles));
+    const newFiles = await uploadFiles(fileList);
+    const allFiles = uploadedFiles.concat(newFiles);
+    onFilesChange?.(allFiles);
     
     // Reset input
     event.target.value = '';
@@ -88,7 +129,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">
-            Uploaded Files ({uploadedFiles.length}/{maxFiles})
+            {label} ({uploadedFiles.length}/{maxFiles})
           </h4>
           <div className="grid gap-2">
             {uploadedFiles.map((file) => (

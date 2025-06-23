@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FileText, Image } from 'lucide-react';
 import FileUpload from './FileUpload';
+import { UploadedFile } from '@/hooks/useFileUpload';
 
 interface ChecklistItem {
   id: string;
@@ -25,8 +26,10 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   item,
   onChecklistChange
 }) => {
-  const handleFileChange = (files: File[]) => {
-    onChecklistChange(item.id, 'evidence', files);
+  const handleFileChange = (files: UploadedFile[]) => {
+    // Convert UploadedFile[] back to File[] for storage
+    const fileObjects = files.map(f => f.file);
+    onChecklistChange(item.id, 'evidence', fileObjects);
   };
 
   return (
