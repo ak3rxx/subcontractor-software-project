@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { X, Download, FileText } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useToast } from '@/hooks/use-toast';
+import { exportMultipleInspectionsToPDF, downloadPDF, type ExportableInspection } from '@/utils/pdfExport';
 
 interface QABulkExportProps {
   onClose: () => void;
@@ -50,13 +51,98 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
 
     setExporting(true);
     try {
-      // Here you would implement the bulk PDF export logic
-      // For now, we'll just show a success message
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate export time
+      // Get the selected inspections
+      const selectedInspections = inspections.filter(inspection => 
+        selectedIds.includes(inspection.id)
+      );
+
+      // Create DOM elements for each inspection for PDF generation
+      const inspectionElements: HTMLElement[] = [];
+      const exportableInspections: ExportableInspection[] = [];
+
+      for (const inspection of selectedInspections) {
+        // Create a temporary DOM element with inspection data for PDF generation
+        const element = document.createElement('div');
+        element.setAttribute('data-inspection-viewer', 'true');
+        element.innerHTML = `
+          <div class="p-6 space-y-6">
+            <div class="border-b pb-4">
+              <h1 class="text-2xl font-bold">QA/ITP Inspection Report</h1>
+              <p class="text-lg text-gray-600">Inspection #${inspection.inspection_number}</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="font-semibold" data-project-name>Project:</span> ${inspection.project_name}
+              </div>
+              <div>
+                <span class="font-semibold" data-task-area>Task Area:</span> ${inspection.task_area}
+              </div>
+              <div>
+                <span class="font-semibold" data-location-reference>Location:</span> ${inspection.location_reference || 'N/A'}
+              </div>
+              <div>
+                <span class="font-semibold" data-inspector-name>Inspector:</span> ${inspection.inspector_name}
+              </div>
+              <div>
+                <span class="font-semibold" data-inspection-date>Date:</span> ${new Date(inspection.inspection_date).toLocaleDateString()}
+              </div>
+              <div>
+                <span class="font-semibold" data-overall-status>Status:</span> ${inspection.overall_status}
+              </div>
+            </div>
+            
+            <div>
+              <h3 class="text-lg font-semibold mb-3">Inspection Checklist</h3>
+              <div class="space-y-2">
+                ${inspection.checklist_items?.map(item => `
+                  <div class="border rounded p-3" data-checklist-item>
+                    <div class="font-medium" data-item-description>${item.description}</div>
+                    <div class="text-sm text-gray-600" data-item-requirements>Requirements: ${item.requirements}</div>
+                    <div class="text-sm" data-item-status>Status: ${item.status || 'Not checked'}</div>
+                    ${item.comments ? `<div class="text-sm text-gray-600" data-item-comments>Comments: ${item.comments}</div>` : ''}
+                  </div>
+                `).join('') || '<p>No checklist items available</p>'}
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Temporarily add to document for rendering
+        document.body.appendChild(element);
+        inspectionElements.push(element);
+        
+        exportableInspections.push({
+          id: inspection.id,
+          inspection_number: inspection.inspection_number,
+          project_name: inspection.project_name,
+          task_area: inspection.task_area,
+          inspector_name: inspection.inspector_name,
+          inspection_date: inspection.inspection_date,
+          overall_status: inspection.overall_status
+        });
+      }
+
+      // Generate the combined PDF
+      const pdfBlob = await exportMultipleInspectionsToPDF(inspectionElements, exportableInspections);
+      
+      // Clean up DOM elements
+      inspectionElements.forEach(element => {
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
+      });
+
+      // Generate filename with current date and inspection count
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `QA-ITP-Bulk-Export-${selectedIds.length}-inspections-${currentDate}.pdf`;
+      
+      // Download the PDF
+      downloadPDF(pdfBlob, filename);
       
       toast({
         title: "Export Successful",
-        description: `Successfully exported ${selectedIds.length} inspection(s) to PDF.`,
+        description: `Successfully exported ${selectedIds.length} inspection(s) to PDF: ${filename}`,
       });
       
       onClose();

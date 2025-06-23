@@ -228,67 +228,111 @@ export const exportMultipleInspectionsToPDF = async (
   inspections: ExportableInspection[]
 ): Promise<Blob> => {
   const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
   
+  // Add title page
+  pdf.setFontSize(24);
+  pdf.text('QA/ITP Bulk Export Report', pageWidth / 2, 30, { align: 'center' });
+  
+  pdf.setFontSize(16);
+  pdf.text(`${inspections.length} Inspection Reports`, pageWidth / 2, 45, { align: 'center' });
+  
+  pdf.setFontSize(12);
+  pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, 60, { align: 'center' });
+  
+  // Add table of contents
+  let currentY = 80;
+  pdf.setFontSize(16);
+  pdf.text('Table of Contents', 20, currentY);
+  currentY += 15;
+  
+  pdf.setFontSize(10);
+  inspections.forEach((inspection, index) => {
+    if (currentY > pageHeight - 20) {
+      pdf.addPage();
+      currentY = 20;
+    }
+    
+    const pageNum = index + 2; // +2 because we have title page and this TOC page
+    pdf.text(`${index + 1}. ${inspection.inspection_number} - ${inspection.project_name}`, 25, currentY);
+    pdf.text(`Page ${pageNum}`, pageWidth - 40, currentY);
+    currentY += 6;
+  });
+  
+  // Process each inspection
   for (let i = 0; i < inspectionElements.length; i++) {
     const element = inspectionElements[i];
     const inspection = inspections[i];
     
-    if (i > 0) {
-      pdf.addPage();
-    }
+    pdf.addPage();
     
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff'
-    });
+    try {
+      // Convert the element to canvas
+      const canvas = await html2canvas(element, {
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight
+      });
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    
-    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-    const imgX = (pdfWidth - imgWidth * ratio) / 2;
-    const imgY = 0;
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Calculate dimensions to fit page
+      const maxWidth = pageWidth - 20; // 10mm margin on each side
+      const maxHeight = pageHeight - 40; // 20mm margin top and bottom
+      
+      const ratio = Math.min(maxWidth / (imgWidth * 0.264583), maxHeight / (imgHeight * 0.264583));
+      const finalWidth = imgWidth * 0.264583 * ratio;
+      const finalHeight = imgHeight * 0.264583 * ratio;
+      
+      // Center the image on the page
+      const x = (pageWidth - finalWidth) / 2;
+      const y = 20;
 
-    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-    
-    // Add attachments for each inspection
-    const evidenceImages = element.querySelectorAll('.evidence-image');
-    if (evidenceImages.length > 0) {
-      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
       
-      let yPosition = 20;
-      pdf.setFontSize(14);
-      pdf.text(`Attachments - ${inspection.inspection_number}`, 20, yPosition);
-      yPosition += 15;
+      // Add page number
+      pdf.setFontSize(8);
+      pdf.text(`Inspection ${i + 1} of ${inspections.length} - ${inspection.inspection_number}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
       
-      for (const img of evidenceImages) {
-        if (yPosition > 250) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        
-        const imageElement = img as HTMLImageElement;
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-        
-        canvas.width = imageElement.naturalWidth;
-        canvas.height = imageElement.naturalHeight;
-        ctx.drawImage(imageElement, 0, 0);
-        
-        const imageData = canvas.toDataURL('image/jpeg', 0.8);
-        const maxWidth = 80;
-        const maxHeight = 60;
-        
-        pdf.addImage(imageData, 'JPEG', 20, yPosition, maxWidth, maxHeight);
-        yPosition += maxHeight + 10;
-      }
+    } catch (error) {
+      console.error(`Error processing inspection ${inspection.inspection_number}:`, error);
+      
+      // Fallback: Add text-based content if canvas conversion fails
+      let textY = 30;
+      pdf.setFontSize(16);
+      pdf.text(`Inspection Report: ${inspection.inspection_number}`, 20, textY);
+      textY += 15;
+      
+      pdf.setFontSize(12);
+      pdf.text(`Project: ${inspection.project_name}`, 20, textY);
+      textY += 8;
+      pdf.text(`Task Area: ${inspection.task_area}`, 20, textY);
+      textY += 8;
+      pdf.text(`Inspector: ${inspection.inspector_name}`, 20, textY);
+      textY += 8;
+      pdf.text(`Date: ${new Date(inspection.inspection_date).toLocaleDateString()}`, 20, textY);
+      textY += 8;
+      pdf.text(`Status: ${inspection.overall_status}`, 20, textY);
+      textY += 15;
+      
+      pdf.setFontSize(10);
+      pdf.text('Note: Full inspection details could not be rendered. Please export individual inspection for complete report.', 20, textY);
     }
+  }
+  
+  // Add footer to all pages
+  const totalPages = pdf.internal.pages.length - 1;
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, pageHeight - 5);
+    pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 5);
   }
   
   return pdf.output('blob');

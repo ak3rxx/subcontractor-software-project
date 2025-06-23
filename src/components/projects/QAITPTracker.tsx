@@ -1,14 +1,14 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Filter, FileText, AlertTriangle, Eye, Edit, Trash2 } from 'lucide-react';
+import { Plus, Filter, FileText, AlertTriangle, Eye, Edit, Trash2, Download } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
 import { useToast } from '@/hooks/use-toast';
 import QAInspectionViewer from './qa-itp/QAInspectionViewer';
+import QABulkExport from './qa-itp/QABulkExport';
 
 interface QAITPTrackerProps {
   onNewInspection: () => void;
@@ -23,6 +23,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [selectedInspections, setSelectedInspections] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkExport, setShowBulkExport] = useState(false);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -107,6 +108,15 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
     );
   }
 
+  if (showBulkExport) {
+    return (
+      <QABulkExport
+        selectedInspectionIds={selectedInspections}
+        onClose={() => setShowBulkExport(false)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -157,6 +167,14 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
           <span className="text-sm font-medium">
             {selectedInspections.length} inspection(s) selected
           </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowBulkExport(true)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Bulk Export PDF
+          </Button>
           <Button
             variant="destructive"
             size="sm"
