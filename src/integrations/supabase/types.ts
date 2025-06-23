@@ -844,6 +844,7 @@ export type Database = {
           request_date: string | null
           requested_by: string | null
           status: string | null
+          time_impact: number | null
           title: string
           updated_at: string | null
           variation_number: string
@@ -868,6 +869,7 @@ export type Database = {
           request_date?: string | null
           requested_by?: string | null
           status?: string | null
+          time_impact?: number | null
           title: string
           updated_at?: string | null
           variation_number: string
@@ -892,6 +894,7 @@ export type Database = {
           request_date?: string | null
           requested_by?: string | null
           status?: string | null
+          time_impact?: number | null
           title?: string
           updated_at?: string | null
           variation_number?: string
