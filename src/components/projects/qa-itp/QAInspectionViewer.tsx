@@ -194,7 +194,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            QA Inspection Details
+            Quality Assurance / Inspection Test Plan Details
           </h3>
           {canEdit && (
             <Button

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, ClipboardCheck, Package, Building2, Calendar, LogOut } from 'lucide-react';
+import { Plus, ClipboardCheck, Package, Building2, Calendar, LogOut, BarChart3, List, CheckSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@/hooks/useProjects';
 import QAITPForm from '@/components/projects/QAITPForm';
@@ -20,6 +20,7 @@ const Projects = () => {
   const [showProjectSetup, setShowProjectSetup] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [qaActiveTab, setQaActiveTab] = useState('dashboard');
 
   const handleProjectCreated = async (projectData: any) => {
     const newProject = await createProject(projectData);
@@ -182,7 +183,7 @@ const Projects = () => {
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="qa-itp" className="flex items-center gap-2">
                 <ClipboardCheck className="h-4 w-4" />
-                Quality Assurance / ITP
+                Quality Assurance / Inspection Test Plan
               </TabsTrigger>
               <TabsTrigger value="material-handover" className="flex items-center gap-2">
                 <Package className="h-4 w-4" />
@@ -195,23 +196,60 @@ const Projects = () => {
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
-                      <CardTitle>Quality Assurance / ITP (Inspection Test Plan)</CardTitle>
+                      <CardTitle>Quality Assurance / Inspection Test Plan</CardTitle>
                       <CardDescription>
                         Create and track inspection hold points, collect evidence, and generate sign-off records
                       </CardDescription>
                     </div>
-                    <Button onClick={() => setActiveQAForm(true)} className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      New QA Inspection
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {activeQAForm ? (
-                    <QAITPForm onClose={() => setActiveQAForm(false)} />
-                  ) : (
-                    <QAITPTracker onNewInspection={() => setActiveQAForm(true)} />
-                  )}
+                  <Tabs value={qaActiveTab} onValueChange={setQaActiveTab} className="w-full">
+                    <div className="flex justify-between items-center mb-4">
+                      <TabsList className="grid w-full max-w-md grid-cols-3">
+                        <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" />
+                          Dashboard
+                        </TabsTrigger>
+                        <TabsTrigger value="qa-list" className="flex items-center gap-2">
+                          <List className="h-4 w-4" />
+                          QA/ITP List
+                        </TabsTrigger>
+                        <TabsTrigger value="actions" className="flex items-center gap-2">
+                          <CheckSquare className="h-4 w-4" />
+                          Action/Task List
+                        </TabsTrigger>
+                      </TabsList>
+                      <Button onClick={() => setActiveQAForm(true)} className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add ITP/QA
+                      </Button>
+                    </div>
+
+                    <TabsContent value="dashboard">
+                      <div className="text-center py-8">
+                        <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">QA Dashboard</h3>
+                        <p className="text-gray-600">Dashboard view coming soon...</p>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="qa-list">
+                      {activeQAForm ? (
+                        <QAITPForm onClose={() => setActiveQAForm(false)} />
+                      ) : (
+                        <QAITPTracker onNewInspection={() => setActiveQAForm(true)} />
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="actions">
+                      <div className="text-center py-8">
+                        <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Action/Task List</h3>
+                        <p className="text-gray-600">Action and task management coming soon...</p>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             </TabsContent>

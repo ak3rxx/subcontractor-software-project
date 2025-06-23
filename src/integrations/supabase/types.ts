@@ -506,6 +506,63 @@ export type Database = {
           },
         ]
       }
+      qa_change_history: {
+        Row: {
+          change_type: string
+          created_at: string | null
+          field_name: string
+          id: string
+          inspection_id: string
+          item_description: string | null
+          item_id: string | null
+          new_value: string | null
+          old_value: string | null
+          timestamp: string | null
+          user_id: string
+        }
+        Insert: {
+          change_type: string
+          created_at?: string | null
+          field_name: string
+          id?: string
+          inspection_id: string
+          item_description?: string | null
+          item_id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          timestamp?: string | null
+          user_id: string
+        }
+        Update: {
+          change_type?: string
+          created_at?: string | null
+          field_name?: string
+          id?: string
+          inspection_id?: string
+          item_description?: string | null
+          item_id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          timestamp?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qa_change_history_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "qa_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qa_change_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       qa_checklist_items: {
         Row: {
           comments: string | null

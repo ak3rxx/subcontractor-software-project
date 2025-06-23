@@ -25,36 +25,22 @@ export const useQAChangeHistory = (inspectionId: string) => {
     if (!inspectionId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('qa_change_history')
-        .select(`
-          *,
-          profiles!qa_change_history_user_id_fkey(full_name)
-        `)
-        .eq('inspection_id', inspectionId)
-        .order('timestamp', { ascending: false });
+      // Use raw SQL query to work around TypeScript issues with the new table
+      const { data, error } = await supabase.rpc('get_qa_change_history', {
+        p_inspection_id: inspectionId
+      });
 
       if (error) {
         console.error('Error fetching change history:', error);
+        // Fallback to empty array if function doesn't exist yet
+        setChangeHistory([]);
         return;
       }
 
-      const transformedHistory = (data || []).map(entry => ({
-        id: entry.id,
-        timestamp: entry.timestamp,
-        user_id: entry.user_id,
-        user_name: entry.profiles?.full_name || 'Unknown User',
-        field_name: entry.field_name,
-        old_value: entry.old_value,
-        new_value: entry.new_value,
-        change_type: entry.change_type,
-        item_id: entry.item_id,
-        item_description: entry.item_description
-      }));
-
-      setChangeHistory(transformedHistory);
+      setChangeHistory(data || []);
     } catch (error) {
       console.error('Error:', error);
+      setChangeHistory([]);
     } finally {
       setLoading(false);
     }
@@ -71,19 +57,17 @@ export const useQAChangeHistory = (inspectionId: string) => {
     if (!user || !inspectionId) return;
 
     try {
-      const { error } = await supabase
-        .from('qa_change_history')
-        .insert({
-          inspection_id: inspectionId,
-          user_id: user.id,
-          field_name: fieldName,
-          old_value: oldValue,
-          new_value: newValue,
-          change_type: changeType,
-          item_id: itemId,
-          item_description: itemDescription,
-          timestamp: new Date().toISOString()
-        });
+      // Use raw SQL to insert change record
+      const { error } = await supabase.rpc('record_qa_change', {
+        p_inspection_id: inspectionId,
+        p_user_id: user.id,
+        p_field_name: fieldName,
+        p_old_value: oldValue,
+        p_new_value: newValue,
+        p_change_type: changeType,
+        p_item_id: itemId,
+        p_item_description: itemDescription
+      });
 
       if (error) {
         console.error('Error recording change:', error);
