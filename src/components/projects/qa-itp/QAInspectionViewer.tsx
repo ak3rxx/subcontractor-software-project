@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Save, Edit, FileText, User, Calendar, MapPin, CheckCircle, History, Download } from 'lucide-react';
+import { X, Save, Edit, FileText, User, Calendar, MapPin, CheckCircle, History, Download, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQAInspections, QAInspection, QAChecklistItem } from '@/hooks/useQAInspections';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
@@ -41,6 +41,8 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const [deleting, setDeleting] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [attachmentFiles, setAttachmentFiles] = useState<UploadedFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [hasUploadFailures, setHasUploadFailures] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,6 +103,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     ));
   };
 
+  const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
+    setUploading(isUploading);
+    setHasUploadFailures(hasFailures);
+  };
+
   const handleInspectionFieldChange = (field: string, value: string) => {
     if (inspection && originalInspection) {
       const oldValue = originalInspection[field as keyof QAInspection];
@@ -121,6 +128,24 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 
   const handleSave = async () => {
     if (!inspection) return;
+
+    if (uploading) {
+      toast({
+        title: "Upload in Progress",
+        description: "Please wait for all files to finish uploading before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (hasUploadFailures) {
+      toast({
+        title: "Upload Failures Detected",
+        description: "Please retry failed uploads or remove failed files before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -281,7 +306,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
             const fileType = isFileObject ? file.type : '';
             
             return (
-              <div key={index} className="border rounded p-2 text-center">
+              <div key={index} className="border rounded p-2 text-center relative group">
                 {(isFileObject && file.type.startsWith('image/')) || (!isFileObject && fileName.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
                   <img 
                     src={isFileObject ? URL.createObjectURL(file) : fileName} 
@@ -292,6 +317,24 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                   <FileText className="h-8 w-8 mx-auto mb-1 text-gray-400" />
                 )}
                 <p className="text-xs text-gray-600 truncate">{fileName}</p>
+                
+                {/* Download button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = isFileObject ? URL.createObjectURL(file) : fileName;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  title="Download file"
+                >
+                  <Download className="h-3 w-3" />
+                </Button>
               </div>
             );
           })}
@@ -382,6 +425,21 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Upload status indicator */}
+      {(uploading || hasUploadFailures) && (
+        <div className={`p-3 rounded-lg border ${hasUploadFailures ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className="flex items-center gap-2">
+            {uploading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />}
+            {hasUploadFailures && <AlertCircle className="h-4 w-4 text-red-600" />}
+            <span className="text-sm font-medium">
+              {uploading && hasUploadFailures ? 'Uploading files with some failures detected' :
+               uploading ? 'Uploading files...' : 
+               'Some file uploads failed - please retry or remove failed files'}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div ref={printRef} className="print-content" data-inspection-viewer>
         <Tabs defaultValue="inspection" className="w-full">
@@ -574,6 +632,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                           <FileUpload
                             files={convertFilesToUploadedFiles(item.evidence_files)}
                             onFilesChange={(files) => handleChecklistItemFileChange(item.id, files)}
+                            onUploadStatusChange={handleUploadStatusChange}
                             label="Evidence Photos/Documents"
                             accept="image/*,.pdf,.doc,.docx"
                             maxFiles={3}
@@ -607,6 +666,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                   <FileUpload
                     files={attachmentFiles}
                     onFilesChange={handleAttachmentFileChange}
+                    onUploadStatusChange={handleUploadStatusChange}
                     label="General Inspection Attachments"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                     maxFiles={10}
@@ -618,7 +678,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {attachmentFiles.map((file, index) => (
-                          <div key={index} className="border rounded p-3 text-center">
+                          <div key={index} className="border rounded p-3 text-center relative group">
                             {file.file.type.startsWith('image/') ? (
                               <img 
                                 src={file.url} 
@@ -629,6 +689,24 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                               <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
                             )}
                             <p className="text-xs text-gray-600 truncate">{file.name}</p>
+                            
+                            {/* Download button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = file.url;
+                                link.download = file.name;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                              title="Download file"
+                            >
+                              <Download className="h-3 w-3" />
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -654,16 +732,19 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           <Button 
             variant="outline" 
             onClick={() => setEditMode(false)}
-            disabled={saving}
+            disabled={saving || uploading}
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || uploading || hasUploadFailures}
           >
             <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? 'Saving...' : 
+             uploading ? 'Uploading...' : 
+             hasUploadFailures ? 'Fix Upload Errors' : 
+             'Save Changes'}
           </Button>
         </div>
       )}

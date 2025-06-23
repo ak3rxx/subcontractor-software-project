@@ -2,11 +2,13 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Upload, X, FileText, Image } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Upload, X, FileText, Image, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import { UploadedFile } from '@/hooks/useFileUpload';
 
 interface FileUploadProps {
   onFilesChange?: (files: UploadedFile[]) => void;
+  onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
   accept?: string;
   multiple?: boolean;
   maxFiles?: number;
@@ -15,8 +17,15 @@ interface FileUploadProps {
   files?: UploadedFile[] | File[];
 }
 
+interface FileWithProgress extends UploadedFile {
+  uploadProgress?: number;
+  uploadStatus?: 'uploading' | 'success' | 'failed';
+  uploadError?: string;
+}
+
 const FileUpload: React.FC<FileUploadProps> = ({
   onFilesChange,
+  onUploadStatusChange,
   accept = "*/*",
   multiple = true,
   maxFiles = 10,
@@ -24,17 +33,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
   label = "Upload Files",
   files = []
 }) => {
-  const [currentFiles, setCurrentFiles] = useState<UploadedFile[]>([]);
+  const [currentFiles, setCurrentFiles] = useState<FileWithProgress[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Convert incoming files to UploadedFile format
-  const convertToUploadedFiles = useCallback((fileList: UploadedFile[] | File[]): UploadedFile[] => {
+  const convertToUploadedFiles = useCallback((fileList: UploadedFile[] | File[]): FileWithProgress[] => {
     if (!fileList || fileList.length === 0) return [];
     
     return fileList.map((file, index) => {
       // If it's already an UploadedFile, return as is
       if ('id' in file && 'url' in file) {
-        return file as UploadedFile;
+        return {
+          ...(file as UploadedFile),
+          uploadStatus: 'success'
+        } as FileWithProgress;
       }
       
       // If it's a File, convert to UploadedFile
@@ -45,8 +57,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
         url: URL.createObjectURL(fileObj),
         name: fileObj.name,
         size: fileObj.size,
-        type: fileObj.type
-      };
+        type: fileObj.type,
+        uploadStatus: 'success'
+      } as FileWithProgress;
     });
   }, []);
 
@@ -59,6 +72,37 @@ const FileUpload: React.FC<FileUploadProps> = ({
       setCurrentFiles([]);
     }
   }, [files, convertToUploadedFiles]);
+
+  // Notify parent about upload status
+  useEffect(() => {
+    const isUploading = currentFiles.some(f => f.uploadStatus === 'uploading');
+    const hasFailures = currentFiles.some(f => f.uploadStatus === 'failed');
+    onUploadStatusChange?.(isUploading, hasFailures);
+  }, [currentFiles, onUploadStatusChange]);
+
+  const simulateFileUpload = async (file: FileWithProgress): Promise<FileWithProgress> => {
+    return new Promise((resolve) => {
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 30;
+        if (progress >= 100) {
+          clearInterval(interval);
+          // Simulate occasional failures (10% chance)
+          const failed = Math.random() < 0.1;
+          resolve({
+            ...file,
+            uploadProgress: 100,
+            uploadStatus: failed ? 'failed' : 'success',
+            uploadError: failed ? 'Upload failed - please try again' : undefined
+          });
+        } else {
+          setCurrentFiles(prev => prev.map(f => 
+            f.id === file.id ? { ...f, uploadProgress: progress } : f
+          ));
+        }
+      }, 200);
+    });
+  };
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
@@ -79,12 +123,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
         url: URL.createObjectURL(file),
         name: file.name,
         size: file.size,
-        type: file.type
+        type: file.type,
+        uploadProgress: 0,
+        uploadStatus: 'uploading' as const
       }));
 
       const updatedFiles = [...currentFiles, ...newUploadedFiles];
       setCurrentFiles(updatedFiles);
-      onFilesChange?.(updatedFiles);
+
+      // Upload files with progress
+      const uploadPromises = newUploadedFiles.map(file => simulateFileUpload(file));
+      const uploadedFiles = await Promise.all(uploadPromises);
+
+      setCurrentFiles(prev => {
+        const updated = prev.map(f => {
+          const uploaded = uploadedFiles.find(uf => uf.id === f.id);
+          return uploaded || f;
+        });
+        
+        // Only notify with successfully uploaded files
+        const successfulFiles = updated.filter(f => f.uploadStatus === 'success');
+        onFilesChange?.(successfulFiles);
+        
+        return updated;
+      });
     } catch (error) {
       console.error('Error uploading files:', error);
     } finally {
@@ -102,8 +164,45 @@ const FileUpload: React.FC<FileUploadProps> = ({
     
     const updatedFiles = currentFiles.filter(f => f.id !== fileId);
     setCurrentFiles(updatedFiles);
-    onFilesChange?.(updatedFiles);
+    
+    // Only notify with successfully uploaded files
+    const successfulFiles = updatedFiles.filter(f => f.uploadStatus === 'success');
+    onFilesChange?.(successfulFiles);
   }, [currentFiles, onFilesChange]);
+
+  const handleRetryUpload = useCallback(async (fileId: string) => {
+    const fileToRetry = currentFiles.find(f => f.id === fileId);
+    if (!fileToRetry) return;
+
+    const updatedFile = { ...fileToRetry, uploadStatus: 'uploading' as const, uploadProgress: 0 };
+    setCurrentFiles(prev => prev.map(f => f.id === fileId ? updatedFile : f));
+
+    try {
+      const result = await simulateFileUpload(updatedFile);
+      setCurrentFiles(prev => {
+        const updated = prev.map(f => f.id === fileId ? result : f);
+        
+        if (result.uploadStatus === 'success') {
+          const successfulFiles = updated.filter(f => f.uploadStatus === 'success');
+          onFilesChange?.(successfulFiles);
+        }
+        
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error retrying upload:', error);
+    }
+  }, [currentFiles, onFilesChange]);
+
+  const handleDownloadFile = useCallback((file: FileWithProgress) => {
+    // Create download link
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -113,8 +212,21 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const isImage = (file: UploadedFile) => {
+  const isImage = (file: FileWithProgress) => {
     return file.type.startsWith('image/');
+  };
+
+  const getStatusIcon = (file: FileWithProgress) => {
+    switch (file.uploadStatus) {
+      case 'uploading':
+        return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />;
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'failed':
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -149,13 +261,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
       {currentFiles.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">
-            {label} ({currentFiles.length}/{maxFiles})
+            {label} ({currentFiles.filter(f => f.uploadStatus === 'success').length}/{maxFiles})
           </h4>
           <div className="grid gap-2">
             {currentFiles.map((file) => (
               <Card key={file.id} className="p-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 flex-1">
                     {isImage(file) ? (
                       <div className="relative">
                         <Image className="h-8 w-8 text-blue-500" />
@@ -175,18 +287,58 @@ const FileUpload: React.FC<FileUploadProps> = ({
                       <p className="text-xs text-gray-500">
                         {formatFileSize(file.size)}
                       </p>
+                      {file.uploadStatus === 'failed' && file.uploadError && (
+                        <p className="text-xs text-red-600 mt-1">{file.uploadError}</p>
+                      )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveFile(file.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(file)}
+                    {file.uploadStatus === 'success' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadFile(file)}
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Download file"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {file.uploadStatus === 'failed' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRetryUpload(file.id)}
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Retry upload"
+                      >
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile(file.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                {isImage(file) && (
+                
+                {/* Progress bar for uploading files */}
+                {file.uploadStatus === 'uploading' && (
+                  <div className="mt-2">
+                    <Progress value={file.uploadProgress || 0} className="h-2" />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Uploading... {Math.round(file.uploadProgress || 0)}%
+                    </p>
+                  </div>
+                )}
+
+                {/* Image preview for successfully uploaded images */}
+                {isImage(file) && file.uploadStatus === 'success' && (
                   <div className="mt-2">
                     <img
                       src={file.url}

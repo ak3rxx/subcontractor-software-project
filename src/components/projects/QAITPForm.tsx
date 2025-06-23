@@ -36,6 +36,8 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [isFireDoor, setIsFireDoor] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [hasUploadFailures, setHasUploadFailures] = useState(false);
 
   const handleFormDataChange = (field: string, value: string) => {
     setFormData(prev => {
@@ -68,6 +70,11 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     ));
   };
 
+  const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
+    setUploading(isUploading);
+    setHasUploadFailures(hasFailures);
+  };
+
   const checkForIncompleteItems = () => {
     const filteredChecklist = checklist.filter(item => 
       !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
@@ -82,6 +89,24 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (uploading) {
+      toast({
+        title: "Upload in Progress",
+        description: "Please wait for all files to finish uploading before submitting.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (hasUploadFailures) {
+      toast({
+        title: "Upload Failures Detected",
+        description: "Please retry failed uploads or remove failed files before submitting.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     if (!formData.digitalSignature.trim()) {
       toast({
@@ -186,6 +211,21 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         </Button>
       </div>
 
+      {/* Upload status indicator */}
+      {(uploading || hasUploadFailures) && (
+        <div className={`p-3 rounded-lg border ${hasUploadFailures ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className="flex items-center gap-2">
+            {uploading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />}
+            {hasUploadFailures && <AlertCircle className="h-4 w-4 text-red-600" />}
+            <span className="text-sm font-medium">
+              {uploading && hasUploadFailures ? 'Uploading files with some failures detected' :
+               uploading ? 'Uploading files...' : 
+               'Some file uploads failed - please retry or remove failed files'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <QAITPProjectInfo
           formData={formData}
@@ -208,6 +248,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
                   key={item.id}
                   item={item}
                   onChecklistChange={handleChecklistChange}
+                  onUploadStatusChange={handleUploadStatusChange}
                 />
               ))}
             </CardContent>
@@ -220,11 +261,22 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         />
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={submitting || uploading}
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Creating...' : 'Submit QA Inspection'}
+          <Button 
+            type="submit" 
+            disabled={submitting || uploading || hasUploadFailures}
+          >
+            {submitting ? 'Creating...' : 
+             uploading ? 'Uploading...' : 
+             hasUploadFailures ? 'Fix Upload Errors' : 
+             'Submit QA Inspection'}
           </Button>
         </div>
       </form>
