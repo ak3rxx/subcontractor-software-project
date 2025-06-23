@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +18,8 @@ interface Variation {
   title: string;
   description?: string;
   location?: string;
-  submitted_by?: string;
-  submitted_date: string;
+  requested_by?: string;
+  request_date: string;
   cost_impact: number;
   time_impact: number;
   status: string;
@@ -252,7 +251,7 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="font-medium">Submitted:</span>
-                  <span>{variation.submitted_date}</span>
+                  <span>{variation.request_date}</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -269,11 +268,11 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
                   )}
                 </div>
 
-                {variation.submitted_by && (
+                {variation.requested_by && (
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-500" />
                     <span className="font-medium">Submitted by:</span>
-                    <span>{variation.submitted_by}</span>
+                    <span>{variation.requested_by}</span>
                   </div>
                 )}
               </div>

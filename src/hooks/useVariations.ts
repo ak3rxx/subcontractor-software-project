@@ -10,8 +10,8 @@ export interface Variation {
   title: string;
   description?: string;
   location?: string;
-  submitted_by?: string;
-  submitted_date: string;
+  requested_by?: string;
+  request_date: string;
   cost_impact: number;
   time_impact: number;
   status: 'draft' | 'pending' | 'approved' | 'rejected';
@@ -56,7 +56,7 @@ export const useVariations = (projectId: string) => {
         return;
       }
 
-      // Transform the data to match our interface
+      // Transform the data to match our interface - now using correct field names
       const transformedData = (data || []).map((item: any) => ({
         id: item.id,
         project_id: item.project_id,
@@ -64,8 +64,8 @@ export const useVariations = (projectId: string) => {
         title: item.title,
         description: item.description,
         location: item.location || '',
-        submitted_by: item.requested_by,
-        submitted_date: item.request_date || item.created_at.split('T')[0],
+        requested_by: item.requested_by,
+        request_date: item.request_date || item.created_at.split('T')[0],
         cost_impact: item.cost_impact || 0,
         time_impact: 0, // Not in database, default to 0
         status: item.status as 'draft' | 'pending' | 'approved' | 'rejected',
@@ -119,8 +119,8 @@ export const useVariations = (projectId: string) => {
         location: variationData.location,
         requested_by: user.id,
         cost_impact: parseFloat(variationData.costImpact) || 0,
-        priority: variationData.priority || 'medium', // Use 'medium' instead of 'normal'
-        status: 'draft', // Use 'draft' instead of 'pending'
+        priority: variationData.priority || 'medium',
+        status: 'draft',
         category: variationData.category,
         client_email: variationData.clientEmail,
         justification: variationData.justification,
@@ -155,8 +155,8 @@ export const useVariations = (projectId: string) => {
         title: data.title,
         description: data.description,
         location: data.location || '',
-        submitted_by: data.requested_by,
-        submitted_date: data.request_date || data.created_at.split('T')[0],
+        requested_by: data.requested_by,
+        request_date: data.request_date || data.created_at.split('T')[0],
         cost_impact: data.cost_impact || 0,
         time_impact: 0,
         status: data.status as 'draft' | 'pending' | 'approved' | 'rejected',
@@ -192,7 +192,7 @@ export const useVariations = (projectId: string) => {
     try {
       console.log('Updating variation with:', updates);
       
-      // Map the updates to database field names
+      // Now the interface matches database fields, so direct mapping
       const dbUpdates: any = {};
       
       if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -211,10 +211,8 @@ export const useVariations = (projectId: string) => {
       if (updates.email_sent !== undefined) dbUpdates.email_sent = updates.email_sent;
       if (updates.email_sent_date !== undefined) dbUpdates.email_sent_date = updates.email_sent_date;
       if (updates.email_sent_by !== undefined) dbUpdates.email_sent_by = updates.email_sent_by;
-      
-      // Handle field mappings from interface to database
-      if (updates.submitted_by !== undefined) dbUpdates.requested_by = updates.submitted_by;
-      if (updates.submitted_date !== undefined) dbUpdates.request_date = updates.submitted_date;
+      if (updates.requested_by !== undefined) dbUpdates.requested_by = updates.requested_by;
+      if (updates.request_date !== undefined) dbUpdates.request_date = updates.request_date;
 
       console.log('Database updates:', dbUpdates);
 
@@ -245,8 +243,8 @@ export const useVariations = (projectId: string) => {
         title: data.title,
         description: data.description,
         location: data.location || '',
-        submitted_by: data.requested_by,
-        submitted_date: data.request_date || data.created_at.split('T')[0],
+        requested_by: data.requested_by,
+        request_date: data.request_date || data.created_at.split('T')[0],
         cost_impact: data.cost_impact || 0,
         time_impact: 0,
         status: data.status as 'draft' | 'pending' | 'approved' | 'rejected',

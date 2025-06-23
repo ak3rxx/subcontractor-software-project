@@ -45,8 +45,8 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
       // Update the variation with pending status and submission details
       const updateData = {
         status: 'pending' as const,
-        submitted_date: new Date().toISOString().split('T')[0],
-        submitted_by: user?.id
+        request_date: new Date().toISOString().split('T')[0],
+        requested_by: user?.id
       };
       
       console.log('Update data being sent:', updateData);
@@ -280,11 +280,11 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
           <div className="space-y-3">
             <h4 className="font-medium text-sm">Status Information</h4>
             <div className="bg-gray-50 p-3 rounded-md space-y-2">
-              {variation.submitted_date && (
+              {variation.request_date && (
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="font-medium">Submitted:</span>
-                  <span>{variation.submitted_date}</span>
+                  <span>{variation.request_date}</span>
                 </div>
               )}
               

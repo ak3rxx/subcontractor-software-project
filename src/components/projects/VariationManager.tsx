@@ -119,7 +119,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         <div class="variation-details">
           <div class="field"><span class="label">Variation Number:</span> ${variation.variation_number}</div>
           <div class="field"><span class="label">Project:</span> ${projectName}</div>
-          <div class="field"><span class="label">Date:</span> ${variation.submitted_date}</div>
+          <div class="field"><span class="label">Date:</span> ${variation.request_date}</div>
           <div class="field"><span class="label">Location:</span> ${variation.location}</div>
           
           <div class="field"><span class="label">Title:</span> ${variation.title}</div>
@@ -142,7 +142,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         <div class="signature-section">
           <div style="display: flex; justify-content: space-between;">
             <div>
-              <p><strong>Submitted by:</strong> ${variation.submitted_by}</p>
+              <p><strong>Submitted by:</strong> ${variation.requested_by}</p>
               <p>Signature: _________________________</p>
               <p>Date: _____________________</p>
             </div>
@@ -563,8 +563,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                         <span title={variation.location}>{variation.location}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{variation.submitted_by}</TableCell>
-                    <TableCell>{variation.submitted_date}</TableCell>
+                    <TableCell>{variation.requested_by}</TableCell>
+                    <TableCell>{variation.request_date}</TableCell>
                     <TableCell className={variation.cost_impact >= 0 ? 'text-green-600' : 'text-red-600'}>
                       {formatCurrency(variation.cost_impact)}
                     </TableCell>
