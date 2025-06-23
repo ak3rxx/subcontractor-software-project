@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,6 +35,7 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
   // Initialize with provided files
   useEffect(() => {
     if (files && files.length > 0) {
+      console.log('Initializing with files:', files);
       setCurrentFiles(files);
     } else {
       setCurrentFiles([]);
@@ -52,6 +52,8 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
     const selectedFiles = Array.from(event.target.files || []);
     if (selectedFiles.length === 0) return;
 
+    console.log('Selected files for upload:', selectedFiles.map(f => f.name));
+
     // Check file limit
     if (currentFiles.length + selectedFiles.length > maxFiles) {
       console.warn(`Maximum ${maxFiles} files allowed`);
@@ -61,6 +63,7 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
     try {
       // Upload files to Supabase
       const uploadedFiles = await uploadFiles(selectedFiles, inspectionId, checklistItemId);
+      console.log('Files uploaded successfully:', uploadedFiles);
       
       const updatedFiles = [...currentFiles, ...uploadedFiles];
       setCurrentFiles(updatedFiles);
@@ -74,6 +77,7 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
   }, [currentFiles, maxFiles, onFilesChange, uploadFiles, inspectionId, checklistItemId]);
 
   const handleRemoveFile = useCallback(async (fileId: string) => {
+    console.log('Removing file:', fileId);
     await removeFile(fileId);
     const updatedFiles = currentFiles.filter(f => f.id !== fileId);
     setCurrentFiles(updatedFiles);
@@ -81,13 +85,17 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
   }, [currentFiles, onFilesChange, removeFile]);
 
   const handleRetryUpload = useCallback(async (fileId: string) => {
+    console.log('Retrying upload for file:', fileId);
     await retryFailedUpload(fileId, inspectionId, checklistItemId);
     // The hook will automatically update the files list
   }, [retryFailedUpload, inspectionId, checklistItemId]);
 
   const handleDownloadFile = useCallback((file: SupabaseUploadedFile) => {
     if (file.uploaded && file.url) {
+      console.log('Opening file URL:', file.url);
       window.open(file.url, '_blank');
+    } else {
+      console.warn('File not uploaded or URL missing:', file);
     }
   }, []);
 
@@ -215,6 +223,10 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
                           src={file.url}
                           alt={file.name}
                           className="absolute inset-0 h-8 w-8 object-cover rounded"
+                          onError={(e) => {
+                            console.error('Failed to load image:', file.url);
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       </div>
                     ) : (
@@ -230,6 +242,11 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
                       </p>
                       {!file.uploaded && file.error && (
                         <p className="text-xs text-red-600">{file.error}</p>
+                      )}
+                      {file.uploaded && (
+                        <p className="text-xs text-gray-400">
+                          URL: {file.url.substring(0, 50)}...
+                        </p>
                       )}
                     </div>
                   </div>
@@ -276,6 +293,10 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
                       src={file.url}
                       alt={file.name}
                       className="max-w-full h-32 object-contain rounded border"
+                      onError={(e) => {
+                        console.error('Failed to load preview image:', file.url);
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   </div>
                 )}

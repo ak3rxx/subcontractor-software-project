@@ -43,6 +43,8 @@ export const useSupabaseFileUpload = () => {
       : `temp/${fileName}`;
 
     try {
+      console.log('Uploading file to bucket: qainspectionfiles, path:', filePath);
+      
       // Upload file to Supabase Storage
       const { data, error } = await supabase.storage
         .from('qainspectionfiles')
@@ -56,10 +58,14 @@ export const useSupabaseFileUpload = () => {
         throw error;
       }
 
-      // Get public URL
+      console.log('File uploaded successfully:', data);
+
+      // Get public URL - using the correct method for public access
       const { data: urlData } = supabase.storage
         .from('qainspectionfiles')
         .getPublicUrl(filePath);
+
+      console.log('Public URL generated:', urlData.publicUrl);
 
       const uploadedFile: SupabaseUploadedFile = {
         id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -119,6 +125,7 @@ export const useSupabaseFileUpload = () => {
     const fileToRemove = uploadedFiles.find(f => f.id === fileId);
     if (fileToRemove && fileToRemove.uploaded) {
       try {
+        console.log('Deleting file from storage:', fileToRemove.path);
         // Delete from Supabase Storage
         const { error } = await supabase.storage
           .from('qainspectionfiles')
@@ -166,6 +173,7 @@ export const useSupabaseFileUpload = () => {
 
     if (uploadedFilePaths.length > 0) {
       try {
+        console.log('Clearing files from storage:', uploadedFilePaths);
         const { error } = await supabase.storage
           .from('qainspectionfiles')
           .remove(uploadedFilePaths);
