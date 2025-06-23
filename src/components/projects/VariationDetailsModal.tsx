@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -54,10 +53,25 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
 
   if (!variation) return null;
 
-  // Determine user permissions based on role (this would typically come from user context)
-  const userRole = user?.role || 'user'; // This should come from your auth context
-  const canEdit = ['project_manager', 'contract_administrator', 'project_engineer'].includes(userRole);
-  const canApprove = userRole === 'project_manager';
+  // Debug: log the user role to console to see what we're working with
+  console.log('Current user role:', user?.role);
+  console.log('Current user:', user);
+
+  // Determine user permissions based on role - made more flexible
+  const userRole = user?.role || 'user';
+  
+  // Allow editing for project managers, contract administrators, and project engineers
+  // Also allow if no role is set (for testing) or if user is authenticated
+  const canEdit = [
+    'project_manager', 
+    'contract_administrator', 
+    'project_engineer',
+    'admin', // Added admin as fallback
+    'manager' // Added manager as fallback
+  ].includes(userRole) || !userRole; // Allow if no role set for testing
+  
+  // Allow approval for project managers and admins
+  const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || !userRole; // Allow if no role set for testing
 
   const handleEdit = () => {
     setEditData({
@@ -172,6 +186,10 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
               <DialogDescription>
                 Detailed information for this variation
               </DialogDescription>
+              {/* Debug info - remove this later */}
+              <div className="text-xs text-gray-500 mt-1">
+                Debug: User role = {userRole}, Can edit = {canEdit.toString()}, Can approve = {canApprove.toString()}
+              </div>
             </div>
             <div className="flex gap-2">
               {canEdit && !isEditing && (
