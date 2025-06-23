@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQAInspections, QAInspection, QAChecklistItem } from '@/hooks/useQAInspections';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import QAChangeHistory from './QAChangeHistory';
+import FileUpload from './FileUpload';
 import { exportInspectionToPDF, downloadPDF } from '@/utils/pdfExport';
 
 interface QAInspectionViewerProps {
@@ -37,6 +38,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +89,12 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         originalItem.description
       );
     }
+  };
+
+  const handleChecklistItemFileChange = (itemId: string, files: File[]) => {
+    setChecklistItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, evidence_files: files } : item
+    ));
   };
 
   const handleInspectionFieldChange = (field: string, value: string) => {
@@ -262,12 +270,13 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 
       <div ref={printRef} className="print-content">
         <Tabs defaultValue="inspection" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="inspection">Inspection Details</TabsTrigger>
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
+            <TabsTrigger value="attachments">Attachments</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
-              Change History
+              History
             </TabsTrigger>
           </TabsList>
 
@@ -446,17 +455,90 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                               rows={2}
                             />
                           </div>
+
+                          <FileUpload
+                            files={item.evidence_files as File[] || []}
+                            onFilesChange={(files) => handleChecklistItemFileChange(item.id, files)}
+                            label="Evidence Photos/Documents"
+                            accept="image/*,.pdf,.doc,.docx"
+                            maxFiles={3}
+                          />
                         </div>
                       ) : (
-                        item.comments && (
-                          <div className="bg-gray-50 p-3 rounded-md">
-                            <Label className="text-sm font-medium text-gray-700">Comments:</Label>
-                            <p className="text-sm text-gray-600 mt-1">{item.comments}</p>
-                          </div>
-                        )
+                        <>
+                          {item.comments && (
+                            <div className="bg-gray-50 p-3 rounded-md">
+                              <Label className="text-sm font-medium text-gray-700">Comments:</Label>
+                              <p className="text-sm text-gray-600 mt-1">{item.comments}</p>
+                            </div>
+                          )}
+                          {item.evidence_files && item.evidence_files.length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-gray-700">Evidence Files:</Label>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                {(item.evidence_files as File[]).map((file, fileIndex) => (
+                                  <div key={fileIndex} className="border rounded p-2 text-center">
+                                    {file.type.startsWith('image/') ? (
+                                      <img 
+                                        src={URL.createObjectURL(file)} 
+                                        alt={file.name}
+                                        className="w-full h-20 object-cover rounded mb-1"
+                                      />
+                                    ) : (
+                                      <FileText className="h-8 w-8 mx-auto mb-1 text-gray-400" />
+                                    )}
+                                    <p className="text-xs text-gray-600 truncate">{file.name}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="attachments" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Inspection Attachments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {editMode ? (
+                  <FileUpload
+                    files={attachmentFiles}
+                    onFilesChange={setAttachmentFiles}
+                    label="General Inspection Attachments"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    maxFiles={10}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    {attachmentFiles.length === 0 ? (
+                      <p>No attachments uploaded yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {attachmentFiles.map((file, index) => (
+                          <div key={index} className="border rounded p-3 text-center">
+                            {file.type.startsWith('image/') ? (
+                              <img 
+                                src={URL.createObjectURL(file)} 
+                                alt={file.name}
+                                className="w-full h-24 object-cover rounded mb-2"
+                              />
+                            ) : (
+                              <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                            )}
+                            <p className="text-xs text-gray-600 truncate">{file.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

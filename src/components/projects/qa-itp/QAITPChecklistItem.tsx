@@ -3,7 +3,8 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload } from 'lucide-react';
+import { FileText, Image } from 'lucide-react';
+import FileUpload from './FileUpload';
 
 interface ChecklistItem {
   id: string;
@@ -24,6 +25,10 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   item,
   onChecklistChange
 }) => {
+  const handleFileChange = (files: File[]) => {
+    onChecklistChange(item.id, 'evidence', files);
+  };
+
   return (
     <div className="border rounded-lg p-4 space-y-3">
       <div>
@@ -75,18 +80,35 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Upload Evidence Photos</Label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 cursor-pointer">
-          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-          <p className="text-sm text-gray-600">
-            Attach clear, timestamped photos for inspection evidence
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Click to browse or drag files here
-          </p>
+      <FileUpload
+        files={item.evidence || []}
+        onFilesChange={handleFileChange}
+        label="Upload Evidence Photos"
+        accept="image/*,.pdf,.doc,.docx"
+        maxFiles={3}
+      />
+
+      {item.evidence && item.evidence.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-gray-700">Evidence Files:</Label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {item.evidence.map((file, index) => (
+              <div key={index} className="border rounded p-2 text-center">
+                {file.type.startsWith('image/') ? (
+                  <img 
+                    src={URL.createObjectURL(file)} 
+                    alt={file.name}
+                    className="evidence-image w-full h-20 object-cover rounded mb-1"
+                  />
+                ) : (
+                  <FileText className="h-8 w-8 mx-auto mb-1 text-gray-400" />
+                )}
+                <p className="text-xs text-gray-600 truncate">{file.name}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
