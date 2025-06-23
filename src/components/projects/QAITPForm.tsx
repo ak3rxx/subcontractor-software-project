@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import QAITPProjectInfo from './qa-itp/QAITPProjectInfo';
 import QAITPChecklistItem from './qa-itp/QAITPChecklistItem';
 import QAITPSignOff from './qa-itp/QAITPSignOff';
 import { templates, type ChecklistItem } from './qa-itp/QAITPTemplates';
+import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -249,7 +251,9 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         let evidenceFileNames: string[] = [];
         if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
           evidenceFileNames = item.evidenceFiles
-            .filter(file => file && typeof file === 'object' && 'path' in file && file.uploaded)
+            .filter((file): file is SupabaseUploadedFile => 
+              file && typeof file === 'object' && 'path' in file && file.uploaded === true
+            )
             .map(file => file.path);
         }
 
