@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,13 +9,16 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, Upload, Paperclip, MapPin } from 'lucide-react';
+import { useVariations } from '@/hooks/useVariations';
 
 interface VariationManagerProps {
   projectName: string;
+  projectId: string;
 }
 
-const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
+const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId }) => {
   const { toast } = useToast();
+  const { variations, loading, createVariation } = useVariations(projectId);
   const [showNewVariation, setShowNewVariation] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [newVariation, setNewVariation] = useState({
@@ -31,52 +33,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
     justification: '',
     location: ''
   });
-
-  // Sample variations data with attachments and location
-  const variations = [
-    {
-      id: 'VAR-001',
-      title: 'Additional Electrical Points - Unit 3A',
-      description: 'Client requested 4 additional power points in living area',
-      location: 'Unit 3A, Level 2, Living Room',
-      submittedBy: 'Sarah Johnson',
-      submittedDate: '2024-01-10',
-      costImpact: 1250,
-      timeImpact: 2,
-      status: 'approved',
-      category: 'electrical',
-      priority: 'normal',
-      attachments: ['electrical_plan.pdf', 'quote_reference.pdf']
-    },
-    {
-      id: 'VAR-002',
-      title: 'Upgrade Bathroom Fixtures',
-      description: 'Change standard fixtures to premium range as per client selection',
-      location: 'Unit 2B, Master Bathroom',
-      submittedBy: 'Mike Davis',
-      submittedDate: '2024-01-08',
-      costImpact: 3500,
-      timeImpact: 0,
-      status: 'pending',
-      category: 'fixtures',
-      priority: 'low',
-      attachments: ['fixture_catalogue.pdf']
-    },
-    {
-      id: 'VAR-003',
-      title: 'Structural Beam Modification',
-      description: 'Modify beam size due to engineering requirement',
-      location: 'Level 1, Structural Grid B-C',
-      submittedBy: 'John Smith',
-      submittedDate: '2024-01-05',
-      costImpact: -800,
-      timeImpact: 5,
-      status: 'rejected',
-      category: 'structural',
-      priority: 'high',
-      attachments: ['engineering_report.pdf', 'structural_drawings.dwg']
-    }
-  ];
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -148,16 +104,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
         <h2 style="text-align: center; margin: 30px 0;">VARIATION ORDER</h2>
         
         <div class="variation-details">
-          <div class="field"><span class="label">Variation Number:</span> ${variation.id}</div>
+          <div class="field"><span class="label">Variation Number:</span> ${variation.variation_number}</div>
           <div class="field"><span class="label">Project:</span> ${projectName}</div>
-          <div class="field"><span class="label">Date:</span> ${variation.submittedDate}</div>
+          <div class="field"><span class="label">Date:</span> ${variation.submitted_date}</div>
           <div class="field"><span class="label">Location:</span> ${variation.location}</div>
           
           <div class="field"><span class="label">Title:</span> ${variation.title}</div>
           <div class="field"><span class="label">Description:</span><br/>${variation.description}</div>
           
-          <div class="field"><span class="label">Cost Impact:</span> ${formatCurrency(variation.costImpact)}</div>
-          <div class="field"><span class="label">Time Impact:</span> ${variation.timeImpact > 0 ? `+${variation.timeImpact}d` : variation.timeImpact === 0 ? '0d' : `${variation.timeImpact}d`}</div>
+          <div class="field"><span class="label">Cost Impact:</span> ${formatCurrency(variation.cost_impact)}</div>
+          <div class="field"><span class="label">Time Impact:</span> ${variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}</div>
           <div class="field"><span class="label">Priority:</span> ${variation.priority}</div>
           <div class="field"><span class="label">Category:</span> ${variation.category}</div>
           <div class="field"><span class="label">Status:</span> ${variation.status}</div>
@@ -173,7 +129,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
         <div class="signature-section">
           <div style="display: flex; justify-content: space-between;">
             <div>
-              <p><strong>Submitted by:</strong> ${variation.submittedBy}</p>
+              <p><strong>Submitted by:</strong> ${variation.submitted_by}</p>
               <p>Signature: _________________________</p>
               <p>Date: _____________________</p>
             </div>
@@ -193,7 +149,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${variation.id}_Variation_Order.html`;
+    link.download = `${variation.variation_number}_Variation_Order.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -201,7 +157,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
 
     toast({
       title: "PDF Export",
-      description: `Variation ${variation.id} has been exported as PDF`,
+      description: `Variation ${variation.variation_number} has been exported as PDF`,
     });
   };
 
@@ -240,32 +196,48 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
     return `-$${Math.abs(amount).toLocaleString()}`;
   };
 
-  const handleSubmitVariation = (e: React.FormEvent) => {
+  const handleSubmitVariation = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('New Variation:', newVariation);
-    console.log('Attached Files:', attachedFiles);
-    
-    toast({
-      title: "Variation Submitted",
-      description: `${newVariation.title} has been submitted for approval. PDF will be generated and sent to client.`,
-    });
+    const attachmentData = attachedFiles.map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type
+    }));
 
-    setNewVariation({
-      title: '',
-      description: '',
-      submittedBy: '',
-      costImpact: '',
-      timeImpact: '',
-      category: '',
-      priority: 'normal',
-      clientEmail: '',
-      justification: '',
-      location: ''
-    });
-    setAttachedFiles([]);
-    setShowNewVariation(false);
+    const variationData = {
+      ...newVariation,
+      attachments: attachmentData
+    };
+
+    const result = await createVariation(variationData);
+    
+    if (result) {
+      setNewVariation({
+        title: '',
+        description: '',
+        submittedBy: '',
+        costImpact: '',
+        timeImpact: '',
+        category: '',
+        priority: 'normal',
+        clientEmail: '',
+        justification: '',
+        location: ''
+      });
+      setAttachedFiles([]);
+      setShowNewVariation(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading variations...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -286,7 +258,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
           <CardContent className="p-4 text-center">
             <DollarSign className="h-8 w-8 mx-auto text-green-500 mb-2" />
             <div className="text-2xl font-bold">
-              ${variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.costImpact, 0).toLocaleString()}
+              ${variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.cost_impact, 0).toLocaleString()}
             </div>
             <div className="text-sm text-gray-600">Approved Value</div>
           </CardContent>
@@ -296,7 +268,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
           <CardContent className="p-4 text-center">
             <Clock className="h-8 w-8 mx-auto text-blue-500 mb-2" />
             <div className="text-2xl font-bold">
-              {variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.timeImpact, 0)}
+              {variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.time_impact, 0)}
             </div>
             <div className="text-sm text-gray-600">Days Extension</div>
           </CardContent>
@@ -519,72 +491,84 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName }) => {
           <CardTitle>Variation Register</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Submitted By</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Cost Impact</TableHead>
-                <TableHead>Time Impact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Attachments</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {variations.map((variation) => (
-                <TableRow key={variation.id}>
-                  <TableCell className="font-mono text-sm">{variation.id}</TableCell>
-                  <TableCell className="font-medium max-w-[200px] truncate">
-                    {variation.title}
-                  </TableCell>
-                  <TableCell className="max-w-[150px] truncate">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-gray-500" />
-                      <span title={variation.location}>{variation.location}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{variation.submittedBy}</TableCell>
-                  <TableCell>{variation.submittedDate}</TableCell>
-                  <TableCell className={variation.costImpact >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {formatCurrency(variation.costImpact)}
-                  </TableCell>
-                  <TableCell>
-                    {variation.timeImpact > 0 ? `+${variation.timeImpact}d` : variation.timeImpact === 0 ? '0d' : `${variation.timeImpact}d`}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(variation.status)}</TableCell>
-                  <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
-                  <TableCell>
-                    {variation.attachments && variation.attachments.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Paperclip className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">{variation.attachments.length}</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" title="View Details">
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        title="Export PDF"
-                        onClick={() => exportToPDF(variation)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {variations.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Variations Yet</h3>
+              <p className="text-gray-600 mb-4">Create your first variation to get started</p>
+              <Button onClick={() => setShowNewVariation(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Variation
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Submitted By</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Cost Impact</TableHead>
+                  <TableHead>Time Impact</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Attachments</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {variations.map((variation) => (
+                  <TableRow key={variation.id}>
+                    <TableCell className="font-mono text-sm">{variation.variation_number}</TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate">
+                      {variation.title}
+                    </TableCell>
+                    <TableCell className="max-w-[150px] truncate">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-gray-500" />
+                        <span title={variation.location}>{variation.location}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{variation.submitted_by}</TableCell>
+                    <TableCell>{variation.submitted_date}</TableCell>
+                    <TableCell className={variation.cost_impact >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {formatCurrency(variation.cost_impact)}
+                    </TableCell>
+                    <TableCell>
+                      {variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(variation.status)}</TableCell>
+                    <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
+                    <TableCell>
+                      {variation.attachments && variation.attachments.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Paperclip className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">{variation.attachments.length}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" title="View Details">
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          title="Export PDF"
+                          onClick={() => exportToPDF(variation)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

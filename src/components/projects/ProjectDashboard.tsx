@@ -1,41 +1,37 @@
-
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Building2, Calendar, Users, FileText, AlertTriangle, 
-  Package, ClipboardCheck, MessageSquare, CheckCircle2,
-  TrendingUp, Clock, MapPin, Plus, BadgeDollarSign
-} from 'lucide-react';
-import ProgrammeTracker from './ProgrammeTracker';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Building2, FileText, Users, Calendar, DollarSign, Package, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle } from 'lucide-react';
+import QAITPTracker from './QAITPTracker';
+import QAITPForm from './QAITPForm';
+import MaterialHandover from './MaterialHandover';
+import TaskManager from './TaskManager';
+import TeamNotes from './TeamNotes';
 import DocumentManager from './DocumentManager';
 import VariationManager from './VariationManager';
 import RFIManager from './RFIManager';
-import TaskManager from './TaskManager';
-import TeamNotes from './TeamNotes';
+import ProgrammeTracker from './programme/ProgrammeTracker';
 import FinanceManager from './finance/FinanceManager';
+import DeliveryScheduler from './DeliveryScheduler';
 
 interface ProjectDashboardProps {
-  projectData?: any;
+  projectData: {
+    id: string;
+    name: string;
+    description?: string;
+    project_type?: string;
+    status: string;
+    start_date?: string;
+    estimated_completion?: string;
+    site_address?: string;
+    total_budget?: number;
+  };
 }
 
 const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Sample project data
-  const project = projectData || {
-    projectName: 'Riverside Apartments Development',
-    projectType: 'Residential',
-    status: 'in-progress',
-    completion: 65,
-    startDate: '2024-01-15',
-    estimatedCompletion: '2024-08-30',
-    siteAddress: '123 River Street, Brisbane QLD 4000',
-    projectManager: 'Sarah Johnson'
-  };
+  const [activeQAForm, setActiveQAForm] = useState(false);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -47,253 +43,187 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
     }
   };
 
-  // Sample metrics
-  const metrics = {
-    milestones: { completed: 8, total: 12 },
-    deliveries: { thisWeek: 3, pending: 2 },
-    variations: { approved: 5, pending: 2 },
-    rfis: { open: 3, overdue: 1 },
-    tasks: { completed: 24, active: 8 }
-  };
-
   return (
     <div className="space-y-6">
       {/* Project Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{project.projectName}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span className="flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
-                {project.projectType}
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {project.siteAddress}
-              </span>
-              <span className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                PM: {project.projectManager}
-              </span>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-4 mb-2">
+                <Building2 className="h-6 w-6 text-blue-600" />
+                <h2 className="text-2xl font-bold">{projectData.name}</h2>
+                {getStatusBadge(projectData.status)}
+              </div>
+              {projectData.description && (
+                <p className="text-gray-600 mb-2">{projectData.description}</p>
+              )}
+              <div className="flex items-center gap-6 text-sm text-gray-600">
+                {projectData.project_type && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-4 w-4" />
+                    {projectData.project_type}
+                  </span>
+                )}
+                {projectData.start_date && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    Started: {new Date(projectData.start_date).toLocaleDateString()}
+                  </span>
+                )}
+                {projectData.total_budget && (
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    Budget: ${projectData.total_budget.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {projectData.site_address && (
+                <div className="mt-2 text-sm text-gray-600">
+                  📍 {projectData.site_address}
+                </div>
+              )}
             </div>
           </div>
-          <div className="text-right">
-            {getStatusBadge(project.status)}
-            <div className="text-sm text-gray-600 mt-2">
-              {project.startDate} → {project.estimatedCompletion}
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium">Project Progress</span>
-            <span className="text-sm text-gray-600">{project.completion}% Complete</span>
-          </div>
-          <Progress value={project.completion} className="h-2" />
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
 
+      {/* Project Management Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
           <TabsTrigger value="overview" className="flex items-center gap-1">
-            <TrendingUp className="h-4 w-4" />
-            Overview
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Overview</span>
           </TabsTrigger>
           <TabsTrigger value="programme" className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            Programme
+            <span className="hidden sm:inline">Programme</span>
+          </TabsTrigger>
+          <TabsTrigger value="qa-itp" className="flex items-center gap-1">
+            <ClipboardCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">QA/ITP</span>
+          </TabsTrigger>
+          <TabsTrigger value="materials" className="flex items-center gap-1">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Materials</span>
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="flex items-center gap-1">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Tasks</span>
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="flex items-center gap-1">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Notes</span>
           </TabsTrigger>
           <TabsTrigger value="documents" className="flex items-center gap-1">
             <FileText className="h-4 w-4" />
-            Documents
+            <span className="hidden sm:inline">Documents</span>
           </TabsTrigger>
           <TabsTrigger value="variations" className="flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />
-            Variations
+            <span className="hidden sm:inline">Variations</span>
+          </TabsTrigger>
+          <TabsTrigger value="rfi" className="flex items-center gap-1">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">RFI</span>
           </TabsTrigger>
           <TabsTrigger value="finance" className="flex items-center gap-1">
-            <BadgeDollarSign className="h-4 w-4" />
-            Finance
-          </TabsTrigger>
-          <TabsTrigger value="rfis" className="flex items-center gap-1">
-            <MessageSquare className="h-4 w-4" />
-            RFIs
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="flex items-center gap-1">
-            <CheckCircle2 className="h-4 w-4" />
-            Tasks
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-1">
-            <Users className="h-4 w-4" />
-            Team
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Finance</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Quick Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Milestones</p>
-                    <p className="text-2xl font-bold">{metrics.milestones.completed}/{metrics.milestones.total}</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-blue-500" />
-                </div>
+              <CardContent className="p-6 text-center">
+                <Building2 className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                <div className="text-2xl font-bold">{projectData.project_type || 'N/A'}</div>
+                <div className="text-sm text-gray-600">Project Type</div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Deliveries</p>
-                    <p className="text-2xl font-bold">{metrics.deliveries.thisWeek}</p>
-                    <p className="text-xs text-gray-500">This week</p>
-                  </div>
-                  <Package className="h-8 w-8 text-green-500" />
+              <CardContent className="p-6 text-center">
+                <Calendar className="h-8 w-8 mx-auto text-green-500 mb-2" />
+                <div className="text-2xl font-bold">
+                  {projectData.start_date ? new Date(projectData.start_date).toLocaleDateString() : 'Not Set'}
                 </div>
+                <div className="text-sm text-gray-600">Start Date</div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Variations</p>
-                    <p className="text-2xl font-bold">{metrics.variations.pending}</p>
-                    <p className="text-xs text-gray-500">Pending</p>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-yellow-500" />
+              <CardContent className="p-6 text-center">
+                <DollarSign className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
+                <div className="text-2xl font-bold">
+                  {projectData.total_budget ? `$${projectData.total_budget.toLocaleString()}` : 'Not Set'}
                 </div>
+                <div className="text-sm text-gray-600">Total Budget</div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">RFIs</p>
-                    <p className="text-2xl font-bold">{metrics.rfis.open}</p>
-                    <p className="text-xs text-red-500">{metrics.rfis.overdue} overdue</p>
-                  </div>
-                  <MessageSquare className="h-8 w-8 text-purple-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Active Tasks</p>
-                    <p className="text-2xl font-bold">{metrics.tasks.active}</p>
-                    <p className="text-xs text-gray-500">{metrics.tasks.completed} done</p>
-                  </div>
-                  <CheckCircle2 className="h-8 w-8 text-indigo-500" />
-                </div>
+              <CardContent className="p-6 text-center">
+                <Users className="h-8 w-8 mx-auto text-purple-500 mb-2" />
+                <div className="text-2xl font-bold">Active</div>
+                <div className="text-sm text-gray-600">Project Status</div>
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
 
-          {/* Recent Activity */}
+        <TabsContent value="programme" className="space-y-6">
+          <ProgrammeTracker projectId={projectData.id} />
+        </TabsContent>
+
+        <TabsContent value="qa-itp" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                  <Package className="h-5 w-5 text-green-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Material delivery completed</p>
-                    <p className="text-xs text-gray-600">Timber Supply Co - Level 3 North Wing</p>
-                  </div>
-                  <span className="text-xs text-gray-500">2h ago</span>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">New variation submitted</p>
-                    <p className="text-xs text-gray-600">Additional electrical points - Unit 3A</p>
-                  </div>
-                  <span className="text-xs text-gray-500">4h ago</span>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                  <ClipboardCheck className="h-5 w-5 text-blue-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">QA inspection passed</p>
-                    <p className="text-xs text-gray-600">Door installation - Final inspection</p>
-                  </div>
-                  <span className="text-xs text-gray-500">1d ago</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Alerts & Warnings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-                Alerts & Action Required
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <Clock className="h-5 w-5 text-red-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">1 RFI overdue</p>
-                    <p className="text-xs text-red-600">Bathroom fixture specifications - Due 2 days ago</p>
-                  </div>
-                  <Button size="sm" variant="outline">View RFI</Button>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <Calendar className="h-5 w-5 text-yellow-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-yellow-800">Delivery schedule conflict</p>
-                    <p className="text-xs text-yellow-600">Steel delivery scheduled before foundation completion</p>
-                  </div>
-                  <Button size="sm" variant="outline">Review Schedule</Button>
-                </div>
-              </div>
+            <CardContent className="p-6">
+              {activeQAForm ? (
+                <QAITPForm onClose={() => setActiveQAForm(false)} />
+              ) : (
+                <QAITPTracker onNewInspection={() => setActiveQAForm(true)} />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="programme">
-          <ProgrammeTracker projectName={project.projectName} />
+        <TabsContent value="materials" className="space-y-6">
+          <Card>
+            <CardContent className="p-6">
+              <MaterialHandover />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Delivery Scheduler</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DeliveryScheduler />
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="documents">
-          <DocumentManager projectName={project.projectName} />
+        <TabsContent value="tasks" className="space-y-6">
+          <TaskManager projectId={projectData.id} />
         </TabsContent>
 
-        <TabsContent value="variations">
-          <VariationManager projectName={project.projectName} />
-        </TabsContent>
-        
-        <TabsContent value="finance">
-          <FinanceManager projectName={project.projectName} />
+        <TabsContent value="notes" className="space-y-6">
+          <TeamNotes projectId={projectData.id} />
         </TabsContent>
 
-        <TabsContent value="rfis">
-          <RFIManager projectName={project.projectName} />
+        <TabsContent value="documents" className="space-y-6">
+          <DocumentManager projectId={projectData.id} />
         </TabsContent>
 
-        <TabsContent value="tasks">
-          <TaskManager projectName={project.projectName} />
+        <TabsContent value="variations" className="space-y-6">
+          <VariationManager projectName={projectData.name} projectId={projectData.id} />
         </TabsContent>
 
-        <TabsContent value="team">
-          <TeamNotes projectName={project.projectName} />
+        <TabsContent value="rfi" className="space-y-6">
+          <RFIManager projectId={projectData.id} />
+        </TabsContent>
+
+        <TabsContent value="finance" className="space-y-6">
+          <FinanceManager projectId={projectData.id} />
         </TabsContent>
       </Tabs>
     </div>

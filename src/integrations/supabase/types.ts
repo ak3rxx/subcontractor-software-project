@@ -905,6 +905,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_variation_number: {
+        Args: { project_uuid: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
