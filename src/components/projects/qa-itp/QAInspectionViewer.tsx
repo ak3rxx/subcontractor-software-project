@@ -166,13 +166,15 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  // Fixed type conversion function with proper type guards
+  // Fixed type conversion function with proper type handling
   const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | null): SupabaseUploadedFile[] => {
     if (!files || !Array.isArray(files) || files.length === 0) return [];
 
     return files.map((file, index) => {
-      // Type guard to check if it's a string
-      if (typeof file === 'string') {
+      // Type guard to check if it's already a SupabaseUploadedFile
+      if (typeof file === 'object' && file !== null && 'uploaded' in file && 'path' in file) {
+        return file as SupabaseUploadedFile;
+      } else if (typeof file === 'string') {
         // Handle string file paths - convert to SupabaseUploadedFile format
         return {
           id: `file-${index}-${Date.now()}`,
@@ -186,8 +188,17 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           uploaded: true
         } as SupabaseUploadedFile;
       } else {
-        // Already a SupabaseUploadedFile
-        return file;
+        // Fallback for any other type
+        return {
+          id: `file-${index}-${Date.now()}`,
+          file: new File([], 'unknown'),
+          url: '',
+          name: 'unknown',
+          size: 0,
+          type: 'application/octet-stream',
+          path: '',
+          uploaded: false
+        } as SupabaseUploadedFile;
       }
     });
   };
