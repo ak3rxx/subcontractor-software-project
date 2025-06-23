@@ -1,12 +1,10 @@
-
-
 export interface ChecklistItem {
   id: string;
   description: string;
   requirements: string;
   status?: 'pass' | 'fail' | 'na';
   comments?: string;
-  evidenceFiles?: File[];
+  evidenceFiles?: any[]; // Changed to any[] to handle both UploadedFile[] and File[]
   isFireDoorOnly?: boolean;
 }
 
@@ -121,4 +119,3 @@ export const templates: Record<string, Template> = {
 };
 
 export type { Template };
-

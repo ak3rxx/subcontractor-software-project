@@ -169,14 +169,30 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         overall_status: formData.overallStatus as 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress'
       };
 
-      const checklistItemsData = filteredChecklist.map(item => ({
-        item_id: item.id,
-        description: item.description,
-        requirements: item.requirements,
-        status: item.status,
-        comments: item.comments || null,
-        evidence_files: null
-      }));
+      const checklistItemsData = filteredChecklist.map(item => {
+        // Convert evidence files to file names/paths for storage
+        let evidenceFileNames: string[] = [];
+        if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
+          evidenceFileNames = item.evidenceFiles.map(file => {
+            if ('name' in file) {
+              return file.name;
+            } else if (file instanceof File) {
+              return file.name;
+            } else {
+              return String(file);
+            }
+          });
+        }
+
+        return {
+          item_id: item.id,
+          description: item.description,
+          requirements: item.requirements,
+          status: item.status,
+          comments: item.comments || null,
+          evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : null
+        };
+      });
 
       const result = await createInspection(inspectionData, checklistItemsData);
       

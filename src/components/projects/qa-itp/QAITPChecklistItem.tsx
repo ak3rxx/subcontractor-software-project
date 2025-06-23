@@ -19,23 +19,31 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   onUploadStatusChange 
 }) => {
   const handleFileChange = useCallback((files: UploadedFile[]) => {
-    // Convert UploadedFile[] to File[] for storage
-    const fileObjects = files.map(f => f.file);
-    onChecklistChange(item.id, 'evidenceFiles', fileObjects);
+    // Store the full UploadedFile objects instead of just File objects
+    onChecklistChange(item.id, 'evidenceFiles', files);
   }, [item.id, onChecklistChange]);
 
-  // Convert File[] back to UploadedFile[] for display
-  const convertFilesToUploadedFiles = (files: File[] | undefined): UploadedFile[] => {
+  // Convert various file formats to UploadedFile[] for display
+  const convertFilesToUploadedFiles = (files: UploadedFile[] | File[] | undefined): UploadedFile[] => {
     if (!files || files.length === 0) return [];
     
-    return files.map((file, index) => ({
-      id: `file-${Date.now()}-${index}`,
-      file: file,
-      url: URL.createObjectURL(file),
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }));
+    return files.map((file, index) => {
+      // If it's already an UploadedFile, return as is
+      if ('id' in file && 'url' in file) {
+        return file as UploadedFile;
+      }
+      
+      // If it's a File, convert to UploadedFile
+      const fileObj = file as File;
+      return {
+        id: `file-${Date.now()}-${index}`,
+        file: fileObj,
+        url: URL.createObjectURL(fileObj),
+        name: fileObj.name,
+        size: fileObj.size,
+        type: fileObj.type
+      };
+    });
   };
 
   return (

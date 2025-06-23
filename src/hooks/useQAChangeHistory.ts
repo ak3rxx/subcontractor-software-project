@@ -25,8 +25,9 @@ export const useQAChangeHistory = (inspectionId: string) => {
     if (!inspectionId) return;
 
     try {
-      // Use type assertion for the RPC call since TypeScript doesn't know about our new function yet
-      const { data, error } = await (supabase.rpc as any)('get_qa_change_history', {
+      console.log('Fetching change history for inspection:', inspectionId);
+      
+      const { data, error } = await supabase.rpc('get_qa_change_history', {
         p_inspection_id: inspectionId
       });
 
@@ -36,16 +37,18 @@ export const useQAChangeHistory = (inspectionId: string) => {
         return;
       }
 
-      // Map the data to match our interface, handling the timestamp field name
+      console.log('Change history data received:', data);
+
+      // Map the data to match our interface
       const mappedData = (data || []).map((item: any) => ({
         ...item,
-        timestamp: item.change_timestamp || item.timestamp, // Handle both field names
+        timestamp: item.change_timestamp || item.timestamp,
         user_name: item.user_name || 'Unknown User'
       }));
 
       setChangeHistory(mappedData);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching change history:', error);
       setChangeHistory([]);
     } finally {
       setLoading(false);
@@ -60,11 +63,23 @@ export const useQAChangeHistory = (inspectionId: string) => {
     itemId?: string,
     itemDescription?: string
   ) => {
-    if (!user || !inspectionId) return;
+    if (!user || !inspectionId) {
+      console.log('Cannot record change: missing user or inspection ID');
+      return;
+    }
 
     try {
-      // Use type assertion for the RPC call
-      const { error } = await (supabase.rpc as any)('record_qa_change', {
+      console.log('Recording change:', {
+        inspectionId,
+        fieldName,
+        oldValue,
+        newValue,
+        changeType,
+        itemId,
+        itemDescription
+      });
+
+      const { error } = await supabase.rpc('record_qa_change', {
         p_inspection_id: inspectionId,
         p_user_id: user.id,
         p_field_name: fieldName,
@@ -78,6 +93,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
       if (error) {
         console.error('Error recording change:', error);
       } else {
+        console.log('Change recorded successfully');
         // Refresh the change history
         fetchChangeHistory();
       }
