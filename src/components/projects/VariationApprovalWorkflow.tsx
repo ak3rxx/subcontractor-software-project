@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -233,7 +232,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Approval Comments */}
-              <div className="space-y-3">
+              <div className="flex flex-col space-y-2">
                 <Label htmlFor="approval-comments">Approval Comments (Optional)</Label>
                 <Textarea
                   id="approval-comments"
@@ -241,11 +240,12 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
                   onChange={(e) => setApprovalComments(e.target.value)}
                   placeholder="Add any comments about this approval..."
                   rows={3}
+                  className="flex-1"
                 />
               </div>
 
               {/* Rejection Reason */}
-              <div className="space-y-3">
+              <div className="flex flex-col space-y-2">
                 <Label htmlFor="rejection-reason">Rejection Reason</Label>
                 <Textarea
                   id="rejection-reason"
@@ -253,6 +253,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Explain why this variation is being rejected..."
                   rows={3}
+                  className="flex-1"
                 />
               </div>
             </div>
