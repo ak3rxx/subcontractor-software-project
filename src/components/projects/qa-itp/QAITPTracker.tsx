@@ -192,14 +192,15 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center flex-wrap">
-        <div className="flex items-center gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-center">
+        <div className="flex items-center gap-2 col-span-2 lg:col-span-1">
           <Filter className="h-4 w-4" />
           <span className="text-sm font-medium">Filters:</span>
         </div>
+        
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
+          <SelectTrigger>
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
@@ -209,10 +210,11 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
           </SelectContent>
         </Select>
+
         {!projectId && (
           <Select value={filterProject} onValueChange={setFilterProject}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by project" />
+            <SelectTrigger>
+              <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
@@ -224,9 +226,10 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             </SelectContent>
           </Select>
         )}
+
         <Select value={filterBuilding} onValueChange={setFilterBuilding}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by building" />
+          <SelectTrigger>
+            <SelectValue placeholder="Building" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Buildings</SelectItem>
@@ -237,9 +240,10 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             ))}
           </SelectContent>
         </Select>
+
         <Select value={filterLevel} onValueChange={setFilterLevel}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by level" />
+          <SelectTrigger>
+            <SelectValue placeholder="Level" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Levels</SelectItem>
@@ -250,9 +254,10 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             ))}
           </SelectContent>
         </Select>
+
         <Select value={filterInspectionType} onValueChange={setFilterInspectionType}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by type" />
+          <SelectTrigger>
+            <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
@@ -267,7 +272,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
 
       {/* Bulk Actions */}
       {isAdminOrPM && selectedInspections.length > 0 && (
-        <div className="flex gap-4 items-center p-4 bg-blue-50 rounded-lg">
+        <div className="flex gap-4 items-center p-4 bg-blue-50 rounded-lg flex-wrap">
           <span className="text-sm font-medium">
             {selectedInspections.length} inspection(s) selected
           </span>
