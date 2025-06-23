@@ -56,7 +56,7 @@ export const useVariations = (projectId: string) => {
         return;
       }
 
-      // Transform the data to match our interface, mapping database fields to interface fields
+      // Transform the data to match our interface
       const transformedData = (data || []).map((item: any) => ({
         id: item.id,
         project_id: item.project_id,
@@ -117,8 +117,8 @@ export const useVariations = (projectId: string) => {
         location: variationData.location,
         requested_by: user.id,
         cost_impact: parseFloat(variationData.costImpact) || 0,
-        priority: variationData.priority || 'normal',
-        status: 'pending',
+        priority: variationData.priority || 'medium', // Use 'medium' instead of 'normal'
+        status: 'draft', // Use 'draft' instead of 'pending'
         category: variationData.category,
         client_email: variationData.clientEmail,
         justification: variationData.justification,

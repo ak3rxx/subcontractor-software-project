@@ -29,7 +29,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     costImpact: '',
     timeImpact: '',
     category: '',
-    priority: 'normal',
+    priority: 'medium', // Changed from 'normal' to 'medium'
     clientEmail: '',
     justification: '',
     location: ''
@@ -187,12 +187,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     switch (priority) {
       case 'high':
         return <Badge variant="destructive">High</Badge>;
-      case 'normal':
-        return <Badge variant="secondary">Normal</Badge>;
+      case 'medium': // Changed from 'normal' to 'medium'
+        return <Badge variant="secondary">Medium</Badge>;
       case 'low':
         return <Badge variant="outline">Low</Badge>;
       default:
-        return <Badge variant="secondary">Normal</Badge>;
+        return <Badge variant="secondary">Medium</Badge>; // Changed default
     }
   };
 
@@ -227,7 +227,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         costImpact: '',
         timeImpact: '',
         category: '',
-        priority: 'normal',
+        priority: 'medium', // Changed from 'normal' to 'medium'
         clientEmail: '',
         justification: '',
         location: ''
@@ -383,7 +383,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
                       <SelectItem value="low">Low</SelectItem>
                     </SelectContent>
                   </Select>
