@@ -166,7 +166,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  // Fixed type conversion function with proper type handling
+  // Helper function to safely convert files to SupabaseUploadedFile format
   const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | null): SupabaseUploadedFile[] => {
     if (!files || !Array.isArray(files) || files.length === 0) return [];
 
@@ -230,14 +230,10 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       const processedChecklistItems = checklistItems.map(item => {
         let evidenceFileNames: string[] = [];
         if (item.evidence_files && Array.isArray(item.evidence_files)) {
-          evidenceFileNames = item.evidence_files
-            .filter((file): file is SupabaseUploadedFile => 
-              file && 
-              typeof file === 'object' && 
-              'uploaded' in file && 
-              'path' in file && 
-              file.uploaded === true
-            )
+          // Convert to SupabaseUploadedFile format first to ensure consistency
+          const supabaseFiles = convertFilesToSupabaseFiles(item.evidence_files);
+          evidenceFileNames = supabaseFiles
+            .filter(file => file.uploaded === true)
             .map(file => file.path);
         }
 
