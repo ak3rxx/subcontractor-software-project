@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface ChangeHistoryEntry {
   id: string;
-  timestamp: string;
+  change_timestamp: string;
   user_id: string;
   user_name: string;
   field_name: string;
@@ -25,19 +25,25 @@ export const useQAChangeHistory = (inspectionId: string) => {
     if (!inspectionId) return;
 
     try {
-      // Use raw SQL query to work around TypeScript issues with the new table
-      const { data, error } = await supabase.rpc('get_qa_change_history', {
+      // Use type assertion for the RPC call since TypeScript doesn't know about our new function yet
+      const { data, error } = await (supabase.rpc as any)('get_qa_change_history', {
         p_inspection_id: inspectionId
       });
 
       if (error) {
         console.error('Error fetching change history:', error);
-        // Fallback to empty array if function doesn't exist yet
         setChangeHistory([]);
         return;
       }
 
-      setChangeHistory(data || []);
+      // Map the data to match our interface, handling the timestamp field name
+      const mappedData = (data || []).map((item: any) => ({
+        ...item,
+        timestamp: item.change_timestamp || item.timestamp, // Handle both field names
+        user_name: item.user_name || 'Unknown User'
+      }));
+
+      setChangeHistory(mappedData);
     } catch (error) {
       console.error('Error:', error);
       setChangeHistory([]);
@@ -57,8 +63,8 @@ export const useQAChangeHistory = (inspectionId: string) => {
     if (!user || !inspectionId) return;
 
     try {
-      // Use raw SQL to insert change record
-      const { error } = await supabase.rpc('record_qa_change', {
+      // Use type assertion for the RPC call
+      const { error } = await (supabase.rpc as any)('record_qa_change', {
         p_inspection_id: inspectionId,
         p_user_id: user.id,
         p_field_name: fieldName,

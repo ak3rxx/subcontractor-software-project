@@ -6,7 +6,8 @@ import { Clock, User, Edit, Plus } from 'lucide-react';
 
 interface ChangeHistoryEntry {
   id: string;
-  timestamp: string;
+  timestamp?: string;
+  change_timestamp?: string;
   user_id: string;
   user_name: string;
   field_name: string;
@@ -56,7 +57,9 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
       .join(' ');
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (entry: ChangeHistoryEntry) => {
+    const timestamp = entry.change_timestamp || entry.timestamp;
+    if (!timestamp) return 'Unknown time';
     const date = new Date(timestamp);
     return date.toLocaleString();
   };
@@ -125,7 +128,7 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
               
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <Clock className="h-3 w-3" />
-                {formatTimestamp(entry.timestamp)}
+                {formatTimestamp(entry)}
               </div>
             </div>
           ))}

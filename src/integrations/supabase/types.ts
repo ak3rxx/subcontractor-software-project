@@ -986,6 +986,34 @@ export type Database = {
         Args: { project_uuid: string }
         Returns: string
       }
+      get_qa_change_history: {
+        Args: { p_inspection_id: string }
+        Returns: {
+          id: string
+          change_timestamp: string
+          user_id: string
+          user_name: string
+          field_name: string
+          old_value: string
+          new_value: string
+          change_type: string
+          item_id: string
+          item_description: string
+        }[]
+      }
+      record_qa_change: {
+        Args: {
+          p_inspection_id: string
+          p_user_id: string
+          p_field_name: string
+          p_old_value?: string
+          p_new_value?: string
+          p_change_type?: string
+          p_item_id?: string
+          p_item_description?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
