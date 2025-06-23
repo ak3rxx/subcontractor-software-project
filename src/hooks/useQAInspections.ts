@@ -169,7 +169,11 @@ export const useQAInspections = (projectId?: string) => {
       if (checklistItems.length > 0) {
         const checklistInserts: QAChecklistItemInsert[] = checklistItems.map(item => ({
           ...item,
-          inspection_id: inspectionResult.id
+          inspection_id: inspectionResult.id,
+          // Convert File[] to string[] or keep string[] as is, filter out File objects for now
+          evidence_files: Array.isArray(item.evidence_files) 
+            ? item.evidence_files.filter(f => typeof f === 'string') as string[]
+            : null
         }));
 
         const { error: checklistError } = await supabase
