@@ -53,7 +53,15 @@ export const useVariations = (projectId: string) => {
         return;
       }
 
-      setVariations(data || []);
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(item => ({
+        ...item,
+        submitted_date: item.submitted_date || item.created_at.split('T')[0],
+        time_impact: item.time_impact || 0,
+        attachments: item.attachments || []
+      }));
+
+      setVariations(transformedData);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -117,8 +125,16 @@ export const useVariations = (projectId: string) => {
         description: `Variation ${data.variation_number} created successfully`
       });
 
-      setVariations(prev => [data, ...prev]);
-      return data;
+      // Transform the returned data to match our interface
+      const transformedData = {
+        ...data,
+        submitted_date: data.submitted_date || data.created_at.split('T')[0],
+        time_impact: data.time_impact || 0,
+        attachments: data.attachments || []
+      };
+
+      setVariations(prev => [transformedData, ...prev]);
+      return transformedData;
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -149,13 +165,21 @@ export const useVariations = (projectId: string) => {
         return null;
       }
 
+      // Transform the returned data to match our interface
+      const transformedData = {
+        ...data,
+        submitted_date: data.submitted_date || data.created_at.split('T')[0],
+        time_impact: data.time_impact || 0,
+        attachments: data.attachments || []
+      };
+
       setVariations(prev => 
         prev.map(variation => 
-          variation.id === id ? data : variation
+          variation.id === id ? transformedData : variation
         )
       );
 
-      return data;
+      return transformedData;
     } catch (error) {
       console.error('Error:', error);
       return null;
