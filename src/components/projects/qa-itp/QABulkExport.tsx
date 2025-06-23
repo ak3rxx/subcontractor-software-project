@@ -14,7 +14,7 @@ interface QABulkExportProps {
 }
 
 const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspectionIds = [] }) => {
-  const { inspections } = useQAInspections();
+  const { inspections, getChecklistItems } = useQAInspections();
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<string[]>(selectedInspectionIds);
   const [exporting, setExporting] = useState(false);
@@ -61,6 +61,9 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
       const exportableInspections: ExportableInspection[] = [];
 
       for (const inspection of selectedInspections) {
+        // Fetch checklist items for this inspection
+        const checklistItems = await getChecklistItems(inspection.id);
+        
         // Create a temporary DOM element with inspection data for PDF generation
         const element = document.createElement('div');
         element.setAttribute('data-inspection-viewer', 'true');
@@ -95,12 +98,24 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
             <div>
               <h3 class="text-lg font-semibold mb-3">Inspection Checklist</h3>
               <div class="space-y-2">
-                ${inspection.checklist_items?.map(item => `
+                ${checklistItems?.map(item => `
                   <div class="border rounded p-3" data-checklist-item>
                     <div class="font-medium" data-item-description>${item.description}</div>
                     <div class="text-sm text-gray-600" data-item-requirements>Requirements: ${item.requirements}</div>
                     <div class="text-sm" data-item-status>Status: ${item.status || 'Not checked'}</div>
                     ${item.comments ? `<div class="text-sm text-gray-600" data-item-comments>Comments: ${item.comments}</div>` : ''}
+                    ${item.evidence_files && item.evidence_files.length > 0 ? `
+                      <div class="text-sm text-blue-600 mt-2">
+                        <strong>Evidence Files:</strong>
+                        <ul class="list-disc list-inside ml-2">
+                          ${item.evidence_files.map(file => {
+                            const fileName = typeof file === 'string' ? file : file.name || 'Unknown file';
+                            const isPDF = fileName.toLowerCase().endsWith('.pdf');
+                            return `<li>${fileName}${isPDF ? ' <span class="font-semibold text-red-600">(PDF)</span>' : ''}</li>`;
+                          }).join('')}
+                        </ul>
+                      </div>
+                    ` : ''}
                   </div>
                 `).join('') || '<p>No checklist items available</p>'}
               </div>
