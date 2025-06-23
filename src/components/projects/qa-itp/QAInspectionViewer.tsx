@@ -166,6 +166,32 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
+  // Fixed type conversion function with proper type guards
+  const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | null): SupabaseUploadedFile[] => {
+    if (!files || !Array.isArray(files) || files.length === 0) return [];
+
+    return files.map((file, index) => {
+      // Type guard to check if it's a string
+      if (typeof file === 'string') {
+        // Handle string file paths - convert to SupabaseUploadedFile format
+        return {
+          id: `file-${index}-${Date.now()}`,
+          file: new File([], file.split('/').pop() || file), // Create a dummy File object
+          url: file,
+          name: file.split('/').pop() || file,
+          size: 0,
+          type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 
+                file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream',
+          path: file,
+          uploaded: true
+        } as SupabaseUploadedFile;
+      } else {
+        // Already a SupabaseUploadedFile
+        return file;
+      }
+    });
+  };
+
   const handleSave = async () => {
     if (!inspection) return;
 
@@ -324,30 +350,6 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       default:
         return <Badge variant="outline">Not Checked</Badge>;
     }
-  };
-
-  const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | null): SupabaseUploadedFile[] => {
-    if (!files || files.length === 0) return [];
-
-    return files.map((file, index) => {
-      if (typeof file === 'string') {
-        // Handle string file paths - convert to SupabaseUploadedFile format
-        return {
-          id: `file-${index}-${Date.now()}`,
-          file: new File([], file.split('/').pop() || file), // Create a dummy File object
-          url: file,
-          name: file.split('/').pop() || file,
-          size: 0,
-          type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 
-                file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream',
-          path: file,
-          uploaded: true
-        } as SupabaseUploadedFile;
-      } else {
-        // Already a SupabaseUploadedFile
-        return file;
-      }
-    });
   };
 
   const renderEvidenceFiles = (files: string[] | SupabaseUploadedFile[] | null) => {
