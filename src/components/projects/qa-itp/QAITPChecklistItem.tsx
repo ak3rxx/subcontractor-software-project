@@ -1,9 +1,11 @@
+
 import React, { useCallback } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import FileUpload from './FileUpload';
 import { ChecklistItem } from './QAITPTemplates';
+import { UploadedFile } from '@/hooks/useFileUpload';
 
 interface QAITPChecklistItemProps {
   item: ChecklistItem;
@@ -16,9 +18,25 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   onChecklistChange,
   onUploadStatusChange 
 }) => {
-  const handleFileChange = useCallback((files: File[]) => {
-    onChecklistChange(item.id, 'evidenceFiles', files);
+  const handleFileChange = useCallback((files: UploadedFile[]) => {
+    // Convert UploadedFile[] to File[] for storage
+    const fileObjects = files.map(f => f.file);
+    onChecklistChange(item.id, 'evidenceFiles', fileObjects);
   }, [item.id, onChecklistChange]);
+
+  // Convert File[] back to UploadedFile[] for display
+  const convertFilesToUploadedFiles = (files: File[] | undefined): UploadedFile[] => {
+    if (!files || files.length === 0) return [];
+    
+    return files.map((file, index) => ({
+      id: `file-${Date.now()}-${index}`,
+      file: file,
+      url: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size,
+      type: file.type
+    }));
+  };
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -75,8 +93,8 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
         </div>
 
         <FileUpload
-          files={item.evidenceFiles || []}
-          onFilesChange={(files) => handleFileChange(files)}
+          files={convertFilesToUploadedFiles(item.evidenceFiles)}
+          onFilesChange={handleFileChange}
           onUploadStatusChange={onUploadStatusChange}
           label="Evidence Photos/Documents"
           accept="image/*,.pdf,.doc,.docx"

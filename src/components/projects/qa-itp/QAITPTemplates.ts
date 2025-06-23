@@ -1,11 +1,11 @@
 
-interface ChecklistItem {
+export interface ChecklistItem {
   id: string;
   description: string;
   requirements: string;
-  status: 'pass' | 'fail' | 'na' | '';
-  comments: string;
-  evidence?: File[];
+  status?: 'pass' | 'fail' | 'na';
+  comments?: string;
+  evidenceFiles?: File[];
   isFireDoorOnly?: boolean;
 }
 

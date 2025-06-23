@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import QAITPProjectInfo from './qa-itp/QAITPProjectInfo';
