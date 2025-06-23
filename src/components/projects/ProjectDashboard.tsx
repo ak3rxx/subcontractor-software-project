@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, FileText, Users, Calendar, DollarSign, Package, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle } from 'lucide-react';
-import QAITPTracker from './QAITPTracker';
+import QAITPTracker from './qa-itp/QAITPTracker';
 import QAITPForm from './QAITPForm';
 import MaterialHandover from './MaterialHandover';
 import TaskManager from './TaskManager';
@@ -181,7 +181,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
               {activeQAForm ? (
                 <QAITPForm onClose={() => setActiveQAForm(false)} />
               ) : (
-                <QAITPTracker onNewInspection={() => setActiveQAForm(true)} />
+                <QAITPTracker 
+                  onNewInspection={() => setActiveQAForm(true)} 
+                  projectId={projectData.id}
+                />
               )}
             </CardContent>
           </Card>

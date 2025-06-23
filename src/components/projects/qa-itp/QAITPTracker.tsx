@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Filter, FileText, AlertTriangle, Eye, Edit, Download } from 'lucide-react';
+import { Plus, Filter, AlertTriangle, Eye, Edit, Download } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
 import QAInspectionViewer from './QAInspectionViewer';
@@ -11,13 +11,14 @@ import QABulkExport from './QABulkExport';
 
 interface QAITPTrackerProps {
   onNewInspection: () => void;
+  projectId?: string;
 }
 
-const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
-  const { inspections, loading } = useQAInspections();
+const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId }) => {
+  const { inspections, loading } = useQAInspections(projectId);
   const { projects } = useProjects();
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterProject, setFilterProject] = useState('all');
+  const [filterProject, setFilterProject] = useState(projectId || 'all');
   const [filterBuilding, setFilterBuilding] = useState('all');
   const [filterLevel, setFilterLevel] = useState('all');
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
@@ -106,7 +107,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
     <div className="space-y-4">
       {/* Header with Export Button */}
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">QA/ITP Inspection Tracker</h3>
+        <h3 className="text-lg font-semibold">QA/ITP Inspection List</h3>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -142,19 +143,21 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
             <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((project) => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!projectId && (
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={filterBuilding} onValueChange={setFilterBuilding}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Filter by building" />
@@ -221,9 +224,11 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Inspection #
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Project
-                </th>
+                {!projectId && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Project
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Task
                 </th>
@@ -258,9 +263,11 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {inspection.inspection_number}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {getProjectName(inspection.project_id)}
-                    </td>
+                    {!projectId && (
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getProjectName(inspection.project_id)}
+                      </td>
+                    )}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                       {inspection.task_area}
                     </td>
