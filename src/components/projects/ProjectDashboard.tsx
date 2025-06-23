@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import TeamNotes from './TeamNotes';
 import DocumentManager from './DocumentManager';
 import VariationManager from './VariationManager';
 import RFIManager from './RFIManager';
-import ProgrammeTracker from './programme/ProgrammeTracker';
+import ProgrammeTracker from './ProgrammeTracker';
 import FinanceManager from './finance/FinanceManager';
 import DeliveryScheduler from './DeliveryScheduler';
 
@@ -171,7 +172,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="programme" className="space-y-6">
-          <ProgrammeTracker projectId={projectData.id} />
+          <ProgrammeTracker projectName={projectData.name} />
         </TabsContent>
 
         <TabsContent value="qa-itp" className="space-y-6">
@@ -197,21 +198,21 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
               <CardTitle>Delivery Scheduler</CardTitle>
             </CardHeader>
             <CardContent>
-              <DeliveryScheduler />
+              <DeliveryScheduler onClose={() => {}} />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-6">
-          <TaskManager projectId={projectData.id} />
+          <TaskManager />
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-6">
-          <TeamNotes projectId={projectData.id} />
+          <TeamNotes />
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-6">
-          <DocumentManager projectId={projectData.id} />
+          <DocumentManager />
         </TabsContent>
 
         <TabsContent value="variations" className="space-y-6">
@@ -219,11 +220,11 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="rfi" className="space-y-6">
-          <RFIManager projectId={projectData.id} />
+          <RFIManager />
         </TabsContent>
 
         <TabsContent value="finance" className="space-y-6">
-          <FinanceManager projectId={projectData.id} />
+          <FinanceManager />
         </TabsContent>
       </Tabs>
     </div>
