@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Filter, FileText, AlertTriangle, Eye, Edit, Download } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
-import QAInspectionViewer from './qa-itp/QAInspectionViewer';
+import QAInspectionViewer from './QAInspectionViewer';
 import QABulkExport from './QABulkExport';
 
 interface QAITPTrackerProps {
