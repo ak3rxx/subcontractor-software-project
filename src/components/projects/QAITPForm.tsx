@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -252,7 +253,11 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
           evidenceFileNames = item.evidenceFiles
             .filter((file): file is SupabaseUploadedFile => 
-              file && typeof file === 'object' && 'path' in file && file.uploaded === true
+              file && 
+              typeof file === 'object' && 
+              'uploaded' in file && 
+              'path' in file && 
+              file.uploaded === true
             )
             .map(file => file.path);
         }
@@ -379,3 +384,4 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
 };
 
 export default QAITPForm;
+
