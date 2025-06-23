@@ -232,7 +232,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
             <h4 className="font-medium text-sm">Approval Decision</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Approval Section */}
+              {/* Approval Comments */}
               <div className="space-y-3">
                 <Label htmlFor="approval-comments">Approval Comments (Optional)</Label>
                 <Textarea
@@ -242,17 +242,9 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
                   placeholder="Add any comments about this approval..."
                   rows={3}
                 />
-                <Button 
-                  onClick={() => handleApproval(true)}
-                  disabled={isSubmitting}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Processing...' : 'Approve Variation'}
-                </Button>
               </div>
 
-              {/* Rejection Section */}
+              {/* Rejection Reason */}
               <div className="space-y-3">
                 <Label htmlFor="rejection-reason">Rejection Reason</Label>
                 <Textarea
@@ -262,16 +254,28 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
                   placeholder="Explain why this variation is being rejected..."
                   rows={3}
                 />
-                <Button 
-                  onClick={() => handleApproval(false)}
-                  disabled={isSubmitting || !rejectionReason.trim()}
-                  variant="destructive"
-                  className="w-full"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Processing...' : 'Reject Variation'}
-                </Button>
               </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <Button 
+                onClick={() => handleApproval(true)}
+                disabled={isSubmitting}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Processing...' : 'Approve'}
+              </Button>
+              
+              <Button 
+                onClick={() => handleApproval(false)}
+                disabled={isSubmitting || !rejectionReason.trim()}
+                variant="destructive"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Processing...' : 'Reject'}
+              </Button>
             </div>
           </div>
         )}
