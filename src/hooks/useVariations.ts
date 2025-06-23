@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -68,7 +67,7 @@ export const useVariations = (projectId: string) => {
         requested_by: item.requested_by,
         request_date: item.request_date || item.created_at.split('T')[0],
         cost_impact: item.cost_impact || 0,
-        time_impact: 0, // Not in database, default to 0
+        time_impact: 0, // This field doesn't exist in DB, always default to 0
         status: item.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
         category: item.category || '',
         priority: item.priority as 'high' | 'normal' | 'low',
@@ -159,7 +158,7 @@ export const useVariations = (projectId: string) => {
         requested_by: data.requested_by,
         request_date: data.request_date || data.created_at.split('T')[0],
         cost_impact: data.cost_impact || 0,
-        time_impact: 0,
+        time_impact: 0, // This field doesn't exist in DB, always default to 0
         status: data.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
         category: data.category || '',
         priority: data.priority as 'high' | 'normal' | 'low',
@@ -193,7 +192,7 @@ export const useVariations = (projectId: string) => {
     try {
       console.log('Updating variation with:', updates);
       
-      // Direct mapping since interface matches database fields
+      // Direct mapping since interface matches database fields, excluding time_impact
       const dbUpdates: any = {};
       
       if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -201,7 +200,7 @@ export const useVariations = (projectId: string) => {
       if (updates.description !== undefined) dbUpdates.description = updates.description;
       if (updates.location !== undefined) dbUpdates.location = updates.location;
       if (updates.cost_impact !== undefined) dbUpdates.cost_impact = updates.cost_impact;
-      if (updates.time_impact !== undefined) dbUpdates.time_impact = updates.time_impact;
+      // Skip time_impact as it doesn't exist in the database
       if (updates.category !== undefined) dbUpdates.category = updates.category;
       if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
       if (updates.client_email !== undefined) dbUpdates.client_email = updates.client_email;
@@ -247,7 +246,7 @@ export const useVariations = (projectId: string) => {
         requested_by: data.requested_by,
         request_date: data.request_date || data.created_at.split('T')[0],
         cost_impact: data.cost_impact || 0,
-        time_impact: 0,
+        time_impact: 0, // This field doesn't exist in DB, always default to 0
         status: data.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
         category: data.category || '',
         priority: data.priority as 'high' | 'normal' | 'low',
