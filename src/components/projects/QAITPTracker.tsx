@@ -25,6 +25,8 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
         return <Badge className="bg-red-100 text-red-800">Fail</Badge>;
       case 'pending-reinspection':
         return <Badge className="bg-yellow-100 text-yellow-800">Pending Reinspection</Badge>;
+      case 'incomplete-in-progress':
+        return <Badge className="bg-blue-100 text-blue-800">Incomplete/In Progress</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -67,6 +69,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
             <SelectItem value="pass">Pass</SelectItem>
             <SelectItem value="fail">Fail</SelectItem>
             <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
+            <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterProject} onValueChange={setFilterProject}>
@@ -92,6 +95,9 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
         </Button>
         <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200">
           Pending Reinspection ({inspections.filter(i => i.overall_status === 'pending-reinspection').length})
+        </Button>
+        <Button variant="outline" size="sm" className="text-blue-600 border-blue-200">
+          In Progress ({inspections.filter(i => i.overall_status === 'incomplete-in-progress').length})
         </Button>
       </div>
 

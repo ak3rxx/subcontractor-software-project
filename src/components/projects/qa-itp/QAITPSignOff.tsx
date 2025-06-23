@@ -12,6 +12,7 @@ interface QAITPSignOffProps {
     inspectionDate: string;
     digitalSignature: string;
     overallStatus: string;
+    dateOfAmendments: string;
   };
   onFormDataChange: (field: string, value: string) => void;
 }
@@ -49,6 +50,22 @@ const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="dateOfAmendments">Date of Amendments</Label>
+          <Input
+            id="dateOfAmendments"
+            type="date"
+            value={formData.dateOfAmendments}
+            onChange={(e) => onFormDataChange('dateOfAmendments', e.target.value)}
+            placeholder="Leave blank if incomplete"
+          />
+          {!formData.dateOfAmendments && (
+            <p className="text-xs text-amber-600">
+              Note: If left blank, this will be marked as incomplete
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="digitalSignature">Digital Signature *</Label>
           <Textarea
             id="digitalSignature"
@@ -73,6 +90,7 @@ const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
               <SelectItem value="pass">Pass</SelectItem>
               <SelectItem value="fail">Fail</SelectItem>
               <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
+              <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
             </SelectContent>
           </Select>
         </div>

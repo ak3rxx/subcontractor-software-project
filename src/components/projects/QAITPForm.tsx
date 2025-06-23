@@ -29,7 +29,8 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     inspectorName: '',
     inspectionDate: '',
     digitalSignature: '',
-    overallStatus: ''
+    overallStatus: '',
+    dateOfAmendments: ''
   });
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
@@ -95,6 +96,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
       );
 
+      // Determine final status based on date of amendments
+      let finalStatus = formData.overallStatus;
+      if (!formData.dateOfAmendments && (finalStatus === 'pass' || finalStatus === 'fail')) {
+        finalStatus = 'incomplete-in-progress';
+      }
+
       const inspectionData = {
         project_id: formData.projectId,
         project_name: formData.projectName,
@@ -106,7 +113,8 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         inspector_name: formData.inspectorName,
         inspection_date: formData.inspectionDate,
         digital_signature: formData.digitalSignature,
-        overall_status: formData.overallStatus as 'pass' | 'fail' | 'pending-reinspection'
+        overall_status: finalStatus as 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress',
+        date_of_amendments: formData.dateOfAmendments || null
       };
 
       const checklistItemsData = filteredChecklist.map(item => ({
