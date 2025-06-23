@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User, Edit, Plus } from 'lucide-react';
+import { Clock, User, Edit, Plus, FileText, Check, X, AlertCircle } from 'lucide-react';
 
 interface ChangeHistoryEntry {
   id: string;
@@ -31,7 +31,7 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
       case 'update':
         return <Edit className="h-3 w-3 text-blue-600" />;
       case 'delete':
-        return <Edit className="h-3 w-3 text-red-600" />;
+        return <X className="h-3 w-3 text-red-600" />;
       default:
         return <Edit className="h-3 w-3 text-gray-600" />;
     }
@@ -50,8 +50,24 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
     }
   };
 
+  const getFieldIcon = (fieldName: string) => {
+    if (fieldName === 'status') return <Check className="h-3 w-3" />;
+    if (fieldName === 'evidenceFiles') return <FileText className="h-3 w-3" />;
+    if (fieldName === 'comments') return <Edit className="h-3 w-3" />;
+    return <AlertCircle className="h-3 w-3" />;
+  };
+
   const formatFieldName = (fieldName: string) => {
-    return fieldName
+    const fieldMap: { [key: string]: string } = {
+      'evidenceFiles': 'Evidence Files',
+      'status': 'Status',
+      'comments': 'Comments',
+      'inspector_name': 'Inspector Name',
+      'inspection_date': 'Inspection Date',
+      'overall_status': 'Overall Status'
+    };
+    
+    return fieldMap[fieldName] || fieldName
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
@@ -62,6 +78,10 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
     if (!timestamp) return 'Unknown time';
     const date = new Date(timestamp);
     return date.toLocaleString();
+  };
+
+  const getValueColor = (isOld: boolean) => {
+    return isOld ? 'text-red-700' : 'text-green-700';
   };
 
   if (changeHistory.length === 0) {
@@ -99,7 +119,10 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
                 <div className="flex items-center gap-2">
                   {getChangeTypeIcon(entry.change_type)}
                   {getChangeTypeBadge(entry.change_type)}
-                  <span className="text-sm font-medium" data-history-field>{formatFieldName(entry.field_name)}</span>
+                  <div className="flex items-center gap-1">
+                    {getFieldIcon(entry.field_name)}
+                    <span className="text-sm font-medium" data-history-field>{formatFieldName(entry.field_name)}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <User className="h-3 w-3" />
@@ -108,25 +131,25 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
               </div>
               
               {entry.item_description && (
-                <div className="text-sm text-gray-600">
-                  <strong>Item:</strong> {entry.item_description}
+                <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                  <strong>Checklist Item:</strong> {entry.item_description}
                 </div>
               )}
               
               <div className="text-sm space-y-1">
                 {entry.old_value && (
-                  <div className="text-red-700">
+                  <div className={getValueColor(true)}>
                     <strong>From:</strong> <span data-history-old-value>{entry.old_value}</span>
                   </div>
                 )}
                 {entry.new_value && (
-                  <div className="text-green-700">
+                  <div className={getValueColor(false)}>
                     <strong>To:</strong> <span data-history-new-value>{entry.new_value}</span>
                   </div>
                 )}
               </div>
               
-              <div className="flex items-center gap-1 text-xs text-gray-500">
+              <div className="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 p-1 rounded">
                 <Clock className="h-3 w-3" />
                 <span data-history-timestamp>{formatTimestamp(entry)}</span>
               </div>

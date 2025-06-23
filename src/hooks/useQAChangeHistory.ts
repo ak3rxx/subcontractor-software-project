@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,12 +92,44 @@ export const useQAChangeHistory = (inspectionId: string) => {
       return;
     }
 
+    // Format values for better readability
+    let formattedOldValue = oldValue;
+    let formattedNewValue = newValue;
+    
+    // Handle status changes with timestamps
+    if (fieldName === 'status' && newValue) {
+      const timestamp = new Date().toLocaleString();
+      formattedNewValue = `${newValue} (${timestamp})`;
+    }
+    
+    // Handle file attachment changes
+    if (fieldName === 'evidenceFiles') {
+      try {
+        const oldFiles = oldValue ? JSON.parse(oldValue) : [];
+        const newFiles = newValue ? JSON.parse(newValue) : [];
+        
+        if (newFiles.length > oldFiles.length) {
+          const addedFiles = newFiles.slice(oldFiles.length);
+          formattedNewValue = `Added ${addedFiles.length} file(s): ${addedFiles.map((f: any) => f.name || 'Unknown').join(', ')}`;
+          formattedOldValue = oldFiles.length > 0 ? `${oldFiles.length} existing file(s)` : 'No files';
+        } else if (newFiles.length < oldFiles.length) {
+          const removedCount = oldFiles.length - newFiles.length;
+          formattedNewValue = `Removed ${removedCount} file(s)`;
+          formattedOldValue = `${oldFiles.length} file(s)`;
+        }
+      } catch {
+        // Fallback to original values if JSON parsing fails
+        formattedOldValue = oldValue ? 'Files attached' : 'No files';
+        formattedNewValue = newValue ? 'Files updated' : 'Files removed';
+      }
+    }
+
     try {
       console.log('Recording change:', {
         inspectionId,
         fieldName,
-        oldValue,
-        newValue,
+        oldValue: formattedOldValue,
+        newValue: formattedNewValue,
         changeType,
         itemId,
         itemDescription
@@ -106,8 +139,8 @@ export const useQAChangeHistory = (inspectionId: string) => {
         p_inspection_id: inspectionId,
         p_user_id: user.id,
         p_field_name: fieldName,
-        p_old_value: oldValue,
-        p_new_value: newValue,
+        p_old_value: formattedOldValue,
+        p_new_value: formattedNewValue,
         p_change_type: changeType,
         p_item_id: itemId,
         p_item_description: itemDescription

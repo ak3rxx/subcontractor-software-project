@@ -116,8 +116,17 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
 
       // Record change if we have an inspection ID
       if (inspectionId && oldItem) {
-        const stringOldValue = oldValue != null ? String(oldValue) : null;
-        const stringNewValue = value != null ? String(value) : null;
+        let stringOldValue: string | null = null;
+        let stringNewValue: string | null = null;
+        
+        // Handle file attachments specially
+        if (field === 'evidenceFiles') {
+          stringOldValue = oldValue ? JSON.stringify(oldValue) : null;
+          stringNewValue = value ? JSON.stringify(value) : null;
+        } else {
+          stringOldValue = oldValue != null ? String(oldValue) : null;
+          stringNewValue = value != null ? String(value) : null;
+        }
         
         // Only record if values actually changed
         if (stringOldValue !== stringNewValue) {
@@ -213,7 +222,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       );
 
       // Combine building, level, and building reference for location_reference
-      const locationParts = [formData.building, formData.level];
+      const locationParts = [formData.building];
+      if (formData.level.trim()) {
+        locationParts.push(`Level ${formData.level}`);
+      }
       if (formData.buildingReference.trim()) {
         locationParts.push(formData.buildingReference);
       }
