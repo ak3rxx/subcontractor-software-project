@@ -11,7 +11,7 @@ interface QAITPChecklistItemProps {
   item: ChecklistItem;
   onChecklistChange: (id: string, field: string, value: any) => void;
   onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
-  inspectionId?: string;
+  inspectionId?: string | null;
 }
 
 const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({ 
@@ -26,10 +26,12 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   }, [item.id, onChecklistChange]);
 
   const handleStatusChange = useCallback((status: 'pass' | 'fail' | 'na' | '') => {
+    console.log('Status changed for item', item.id, ':', status);
     onChecklistChange(item.id, 'status', status);
   }, [item.id, onChecklistChange]);
 
   const handleCommentsChange = useCallback((comments: string) => {
+    console.log('Comments changed for item', item.id, ':', comments);
     onChecklistChange(item.id, 'comments', comments);
   }, [item.id, onChecklistChange]);
 

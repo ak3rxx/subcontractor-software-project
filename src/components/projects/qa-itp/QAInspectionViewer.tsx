@@ -13,9 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useQAInspections, QAInspection, QAChecklistItem } from '@/hooks/useQAInspections';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import QAChangeHistory from './QAChangeHistory';
-import FileUpload from './FileUpload';
+import SupabaseFileUpload from './SupabaseFileUpload';
 import { exportInspectionToPDF, downloadPDF } from '@/utils/pdfExport';
-import { UploadedFile } from '@/hooks/useFileUpload';
+import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 
 interface QAInspectionViewerProps {
   inspectionId: string;
@@ -40,10 +40,37 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
-  const [attachmentFiles, setAttachmentFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [hasUploadFailures, setHasUploadFailures] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Use ref to track change timeouts and prevent duplicate recordings
+  const changeTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  const debouncedRecordChange = React.useCallback((
+    fieldName: string,
+    oldValue: string | null,
+    newValue: string | null,
+    changeType: 'create' | 'update' | 'delete' = 'update',
+    itemId?: string,
+    itemDescription?: string
+  ) => {
+    const key = `${itemId || 'form'}-${fieldName}`;
+    
+    // Clear existing timeout for this field
+    const existingTimeout = changeTimeouts.current.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      recordChange(fieldName, oldValue, newValue, changeType, itemId, itemDescription);
+      changeTimeouts.current.delete(key);
+    }, 500); // 500ms debounce
+
+    changeTimeouts.current.set(key, timeout);
+  }, [recordChange]);
 
   useEffect(() => {
     fetchInspectionData();
@@ -76,31 +103,44 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const handleChecklistItemChange = (itemId: string, field: string, value: any) => {
     const originalItem = originalChecklistItems.find(item => item.id === itemId);
     const currentItem = checklistItems.find(item => item.id === itemId);
-    const oldValue = currentItem ? currentItem[field as keyof QAChecklistItem] : null;
     
     setChecklistItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     ));
 
-    // Record the change
-    if (originalItem && oldValue !== value) {
-      recordChange(
-        field,
-        String(oldValue || ''),
-        String(value || ''),
-        'update',
-        itemId,
-        originalItem.description
-      );
+    // Record the change with debouncing
+    if (originalItem && currentItem) {
+      let stringOldValue: string | null = null;
+      let stringNewValue: string | null = null;
+      
+      // Handle file attachments specially for Supabase files
+      if (field === 'evidence_files') {
+        const oldFiles = currentItem.evidence_files || [];
+        stringOldValue = oldFiles.length > 0 ? JSON.stringify(oldFiles) : null;
+        stringNewValue = value ? JSON.stringify(value) : null;
+      } else {
+        const oldValue = currentItem[field as keyof QAChecklistItem];
+        stringOldValue = oldValue != null ? String(oldValue) : null;
+        stringNewValue = value != null ? String(value) : null;
+      }
+      
+      // Only record if values actually changed
+      if (stringOldValue !== stringNewValue) {
+        debouncedRecordChange(
+          field, 
+          stringOldValue, 
+          stringNewValue, 
+          'update', 
+          itemId, 
+          originalItem.description
+        );
+      }
     }
   };
 
-  const handleChecklistItemFileChange = (itemId: string, files: UploadedFile[]) => {
-    // Convert UploadedFile[] to File[] for storage
-    const fileObjects = files.map(f => f.file);
-    setChecklistItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, evidence_files: fileObjects } : item
-    ));
+  const handleChecklistItemFileChange = (itemId: string, files: SupabaseUploadedFile[]) => {
+    console.log('File change for item', itemId, ':', files);
+    handleChecklistItemChange(itemId, 'evidence_files', files);
   };
 
   const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
@@ -114,9 +154,9 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       
       setInspection(prev => prev ? { ...prev, [field]: value } : null);
       
-      // Record the change
+      // Record the change with debouncing
       if (oldValue !== value) {
-        recordChange(
+        debouncedRecordChange(
           field,
           String(oldValue || ''),
           String(value || ''),
@@ -149,7 +189,28 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 
     setSaving(true);
     try {
-      await updateInspection(inspectionId, inspection, checklistItems);
+      // Process checklist items to ensure file paths are properly formatted
+      const processedChecklistItems = checklistItems.map(item => {
+        let evidenceFileNames: string[] = [];
+        if (item.evidence_files && Array.isArray(item.evidence_files)) {
+          evidenceFileNames = item.evidence_files
+            .filter((file): file is SupabaseUploadedFile => 
+              file && 
+              typeof file === 'object' && 
+              'uploaded' in file && 
+              'path' in file && 
+              file.uploaded === true
+            )
+            .map(file => file.path);
+        }
+
+        return {
+          ...item,
+          evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : null
+        };
+      });
+
+      await updateInspection(inspectionId, inspection, processedChecklistItems);
       setEditMode(false);
       refetch();
       
@@ -265,42 +326,39 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  const convertFilesToUploadedFiles = (files: string[] | File[] | null): UploadedFile[] => {
+  const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | null): SupabaseUploadedFile[] => {
     if (!files || files.length === 0) return [];
 
     return files.map((file, index) => {
       if (typeof file === 'string') {
-        // Handle string file paths
+        // Handle string file paths - convert to SupabaseUploadedFile format
         return {
           id: `file-${index}-${Date.now()}`,
-          file: new File([], file), // Create a dummy File object
+          file: new File([], file.split('/').pop() || file), // Create a dummy File object
           url: file,
           name: file.split('/').pop() || file,
           size: 0,
           type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 
-                file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream'
-        } as UploadedFile;
+                file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream',
+          path: file,
+          uploaded: true
+        } as SupabaseUploadedFile;
       } else {
-        // Handle File objects
-        return {
-          id: `file-${index}-${Date.now()}`,
-          file: file,
-          url: URL.createObjectURL(file),
-          name: file.name,
-          size: file.size,
-          type: file.type
-        } as UploadedFile;
+        // Already a SupabaseUploadedFile
+        return file;
       }
     });
   };
 
-  const renderEvidenceFiles = (files: string[] | File[] | null) => {
+  const renderEvidenceFiles = (files: string[] | SupabaseUploadedFile[] | null) => {
     if (!files || files.length === 0) return null;
 
+    const supabaseFiles = convertFilesToSupabaseFiles(files);
+
     // Check if there are any PDF files
-    const pdfFiles = files.filter(file => {
-      const fileName = file instanceof File ? file.name : file;
-      const fileType = file instanceof File ? file.type : '';
+    const pdfFiles = supabaseFiles.filter(file => {
+      const fileName = file.name;
+      const fileType = file.type;
       return fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
     });
 
@@ -316,15 +374,12 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
               <div>
                 <p className="text-sm font-medium text-amber-800">PDF Documents:</p>
                 <ul className="text-xs text-amber-700 mt-1 space-y-1">
-                  {pdfFiles.map((file, index) => {
-                    const fileName = file instanceof File ? file.name : file;
-                    return (
-                      <li key={index} className="flex items-center gap-1">
-                        <span>•</span>
-                        <span className="font-mono">{fileName}</span>
-                      </li>
-                    );
-                  })}
+                  {pdfFiles.map((file, index) => (
+                    <li key={index} className="flex items-center gap-1">
+                      <span>•</span>
+                      <span className="font-mono">{file.name}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -332,19 +387,22 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {files.map((file, index) => {
-            const isFileObject = file instanceof File;
-            const fileName = isFileObject ? file.name : file;
-            const fileType = isFileObject ? file.type : '';
+          {supabaseFiles.map((file, index) => {
+            const fileName = file.name;
+            const fileType = file.type;
             const isPDF = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
             
             return (
               <div key={index} className={`border rounded p-2 text-center relative group ${isPDF ? 'border-amber-200 bg-amber-50' : ''}`}>
-                {(isFileObject && file.type.startsWith('image/')) || (!isFileObject && fileName.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
+                {fileType.startsWith('image/') ? (
                   <img 
-                    src={isFileObject ? URL.createObjectURL(file) : fileName} 
+                    src={file.url} 
                     alt={fileName}
                     className="evidence-image w-full h-20 object-cover rounded mb-1"
+                    onError={(e) => {
+                      console.error('Failed to load image:', file.url);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <FileText className={`h-8 w-8 mx-auto mb-1 ${isPDF ? 'text-amber-600' : 'text-gray-400'}`} />
@@ -360,12 +418,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                   size="sm"
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
                   onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = isFileObject ? URL.createObjectURL(file) : fileName;
-                    link.download = fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    window.open(file.url, '_blank');
                   }}
                   title="Download file"
                 >
@@ -377,10 +430,6 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         </div>
       </div>
     );
-  };
-
-  const handleAttachmentFileChange = (files: UploadedFile[]) => {
-    setAttachmentFiles(files);
   };
 
   if (loading) {
@@ -479,10 +528,9 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 
       <div ref={printRef} className="print-content" data-inspection-viewer>
         <Tabs defaultValue="inspection" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="inspection">Inspection Details</TabsTrigger>
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
-            <TabsTrigger value="attachments">Other Attachments</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               History
@@ -595,6 +643,23 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           </TabsContent>
 
           <TabsContent value="checklist" className="space-y-6">
+            {/* Save button at the top of checklist */}
+            {editMode && (
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleSave}
+                  disabled={saving || uploading || hasUploadFailures}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Saving...' : 
+                   uploading ? 'Uploading...' : 
+                   hasUploadFailures ? 'Fix Upload Errors' : 
+                   'Save Checklist'}
+                </Button>
+              </div>
+            )}
+
             {/* Checklist Items */}
             <Card>
               <CardHeader>
@@ -665,13 +730,15 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                             />
                           </div>
 
-                          <FileUpload
-                            files={convertFilesToUploadedFiles(item.evidence_files)}
+                          <SupabaseFileUpload
+                            files={convertFilesToSupabaseFiles(item.evidence_files)}
                             onFilesChange={(files) => handleChecklistItemFileChange(item.id, files)}
                             onUploadStatusChange={handleUploadStatusChange}
                             label="Evidence Photos/Documents"
                             accept="image/*,.pdf,.doc,.docx"
                             maxFiles={3}
+                            inspectionId={inspectionId}
+                            checklistItemId={item.id}
                           />
                         </div>
                       ) : (
@@ -687,67 +754,6 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                       )}
                     </div>
                   ))
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="attachments" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Other Inspection Attachments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {editMode ? (
-                  <FileUpload
-                    files={attachmentFiles}
-                    onFilesChange={handleAttachmentFileChange}
-                    onUploadStatusChange={handleUploadStatusChange}
-                    label="General Inspection Attachments"
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                    maxFiles={10}
-                  />
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    {attachmentFiles.length === 0 ? (
-                      <p>No other attachments uploaded yet.</p>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {attachmentFiles.map((file, index) => (
-                          <div key={index} className="border rounded p-3 text-center relative group">
-                            {file.file.type.startsWith('image/') ? (
-                              <img 
-                                src={file.url} 
-                                alt={file.name}
-                                className="w-full h-24 object-cover rounded mb-2"
-                              />
-                            ) : (
-                              <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                            )}
-                            <p className="text-xs text-gray-600 truncate">{file.name}</p>
-                            
-                            {/* Download button */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = file.url;
-                                link.download = file.name;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                              title="Download file"
-                            >
-                              <Download className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 )}
               </CardContent>
             </Card>
