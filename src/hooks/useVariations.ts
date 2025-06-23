@@ -53,12 +53,28 @@ export const useVariations = (projectId: string) => {
         return;
       }
 
-      // Transform the data to match our interface
-      const transformedData = (data || []).map(item => ({
-        ...item,
-        submitted_date: item.submitted_date || item.created_at.split('T')[0],
-        time_impact: item.time_impact || 0,
-        attachments: item.attachments || []
+      // Transform the data to match our interface, mapping database fields to interface fields
+      const transformedData = (data || []).map((item: any) => ({
+        id: item.id,
+        project_id: item.project_id,
+        variation_number: item.variation_number,
+        title: item.title,
+        description: item.description,
+        location: item.location || '',
+        submitted_by: item.requested_by,
+        submitted_date: item.request_date || item.created_at.split('T')[0],
+        cost_impact: item.cost_impact || 0,
+        time_impact: 0, // Not in database, default to 0
+        status: item.status as 'draft' | 'pending' | 'approved' | 'rejected',
+        category: item.category,
+        priority: item.priority as 'high' | 'normal' | 'low',
+        client_email: item.client_email,
+        justification: item.justification,
+        attachments: [], // Not in database, default to empty array
+        approved_by: item.approved_by,
+        approval_date: item.approval_date,
+        created_at: item.created_at,
+        updated_at: item.updated_at
       }));
 
       setVariations(transformedData);
@@ -93,15 +109,10 @@ export const useVariations = (projectId: string) => {
         title: variationData.title,
         description: variationData.description,
         location: variationData.location,
-        submitted_by: user.id,
+        requested_by: user.id,
         cost_impact: parseFloat(variationData.costImpact) || 0,
-        time_impact: parseInt(variationData.timeImpact) || 0,
-        category: variationData.category,
         priority: variationData.priority || 'normal',
-        client_email: variationData.clientEmail,
-        justification: variationData.justification,
         status: 'pending',
-        attachments: variationData.attachments || []
       };
 
       const { data, error } = await supabase
@@ -127,10 +138,26 @@ export const useVariations = (projectId: string) => {
 
       // Transform the returned data to match our interface
       const transformedData = {
-        ...data,
-        submitted_date: data.submitted_date || data.created_at.split('T')[0],
-        time_impact: data.time_impact || 0,
-        attachments: data.attachments || []
+        id: data.id,
+        project_id: data.project_id,
+        variation_number: data.variation_number,
+        title: data.title,
+        description: data.description,
+        location: data.location || '',
+        submitted_by: data.requested_by,
+        submitted_date: data.request_date || data.created_at.split('T')[0],
+        cost_impact: data.cost_impact || 0,
+        time_impact: 0,
+        status: data.status as 'draft' | 'pending' | 'approved' | 'rejected',
+        category: data.category,
+        priority: data.priority as 'high' | 'normal' | 'low',
+        client_email: data.client_email,
+        justification: data.justification,
+        attachments: [],
+        approved_by: data.approved_by,
+        approval_date: data.approval_date,
+        created_at: data.created_at,
+        updated_at: data.updated_at
       };
 
       setVariations(prev => [transformedData, ...prev]);
@@ -167,10 +194,26 @@ export const useVariations = (projectId: string) => {
 
       // Transform the returned data to match our interface
       const transformedData = {
-        ...data,
-        submitted_date: data.submitted_date || data.created_at.split('T')[0],
-        time_impact: data.time_impact || 0,
-        attachments: data.attachments || []
+        id: data.id,
+        project_id: data.project_id,
+        variation_number: data.variation_number,
+        title: data.title,
+        description: data.description,
+        location: data.location || '',
+        submitted_by: data.requested_by,
+        submitted_date: data.request_date || data.created_at.split('T')[0],
+        cost_impact: data.cost_impact || 0,
+        time_impact: 0,
+        status: data.status as 'draft' | 'pending' | 'approved' | 'rejected',
+        category: data.category,
+        priority: data.priority as 'high' | 'normal' | 'low',
+        client_email: data.client_email,
+        justification: data.justification,
+        attachments: [],
+        approved_by: data.approved_by,
+        approval_date: data.approval_date,
+        created_at: data.created_at,
+        updated_at: data.updated_at
       };
 
       setVariations(prev => 
