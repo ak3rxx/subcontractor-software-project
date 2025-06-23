@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,7 +74,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     );
 
     const incompleteItems = filteredChecklist.filter(item => 
-      !item.status || item.status === ''
+      !item.status || item.status === undefined || item.status === null
     );
 
     return incompleteItems;
