@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { X, AlertCircle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useQAInspections } from '@/hooks/useQAInspections';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import QAITPProjectInfo from './qa-itp/QAITPProjectInfo';
 import QAITPChecklistItem from './qa-itp/QAITPChecklistItem';
 import QAITPSignOff from './qa-itp/QAITPSignOff';
@@ -19,6 +20,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
   const { toast } = useToast();
   const { projects } = useProjects();
   const { createInspection } = useQAInspections();
+  
   const [formData, setFormData] = useState({
     projectId: '',
     projectName: '',
@@ -39,10 +41,48 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hasUploadFailures, setHasUploadFailures] = useState(false);
+  const [inspectionId, setInspectionId] = useState<string | null>(null);
+
+  // Use ref to track change timeouts and prevent duplicate recordings
+  const changeTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
+  const { recordChange } = useQAChangeHistory(inspectionId || '');
+
+  const debouncedRecordChange = useCallback((
+    fieldName: string,
+    oldValue: string | null,
+    newValue: string | null,
+    changeType: 'create' | 'update' | 'delete' = 'update',
+    itemId?: string,
+    itemDescription?: string
+  ) => {
+    if (!inspectionId) return;
+
+    const key = `${itemId || 'form'}-${fieldName}`;
+    
+    // Clear existing timeout for this field
+    const existingTimeout = changeTimeouts.current.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      recordChange(fieldName, oldValue, newValue, changeType, itemId, itemDescription);
+      changeTimeouts.current.delete(key);
+    }, 500); // 500ms debounce
+
+    changeTimeouts.current.set(key, timeout);
+  }, [inspectionId, recordChange]);
 
   const handleFormDataChange = (field: string, value: string) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
+      
+      // Record change if we have an inspection ID
+      if (inspectionId) {
+        debouncedRecordChange(field, prev[field as keyof typeof prev], value);
+      }
       
       // Auto-fill project name when project is selected
       if (field === 'projectId' && value) {
@@ -65,11 +105,36 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     }
   };
 
-  const handleChecklistChange = (id: string, field: string, value: any) => {
-    setChecklist(prev => prev.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-  };
+  const handleChecklistChange = useCallback((id: string, field: string, value: any) => {
+    setChecklist(prev => {
+      const oldItem = prev.find(item => item.id === id);
+      const oldValue = oldItem ? oldItem[field as keyof ChecklistItem] : null;
+      
+      const updated = prev.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      );
+
+      // Record change if we have an inspection ID
+      if (inspectionId && oldItem) {
+        const stringOldValue = oldValue != null ? String(oldValue) : null;
+        const stringNewValue = value != null ? String(value) : null;
+        
+        // Only record if values actually changed
+        if (stringOldValue !== stringNewValue) {
+          debouncedRecordChange(
+            field, 
+            stringOldValue, 
+            stringNewValue, 
+            'update', 
+            id, 
+            oldItem.description
+          );
+        }
+      }
+
+      return updated;
+    });
+  }, [inspectionId, debouncedRecordChange]);
 
   const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
     setUploading(isUploading);
@@ -148,7 +213,6 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       );
 
       // Combine building, level, and building reference for location_reference
-      // Building reference is optional now
       const locationParts = [formData.building, formData.level];
       if (formData.buildingReference.trim()) {
         locationParts.push(formData.buildingReference);
@@ -170,18 +234,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       };
 
       const checklistItemsData = filteredChecklist.map(item => {
-        // Convert evidence files to file names/paths for storage
+        // Extract file names from UploadedFile objects
         let evidenceFileNames: string[] = [];
         if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
-          evidenceFileNames = item.evidenceFiles.map(file => {
-            if ('name' in file) {
-              return file.name;
-            } else if (file instanceof File) {
-              return file.name;
-            } else {
-              return String(file);
-            }
-          });
+          evidenceFileNames = item.evidenceFiles
+            .filter(file => file && typeof file === 'object' && 'name' in file)
+            .map(file => file.name);
         }
 
         return {
@@ -197,6 +255,9 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       const result = await createInspection(inspectionData, checklistItemsData);
       
       if (result) {
+        // Set the inspection ID for change tracking
+        setInspectionId(result.id);
+        
         toast({
           title: "QA Inspection Created",
           description: `Inspection ${result.inspection_number} has been created successfully.`,

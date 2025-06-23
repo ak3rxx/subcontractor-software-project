@@ -19,32 +19,29 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   onUploadStatusChange 
 }) => {
   const handleFileChange = useCallback((files: UploadedFile[]) => {
-    // Store the full UploadedFile objects instead of just File objects
+    console.log('Files changed for item', item.id, ':', files);
+    // Store the UploadedFile objects directly
     onChecklistChange(item.id, 'evidenceFiles', files);
   }, [item.id, onChecklistChange]);
 
-  // Convert various file formats to UploadedFile[] for display
-  const convertFilesToUploadedFiles = (files: UploadedFile[] | File[] | undefined): UploadedFile[] => {
-    if (!files || files.length === 0) return [];
+  const handleStatusChange = useCallback((status: 'pass' | 'fail' | 'na' | '') => {
+    onChecklistChange(item.id, 'status', status);
+  }, [item.id, onChecklistChange]);
+
+  const handleCommentsChange = useCallback((comments: string) => {
+    onChecklistChange(item.id, 'comments', comments);
+  }, [item.id, onChecklistChange]);
+
+  // Ensure evidenceFiles is always an array of UploadedFile objects
+  const currentFiles = React.useMemo(() => {
+    if (!item.evidenceFiles || !Array.isArray(item.evidenceFiles)) {
+      return [];
+    }
     
-    return files.map((file, index) => {
-      // If it's already an UploadedFile, return as is
-      if ('id' in file && 'url' in file) {
-        return file as UploadedFile;
-      }
-      
-      // If it's a File, convert to UploadedFile
-      const fileObj = file as File;
-      return {
-        id: `file-${Date.now()}-${index}`,
-        file: fileObj,
-        url: URL.createObjectURL(fileObj),
-        name: fileObj.name,
-        size: fileObj.size,
-        type: fileObj.type
-      };
+    return item.evidenceFiles.filter((file): file is UploadedFile => {
+      return file && typeof file === 'object' && 'id' in file && 'url' in file;
     });
-  };
+  }, [item.evidenceFiles]);
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -62,7 +59,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
               id={`${item.id}-pass`}
               checked={item.status === 'pass'}
               onCheckedChange={(checked) => 
-                onChecklistChange(item.id, 'status', checked ? 'pass' : '')
+                handleStatusChange(checked ? 'pass' : '')
               }
             />
             <Label htmlFor={`${item.id}-pass`} className="text-green-600">Pass</Label>
@@ -72,7 +69,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
               id={`${item.id}-fail`}
               checked={item.status === 'fail'}
               onCheckedChange={(checked) => 
-                onChecklistChange(item.id, 'status', checked ? 'fail' : '')
+                handleStatusChange(checked ? 'fail' : '')
               }
             />
             <Label htmlFor={`${item.id}-fail`} className="text-red-600">Fail</Label>
@@ -82,7 +79,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
               id={`${item.id}-na`}
               checked={item.status === 'na'}
               onCheckedChange={(checked) => 
-                onChecklistChange(item.id, 'status', checked ? 'na' : '')
+                handleStatusChange(checked ? 'na' : '')
               }
             />
             <Label htmlFor={`${item.id}-na`} className="text-gray-600">N/A</Label>
@@ -94,14 +91,14 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           <Textarea
             id={`${item.id}-comments`}
             value={item.comments || ''}
-            onChange={(e) => onChecklistChange(item.id, 'comments', e.target.value)}
+            onChange={(e) => handleCommentsChange(e.target.value)}
             placeholder="Add comments..."
             rows={2}
           />
         </div>
 
         <FileUpload
-          files={convertFilesToUploadedFiles(item.evidenceFiles)}
+          files={currentFiles}
           onFilesChange={handleFileChange}
           onUploadStatusChange={onUploadStatusChange}
           label="Evidence Photos/Documents"

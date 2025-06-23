@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,9 +19,15 @@ export const useQAChangeHistory = (inspectionId: string) => {
   const [changeHistory, setChangeHistory] = useState<ChangeHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  
+  // Track the last recorded changes to prevent duplicates
+  const lastRecordedChanges = useRef<Map<string, string>>(new Map());
 
   const fetchChangeHistory = async () => {
-    if (!inspectionId) return;
+    if (!inspectionId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       console.log('Fetching change history for inspection:', inspectionId);
@@ -68,6 +73,24 @@ export const useQAChangeHistory = (inspectionId: string) => {
       return;
     }
 
+    // Create a unique key for this change
+    const changeKey = `${itemId || 'form'}-${fieldName}-${oldValue}-${newValue}`;
+    
+    // Check if this exact change was already recorded recently
+    const lastRecorded = lastRecordedChanges.current.get(changeKey);
+    const now = Date.now().toString();
+    
+    if (lastRecorded && (parseInt(now) - parseInt(lastRecorded)) < 1000) {
+      console.log('Skipping duplicate change record within 1 second');
+      return;
+    }
+
+    // Don't record if old and new values are the same
+    if (oldValue === newValue) {
+      console.log('Skipping change record: values are the same');
+      return;
+    }
+
     try {
       console.log('Recording change:', {
         inspectionId,
@@ -94,8 +117,21 @@ export const useQAChangeHistory = (inspectionId: string) => {
         console.error('Error recording change:', error);
       } else {
         console.log('Change recorded successfully');
-        // Refresh the change history
-        fetchChangeHistory();
+        
+        // Update the last recorded changes map
+        lastRecordedChanges.current.set(changeKey, now);
+        
+        // Clean up old entries (keep only last 100)
+        if (lastRecordedChanges.current.size > 100) {
+          const entries = Array.from(lastRecordedChanges.current.entries());
+          const sorted = entries.sort((a, b) => parseInt(b[1]) - parseInt(a[1]));
+          lastRecordedChanges.current = new Map(sorted.slice(0, 50));
+        }
+        
+        // Refresh the change history after a short delay to allow database to update
+        setTimeout(() => {
+          fetchChangeHistory();
+        }, 200);
       }
     } catch (error) {
       console.error('Error recording change:', error);
