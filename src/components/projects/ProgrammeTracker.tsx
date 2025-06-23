@@ -21,8 +21,11 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName }) => {
   const milestones = getSampleMilestones();
 
   // Filter milestones for different outlooks
+  // 1 week outlook - only personal items flagged by PM or managers
   const oneWeekOutlook = milestones.filter(milestone => 
-    milestone.status !== 'complete' && isWithinDays(milestone.dueDate, 7)
+    milestone.status !== 'complete' && 
+    isWithinDays(milestone.dueDate, 7) &&
+    (milestone.assignedTo.includes('PM') || milestone.assignedTo.includes('Manager') || milestone.priority === 'high')
   );
 
   const threeWeekLookAhead = milestones.filter(milestone => 
@@ -47,52 +50,30 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName }) => {
 
       {/* Programme Outlook Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
+          <TabsTrigger value="planner" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Weekly Calendar
+            1 & 3 Week Planner
           </TabsTrigger>
           <TabsTrigger value="one-week" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
             1 Week Outlook
           </TabsTrigger>
-          <TabsTrigger value="three-week" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            3 Week Look Ahead
-          </TabsTrigger>
-          <TabsTrigger value="all">All Milestones</TabsTrigger>
+          <TabsTrigger value="programme">Project Overall Programme</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
           <OutlookOverview 
             oneWeekOutlook={oneWeekOutlook}
             threeWeekLookAhead={threeWeekLookAhead}
+            allMilestones={milestones}
           />
         </TabsContent>
 
-        <TabsContent value="calendar" className="space-y-4">
-          <WeeklyCalendarView milestones={oneWeekOutlook} />
+        <TabsContent value="planner" className="space-y-4">
+          <WeeklyCalendarView milestones={threeWeekLookAhead} />
           
-          {/* Overall Project Milestones */}
-          <MilestoneTable
-            milestones={milestones}
-            title="Overall Project Milestones"
-            showLinkedModule={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="one-week">
-          <MilestoneTable
-            milestones={oneWeekOutlook}
-            title="1 Week Outlook"
-            icon={<Eye className="h-5 w-5" />}
-            emptyStateIcon={<Calendar className="h-12 w-12" />}
-            emptyStateMessage="No milestones due in the next 7 days"
-          />
-        </TabsContent>
-
-        <TabsContent value="three-week">
           <MilestoneTable
             milestones={threeWeekLookAhead}
             title="3 Week Look Ahead"
@@ -103,7 +84,17 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName }) => {
           />
         </TabsContent>
 
-        <TabsContent value="all">
+        <TabsContent value="one-week">
+          <MilestoneTable
+            milestones={oneWeekOutlook}
+            title="1 Week Outlook - Personal Items"
+            icon={<Eye className="h-5 w-5" />}
+            emptyStateIcon={<Calendar className="h-12 w-12" />}
+            emptyStateMessage="No personal milestones due in the next 7 days"
+          />
+        </TabsContent>
+
+        <TabsContent value="programme">
           <MilestoneForm 
             showForm={showNewMilestone}
             onCancel={() => setShowNewMilestone(false)}
@@ -111,7 +102,7 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName }) => {
 
           <MilestoneTable
             milestones={milestones}
-            title="All Project Milestones"
+            title="Project Overall Programme"
             showLinkedModule={true}
           />
         </TabsContent>

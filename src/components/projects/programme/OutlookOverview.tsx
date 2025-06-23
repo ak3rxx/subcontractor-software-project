@@ -1,83 +1,132 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, CalendarDays } from 'lucide-react';
+import { Eye, CalendarDays, Target } from 'lucide-react';
 import { Milestone, getDaysUntil } from './milestoneUtils';
-import { getDaysUntilBadge } from './MilestoneBadges';
+import { getDaysUntilBadge, getStatusBadge } from './MilestoneBadges';
 
 interface OutlookOverviewProps {
   oneWeekOutlook: Milestone[];
   threeWeekLookAhead: Milestone[];
+  allMilestones: Milestone[];
 }
 
-const OutlookOverview: React.FC<OutlookOverviewProps> = ({ oneWeekOutlook, threeWeekLookAhead }) => {
+const OutlookOverview: React.FC<OutlookOverviewProps> = ({ 
+  oneWeekOutlook, 
+  threeWeekLookAhead, 
+  allMilestones 
+}) => {
+  // Get key project milestones (high priority or critical milestones)
+  const keyMilestones = allMilestones
+    .filter(milestone => milestone.priority === 'high' || milestone.status === 'overdue')
+    .slice(0, 4);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      {/* Project Milestone Highlights */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-blue-500" />
-            Next 7 Days
+            <Target className="h-5 w-5 text-purple-500" />
+            Overall Project Milestone Highlights
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {oneWeekOutlook.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No milestones due in the next week</p>
+          {keyMilestones.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No critical milestones to highlight</p>
           ) : (
-            <div className="space-y-2">
-              {oneWeekOutlook.slice(0, 3).map((milestone) => (
-                <div key={milestone.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <div>
-                    <div className="font-medium text-sm">{milestone.name}</div>
-                    <div className="text-xs text-gray-600">{milestone.assignedTo}</div>
+            <div className="space-y-3">
+              {keyMilestones.map((milestone) => (
+                <div key={milestone.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium">{milestone.name}</div>
+                    <div className="text-sm text-gray-600 flex items-center gap-4">
+                      <span>{milestone.assignedTo}</span>
+                      <span>{milestone.dueDate}</span>
+                      {milestone.linkedModule && (
+                        <span className="text-blue-600">📋 {milestone.linkedModule}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(milestone.status, milestone.daysOverdue)}
                     {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
                   </div>
                 </div>
               ))}
-              {oneWeekOutlook.length > 3 && (
-                <div className="text-center pt-2">
-                  <span className="text-sm text-gray-500">+{oneWeekOutlook.length - 3} more</span>
-                </div>
-              )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-green-500" />
-            Next 3 Weeks
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {threeWeekLookAhead.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No milestones due in the next 3 weeks</p>
-          ) : (
-            <div className="space-y-2">
-              {threeWeekLookAhead.slice(0, 4).map((milestone) => (
-                <div key={milestone.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <div>
-                    <div className="font-medium text-sm">{milestone.name}</div>
-                    <div className="text-xs text-gray-600">{milestone.assignedTo}</div>
+      {/* Personal Outlook Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-blue-500" />
+              Next 7 Days - Personal Items
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {oneWeekOutlook.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No personal items due in the next week</p>
+            ) : (
+              <div className="space-y-2">
+                {oneWeekOutlook.slice(0, 3).map((milestone) => (
+                  <div key={milestone.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div>
+                      <div className="font-medium text-sm">{milestone.name}</div>
+                      <div className="text-xs text-gray-600">{milestone.assignedTo}</div>
+                    </div>
+                    <div className="text-right">
+                      {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                ))}
+                {oneWeekOutlook.length > 3 && (
+                  <div className="text-center pt-2">
+                    <span className="text-sm text-gray-500">+{oneWeekOutlook.length - 3} more</span>
                   </div>
-                </div>
-              ))}
-              {threeWeekLookAhead.length > 4 && (
-                <div className="text-center pt-2">
-                  <span className="text-sm text-gray-500">+{threeWeekLookAhead.length - 4} more</span>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-green-500" />
+              Next 3 Weeks
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {threeWeekLookAhead.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No milestones due in the next 3 weeks</p>
+            ) : (
+              <div className="space-y-2">
+                {threeWeekLookAhead.slice(0, 4).map((milestone) => (
+                  <div key={milestone.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div>
+                      <div className="font-medium text-sm">{milestone.name}</div>
+                      <div className="text-xs text-gray-600">{milestone.assignedTo}</div>
+                    </div>
+                    <div className="text-right">
+                      {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                    </div>
+                  </div>
+                ))}
+                {threeWeekLookAhead.length > 4 && (
+                  <div className="text-center pt-2">
+                    <span className="text-sm text-gray-500">+{threeWeekLookAhead.length - 4} more</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
