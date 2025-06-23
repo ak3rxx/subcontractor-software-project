@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Filter, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Filter, FileText, AlertTriangle, Eye, Edit } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
+import QAInspectionViewer from './qa-itp/QAInspectionViewer';
 
 interface QAITPTrackerProps {
   onNewInspection: () => void;
@@ -16,6 +17,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
   const { projects } = useProjects();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -42,6 +44,16 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
     const project = projects.find(p => p.id === projectId);
     return project?.name || 'Unknown Project';
   };
+
+  if (selectedInspectionId) {
+    return (
+      <QAInspectionViewer
+        inspectionId={selectedInspectionId}
+        onClose={() => setSelectedInspectionId(null)}
+        canEdit={true}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -159,9 +171,21 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-3 w-3 mr-1" />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setSelectedInspectionId(inspection.id)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
                         View
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setSelectedInspectionId(inspection.id)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
                       </Button>
                     </div>
                   </td>

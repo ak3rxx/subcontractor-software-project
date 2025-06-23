@@ -207,6 +207,74 @@ export const useQAInspections = (projectId?: string) => {
     }
   };
 
+  const updateInspection = async (
+    inspectionId: string,
+    inspectionData: Partial<QAInspection>,
+    checklistItems?: QAChecklistItem[]
+  ) => {
+    if (!user) return null;
+
+    try {
+      // Update inspection
+      const { data: inspectionResult, error: inspectionError } = await supabase
+        .from('qa_inspections')
+        .update({
+          ...inspectionData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', inspectionId)
+        .select()
+        .single();
+
+      if (inspectionError) {
+        console.error('Error updating inspection:', inspectionError);
+        toast({
+          title: "Error",
+          description: "Failed to update inspection",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Update checklist items if provided
+      if (checklistItems && checklistItems.length > 0) {
+        for (const item of checklistItems) {
+          const { error: itemError } = await supabase
+            .from('qa_checklist_items')
+            .update({
+              status: item.status,
+              comments: item.comments
+            })
+            .eq('id', item.id);
+
+          if (itemError) {
+            console.error('Error updating checklist item:', itemError);
+          }
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "Inspection updated successfully"
+      });
+
+      const updatedInspection = transformInspectionData(inspectionResult);
+      setInspections(prev => prev.map(inspection => 
+        inspection.id === inspectionId ? updatedInspection : inspection
+      ));
+      
+      return updatedInspection;
+    } catch (error) {
+      console.error('Error updating inspection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update inspection",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
   const getChecklistItems = async (inspectionId: string): Promise<QAChecklistItem[]> => {
     try {
       const { data, error } = await supabase
@@ -227,6 +295,26 @@ export const useQAInspections = (projectId?: string) => {
     }
   };
 
+  const getInspectionById = async (inspectionId: string): Promise<QAInspection | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('qa_inspections')
+        .select('*')
+        .eq('id', inspectionId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching inspection:', error);
+        return null;
+      }
+
+      return transformInspectionData(data);
+    } catch (error) {
+      console.error('Error:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     fetchInspections();
   }, [user, projectId]);
@@ -235,7 +323,9 @@ export const useQAInspections = (projectId?: string) => {
     inspections,
     loading,
     createInspection,
+    updateInspection,
     getChecklistItems,
+    getInspectionById,
     refetch: fetchInspections
   };
 };
