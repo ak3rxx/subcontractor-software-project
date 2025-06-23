@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,16 +16,12 @@ import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import QAChangeHistory from './QAChangeHistory';
 import FileUpload from './FileUpload';
 import { exportInspectionToPDF, downloadPDF } from '@/utils/pdfExport';
+import { UploadedFile } from '@/hooks/useFileUpload';
 
 interface QAInspectionViewerProps {
   inspectionId: string;
   onClose: () => void;
   canEdit?: boolean;
-}
-
-interface UploadedFile {
-  file: File;
-  url: string;
 }
 
 const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({ 
@@ -205,6 +202,34 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       default:
         return <Badge variant="outline">Not Checked</Badge>;
     }
+  };
+
+  const convertFilesToUploadedFiles = (files: string[] | File[] | null): UploadedFile[] => {
+    if (!files || files.length === 0) return [];
+
+    return files.map((file, index) => {
+      if (typeof file === 'string') {
+        // Handle string file paths
+        return {
+          id: `file-${index}-${Date.now()}`,
+          file: new File([], file), // Create a dummy File object
+          url: file,
+          name: file.split('/').pop() || file,
+          size: 0,
+          type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 'application/octet-stream'
+        } as UploadedFile;
+      } else {
+        // Handle File objects
+        return {
+          id: `file-${index}-${Date.now()}`,
+          file: file,
+          url: URL.createObjectURL(file),
+          name: file.name,
+          size: file.size,
+          type: file.type
+        } as UploadedFile;
+      }
+    });
   };
 
   const renderEvidenceFiles = (files: string[] | File[] | null) => {
@@ -500,7 +525,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                           </div>
 
                           <FileUpload
-                            files={Array.isArray(item.evidence_files) ? item.evidence_files : []}
+                            files={convertFilesToUploadedFiles(item.evidence_files)}
                             onFilesChange={(files) => handleChecklistItemFileChange(item.id, files)}
                             label="Evidence Photos/Documents"
                             accept="image/*,.pdf,.doc,.docx"
@@ -533,7 +558,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
               <CardContent>
                 {editMode ? (
                   <FileUpload
-                    files={attachmentFiles.map(f => f.file)}
+                    files={attachmentFiles}
                     onFilesChange={handleAttachmentFileChange}
                     label="General Inspection Attachments"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
@@ -547,7 +572,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {attachmentFiles.map((file, index) => (
                           <div key={index} className="border rounded p-3 text-center">
-                            {file.type.startsWith('image/') ? (
+                            {file.file.type.startsWith('image/') ? (
                               <img 
                                 src={file.url} 
                                 alt={file.name}
