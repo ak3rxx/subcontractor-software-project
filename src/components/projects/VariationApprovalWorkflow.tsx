@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,17 +35,17 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   // Allow submission if variation is in draft status
   const canSubmitForApproval = variation.status === 'draft';
   
-  // Show approval actions if user can approve and variation is pending
-  const showApprovalActions = canApprove && variation.status === 'pending';
+  // Show approval actions if user can approve and variation is pending approval
+  const showApprovalActions = canApprove && variation.status === 'pending_approval';
 
   const handleSubmitForApproval = async () => {
     setIsSubmitting(true);
     try {
       console.log('Submitting variation for approval, current status:', variation.status);
       
-      // Update the variation with pending status and submission details
+      // Update the variation with pending_approval status and submission details
       const updateData = {
-        status: 'pending' as const,
+        status: 'pending_approval' as const,
         request_date: new Date().toISOString().split('T')[0],
         requested_by: user?.id
       };
@@ -109,7 +110,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
             Draft
           </Badge>
         );
-      case 'pending':
+      case 'pending_approval':
         return (
           <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1">
             <Clock className="h-3 w-3" />
@@ -141,15 +142,15 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
         key: 'draft', 
         label: 'Draft', 
         icon: MessageSquare,
-        completed: ['pending', 'approved', 'rejected'].includes(variation.status),
+        completed: ['pending_approval', 'approved', 'rejected'].includes(variation.status),
         active: variation.status === 'draft'
       },
       { 
-        key: 'pending', 
+        key: 'pending_approval', 
         label: 'Pending Approval', 
         icon: Clock,
         completed: ['approved', 'rejected'].includes(variation.status),
-        active: variation.status === 'pending'
+        active: variation.status === 'pending_approval'
       },
       { 
         key: 'final', 

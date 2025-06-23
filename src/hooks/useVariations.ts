@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +15,7 @@ export interface Variation {
   request_date: string;
   cost_impact: number;
   time_impact: number;
-  status: 'draft' | 'pending' | 'approved' | 'rejected';
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
   category?: string;
   priority: 'high' | 'normal' | 'low';
   client_email?: string;
@@ -56,7 +57,7 @@ export const useVariations = (projectId: string) => {
         return;
       }
 
-      // Transform the data to match our interface - now using correct field names
+      // Transform the data to match our interface
       const transformedData = (data || []).map((item: any) => ({
         id: item.id,
         project_id: item.project_id,
@@ -68,7 +69,7 @@ export const useVariations = (projectId: string) => {
         request_date: item.request_date || item.created_at.split('T')[0],
         cost_impact: item.cost_impact || 0,
         time_impact: 0, // Not in database, default to 0
-        status: item.status as 'draft' | 'pending' | 'approved' | 'rejected',
+        status: item.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
         category: item.category || '',
         priority: item.priority as 'high' | 'normal' | 'low',
         client_email: item.client_email || '',
@@ -192,7 +193,7 @@ export const useVariations = (projectId: string) => {
     try {
       console.log('Updating variation with:', updates);
       
-      // Now the interface matches database fields, so direct mapping
+      // Direct mapping since interface matches database fields
       const dbUpdates: any = {};
       
       if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -247,7 +248,7 @@ export const useVariations = (projectId: string) => {
         request_date: data.request_date || data.created_at.split('T')[0],
         cost_impact: data.cost_impact || 0,
         time_impact: 0,
-        status: data.status as 'draft' | 'pending' | 'approved' | 'rejected',
+        status: data.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
         category: data.category || '',
         priority: data.priority as 'high' | 'normal' | 'low',
         client_email: data.client_email || '',

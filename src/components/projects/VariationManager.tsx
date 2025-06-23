@@ -28,7 +28,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [newVariation, setNewVariation] = useState({
     title: '',
     description: '',
-    submittedBy: '',
+    requested_by: '',
     costImpact: '',
     timeImpact: '',
     category: '',
@@ -179,7 +179,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         return <Badge className="bg-green-100 text-green-800">✅ Approved</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>;
-      case 'pending':
+      case 'pending_approval':
         return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>;
       case 'draft':
         return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
@@ -228,7 +228,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       setNewVariation({
         title: '',
         description: '',
-        submittedBy: '',
+        requested_by: '',
         costImpact: '',
         timeImpact: '',
         category: '',
@@ -297,7 +297,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <CardContent className="p-4 text-center">
             <AlertTriangle className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
             <div className="text-2xl font-bold">
-              {variations.filter(v => v.status === 'pending').length}
+              {variations.filter(v => v.status === 'pending_approval').length}
             </div>
             <div className="text-sm text-gray-600">Pending</div>
           </CardContent>

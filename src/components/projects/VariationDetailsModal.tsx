@@ -128,7 +128,7 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
         return <Badge className="bg-green-100 text-green-800">✅ Approved</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>;
-      case 'pending':
+      case 'pending_approval':
         return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>;
       case 'draft':
         return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
