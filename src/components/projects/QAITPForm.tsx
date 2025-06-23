@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -119,7 +118,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         let stringOldValue: string | null = null;
         let stringNewValue: string | null = null;
         
-        // Handle file attachments specially
+        // Handle file attachments specially for Supabase files
         if (field === 'evidenceFiles') {
           stringOldValue = oldValue ? JSON.stringify(oldValue) : null;
           stringNewValue = value ? JSON.stringify(value) : null;
@@ -246,12 +245,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       };
 
       const checklistItemsData = filteredChecklist.map(item => {
-        // Extract file names from UploadedFile objects
+        // Extract file paths from SupabaseUploadedFile objects
         let evidenceFileNames: string[] = [];
         if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
           evidenceFileNames = item.evidenceFiles
-            .filter(file => file && typeof file === 'object' && 'name' in file)
-            .map(file => file.name);
+            .filter(file => file && typeof file === 'object' && 'path' in file && file.uploaded)
+            .map(file => file.path);
         }
 
         return {
@@ -339,6 +338,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
                   item={item}
                   onChecklistChange={handleChecklistChange}
                   onUploadStatusChange={handleUploadStatusChange}
+                  inspectionId={inspectionId}
                 />
               ))}
             </CardContent>

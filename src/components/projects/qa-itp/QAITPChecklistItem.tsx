@@ -3,22 +3,24 @@ import React, { useCallback } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import FileUpload from './FileUpload';
+import SupabaseFileUpload from './SupabaseFileUpload';
 import { ChecklistItem } from './QAITPTemplates';
-import { UploadedFile } from '@/hooks/useFileUpload';
+import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 
 interface QAITPChecklistItemProps {
   item: ChecklistItem;
   onChecklistChange: (id: string, field: string, value: any) => void;
   onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
+  inspectionId?: string;
 }
 
 const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({ 
   item, 
   onChecklistChange,
-  onUploadStatusChange 
+  onUploadStatusChange,
+  inspectionId
 }) => {
-  const handleFileChange = useCallback((files: UploadedFile[]) => {
+  const handleFileChange = useCallback((files: SupabaseUploadedFile[]) => {
     console.log('Files changed for item', item.id, ':', files);
     onChecklistChange(item.id, 'evidenceFiles', files);
   }, [item.id, onChecklistChange]);
@@ -31,13 +33,13 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
     onChecklistChange(item.id, 'comments', comments);
   }, [item.id, onChecklistChange]);
 
-  // Ensure evidenceFiles is always an array of UploadedFile objects
+  // Ensure evidenceFiles is always an array of SupabaseUploadedFile objects
   const currentFiles = React.useMemo(() => {
     if (!item.evidenceFiles || !Array.isArray(item.evidenceFiles)) {
       return [];
     }
     
-    return item.evidenceFiles.filter((file): file is UploadedFile => {
+    return item.evidenceFiles.filter((file): file is SupabaseUploadedFile => {
       return file && typeof file === 'object' && 'id' in file && 'url' in file;
     });
   }, [item.evidenceFiles]);
@@ -96,13 +98,15 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           />
         </div>
 
-        <FileUpload
+        <SupabaseFileUpload
           files={currentFiles}
           onFilesChange={handleFileChange}
           onUploadStatusChange={onUploadStatusChange}
           label="Evidence Photos/Documents"
           accept="image/*,.pdf,.doc,.docx"
           maxFiles={3}
+          inspectionId={inspectionId}
+          checklistItemId={item.id}
         />
       </div>
     </div>
