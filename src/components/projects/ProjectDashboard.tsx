@@ -204,15 +204,15 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-6">
-          <TaskManager />
+          <TaskManager projectName={projectData.name} />
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-6">
-          <TeamNotes />
+          <TeamNotes projectName={projectData.name} />
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-6">
-          <DocumentManager />
+          <DocumentManager projectName={projectData.name} />
         </TabsContent>
 
         <TabsContent value="variations" className="space-y-6">
@@ -220,11 +220,11 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="rfi" className="space-y-6">
-          <RFIManager />
+          <RFIManager projectName={projectData.name} />
         </TabsContent>
 
         <TabsContent value="finance" className="space-y-6">
-          <FinanceManager />
+          <FinanceManager projectName={projectData.name} />
         </TabsContent>
       </Tabs>
     </div>
