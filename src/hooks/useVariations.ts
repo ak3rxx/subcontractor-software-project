@@ -85,6 +85,7 @@ export const useVariations = (projectId: string) => {
         updated_at: item.updated_at
       }));
 
+      console.log('Fetched variations:', transformedData);
       setVariations(transformedData);
     } catch (error) {
       console.error('Error:', error);
@@ -190,9 +191,41 @@ export const useVariations = (projectId: string) => {
 
   const updateVariation = async (id: string, updates: Partial<Variation>) => {
     try {
+      console.log('Updating variation with:', updates);
+      
+      // Map the updates to database field names
+      const dbUpdates: any = {};
+      
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.location !== undefined) dbUpdates.location = updates.location;
+      if (updates.cost_impact !== undefined) dbUpdates.cost_impact = updates.cost_impact;
+      if (updates.time_impact !== undefined) dbUpdates.time_impact = updates.time_impact;
+      if (updates.category !== undefined) dbUpdates.category = updates.category;
+      if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+      if (updates.client_email !== undefined) dbUpdates.client_email = updates.client_email;
+      if (updates.justification !== undefined) dbUpdates.justification = updates.justification;
+      if (updates.approved_by !== undefined) dbUpdates.approved_by = updates.approved_by;
+      if (updates.approval_date !== undefined) dbUpdates.approval_date = updates.approval_date;
+      if (updates.approval_comments !== undefined) dbUpdates.approval_comments = updates.approval_comments;
+      if (updates.email_sent !== undefined) dbUpdates.email_sent = updates.email_sent;
+      if (updates.email_sent_date !== undefined) dbUpdates.email_sent_date = updates.email_sent_date;
+      if (updates.email_sent_by !== undefined) dbUpdates.email_sent_by = updates.email_sent_by;
+      
+      // Handle field mappings
+      if (updates.submitted_by !== undefined) dbUpdates.requested_by = updates.submitted_by;
+      if (updates.submitted_date !== undefined) dbUpdates.request_date = updates.submitted_date;
+      
+      // Handle the request_date and requested_by for submission
+      if (updates.request_date !== undefined) dbUpdates.request_date = updates.request_date;
+      if (updates.requested_by !== undefined) dbUpdates.requested_by = updates.requested_by;
+
+      console.log('Database updates:', dbUpdates);
+
       const { data, error } = await supabase
         .from('variations')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -206,6 +239,8 @@ export const useVariations = (projectId: string) => {
         });
         return null;
       }
+
+      console.log('Updated variation data from DB:', data);
 
       // Transform the returned data to match our interface
       const transformedData = {
@@ -234,6 +269,8 @@ export const useVariations = (projectId: string) => {
         created_at: data.created_at,
         updated_at: data.updated_at
       };
+
+      console.log('Transformed updated variation:', transformedData);
 
       setVariations(prev => 
         prev.map(variation => 

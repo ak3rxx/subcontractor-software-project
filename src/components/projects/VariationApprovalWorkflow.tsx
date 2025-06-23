@@ -40,17 +40,25 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   const handleSubmitForApproval = async () => {
     setIsSubmitting(true);
     try {
-      await onUpdate(variation.id, {
+      console.log('Submitting variation for approval, current status:', variation.status);
+      
+      // Update the variation with pending status and submission details
+      const updateData = {
         status: 'pending',
-        submitted_date: new Date().toISOString().split('T')[0],
-        submitted_by: user?.id
-      });
+        request_date: new Date().toISOString().split('T')[0],
+        requested_by: user?.id
+      };
+      
+      console.log('Update data being sent:', updateData);
+      
+      await onUpdate(variation.id, updateData);
       
       toast({
         title: "Success",
         description: "Variation submitted for approval"
       });
     } catch (error) {
+      console.error('Error submitting for approval:', error);
       toast({
         title: "Error",
         description: "Failed to submit variation for approval",
