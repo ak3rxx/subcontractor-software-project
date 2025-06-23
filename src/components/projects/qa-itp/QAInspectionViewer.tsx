@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,9 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { X, Save, Edit, FileText, User, Calendar, MapPin, CheckCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { X, Save, Edit, FileText, User, Calendar, MapPin, CheckCircle, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQAInspections, QAInspection, QAChecklistItem } from '@/hooks/useQAInspections';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import QAChangeHistory from './QAChangeHistory';
 
 interface QAInspectionViewerProps {
   inspectionId: string;
@@ -25,8 +27,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 }) => {
   const { toast } = useToast();
   const { getChecklistItems, getInspectionById, updateInspection, refetch } = useQAInspections();
+  const { changeHistory, recordChange } = useQAChangeHistory(inspectionId);
   const [inspection, setInspection] = useState<QAInspection | null>(null);
   const [checklistItems, setChecklistItems] = useState<QAChecklistItem[]>([]);
+  const [originalInspection, setOriginalInspection] = useState<QAInspection | null>(null);
+  const [originalChecklistItems, setOriginalChecklistItems] = useState<QAChecklistItem[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,6 +50,8 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       
       setInspection(inspectionData);
       setChecklistItems(items);
+      setOriginalInspection(inspectionData);
+      setOriginalChecklistItems(items);
     } catch (error) {
       console.error('Error fetching inspection data:', error);
       toast({
@@ -58,14 +65,42 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   };
 
   const handleChecklistItemChange = (itemId: string, field: string, value: any) => {
+    const originalItem = originalChecklistItems.find(item => item.id === itemId);
+    const currentItem = checklistItems.find(item => item.id === itemId);
+    const oldValue = currentItem ? currentItem[field as keyof QAChecklistItem] : null;
+    
     setChecklistItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     ));
+
+    // Record the change
+    if (originalItem && oldValue !== value) {
+      recordChange(
+        field,
+        String(oldValue || ''),
+        String(value || ''),
+        'update',
+        itemId,
+        originalItem.description
+      );
+    }
   };
 
   const handleInspectionFieldChange = (field: string, value: string) => {
-    if (inspection) {
+    if (inspection && originalInspection) {
+      const oldValue = originalInspection[field as keyof QAInspection];
+      
       setInspection(prev => prev ? { ...prev, [field]: value } : null);
+      
+      // Record the change
+      if (oldValue !== value) {
+        recordChange(
+          field,
+          String(oldValue || ''),
+          String(value || ''),
+          'update'
+        );
+      }
     }
   };
 
@@ -77,6 +112,10 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       await updateInspection(inspectionId, inspection, checklistItems);
       setEditMode(false);
       refetch();
+      
+      // Update the original data for future change tracking
+      setOriginalInspection(inspection);
+      setOriginalChecklistItems(checklistItems);
     } catch (error) {
       console.error('Error saving inspection:', error);
       toast({
@@ -173,192 +212,214 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         </Button>
       </div>
 
-      {/* Inspection Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
-            Inspection Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600">Inspection Number</Label>
-              <div className="font-mono text-sm">{inspection.inspection_number}</div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600">Project</Label>
-              <div className="text-sm">{inspection.project_name}</div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600">Overall Status</Label>
-              {editMode ? (
-                <Select 
-                  value={inspection.overall_status} 
-                  onValueChange={(value) => handleInspectionFieldChange('overall_status', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pass">Pass</SelectItem>
-                    <SelectItem value="fail">Fail</SelectItem>
-                    <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
-                    <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                getStatusBadge(inspection.overall_status)
-              )}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600 flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                Task Area
-              </Label>
-              {editMode ? (
-                <Input
-                  value={inspection.task_area}
-                  onChange={(e) => handleInspectionFieldChange('task_area', e.target.value)}
-                />
-              ) : (
-                <div className="text-sm">{inspection.task_area}</div>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600">Location Reference</Label>
-              {editMode ? (
-                <Input
-                  value={inspection.location_reference}
-                  onChange={(e) => handleInspectionFieldChange('location_reference', e.target.value)}
-                />
-              ) : (
-                <div className="text-sm">{inspection.location_reference}</div>
-              )}
-            </div>
-          </div>
+      <Tabs defaultValue="inspection" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="inspection">Inspection Details</TabsTrigger>
+          <TabsTrigger value="checklist">Checklist</TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Change History
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600 flex items-center gap-1">
-                <User className="h-3 w-3" />
-                Inspector
-              </Label>
-              {editMode ? (
-                <Input
-                  value={inspection.inspector_name}
-                  onChange={(e) => handleInspectionFieldChange('inspector_name', e.target.value)}
-                />
-              ) : (
-                <div className="text-sm">{inspection.inspector_name}</div>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-gray-600 flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Inspection Date
-              </Label>
-              {editMode ? (
-                <Input
-                  type="date"
-                  value={inspection.inspection_date}
-                  onChange={(e) => handleInspectionFieldChange('inspection_date', e.target.value)}
-                />
-              ) : (
-                <div className="text-sm">{new Date(inspection.inspection_date).toLocaleDateString()}</div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Checklist Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Inspection Checklist</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {checklistItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>No checklist items found for this inspection.</p>
-            </div>
-          ) : (
-            checklistItems.map((item) => (
-              <div key={item.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{item.description}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{item.requirements}</p>
-                  </div>
-                  <div className="ml-4">
-                    {getItemStatusBadge(item.status)}
-                  </div>
+        <TabsContent value="inspection" className="space-y-6">
+          {/* Inspection Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                Inspection Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600">Inspection Number</Label>
+                  <div className="font-mono text-sm">{inspection.inspection_number}</div>
                 </div>
-                
-                {editMode ? (
-                  <div className="space-y-3">
-                    <div className="flex gap-4 items-center">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${item.id}-pass`}
-                          checked={item.status === 'pass'}
-                          onCheckedChange={(checked) => 
-                            handleChecklistItemChange(item.id, 'status', checked ? 'pass' : '')
-                          }
-                        />
-                        <Label htmlFor={`${item.id}-pass`} className="text-green-600">Pass</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${item.id}-fail`}
-                          checked={item.status === 'fail'}
-                          onCheckedChange={(checked) => 
-                            handleChecklistItemChange(item.id, 'status', checked ? 'fail' : '')
-                          }
-                        />
-                        <Label htmlFor={`${item.id}-fail`} className="text-red-600">Fail</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${item.id}-na`}
-                          checked={item.status === 'na'}
-                          onCheckedChange={(checked) => 
-                            handleChecklistItemChange(item.id, 'status', checked ? 'na' : '')
-                          }
-                        />
-                        <Label htmlFor={`${item.id}-na`} className="text-gray-600">N/A</Label>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor={`${item.id}-comments`}>Comments</Label>
-                      <Textarea
-                        id={`${item.id}-comments`}
-                        value={item.comments || ''}
-                        onChange={(e) => handleChecklistItemChange(item.id, 'comments', e.target.value)}
-                        placeholder="Add comments..."
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  item.comments && (
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <Label className="text-sm font-medium text-gray-700">Comments:</Label>
-                      <p className="text-sm text-gray-600 mt-1">{item.comments}</p>
-                    </div>
-                  )
-                )}
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600">Project</Label>
+                  <div className="text-sm">{inspection.project_name}</div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600">Overall Status</Label>
+                  {editMode ? (
+                    <Select 
+                      value={inspection.overall_status} 
+                      onValueChange={(value) => handleInspectionFieldChange('overall_status', value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pass">Pass</SelectItem>
+                        <SelectItem value="fail">Fail</SelectItem>
+                        <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
+                        <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    getStatusBadge(inspection.overall_status)
+                  )}
+                </div>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Task Area
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      value={inspection.task_area}
+                      onChange={(e) => handleInspectionFieldChange('task_area', e.target.value)}
+                    />
+                  ) : (
+                    <div className="text-sm">{inspection.task_area}</div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600">Location Reference</Label>
+                  {editMode ? (
+                    <Input
+                      value={inspection.location_reference}
+                      onChange={(e) => handleInspectionFieldChange('location_reference', e.target.value)}
+                    />
+                  ) : (
+                    <div className="text-sm">{inspection.location_reference}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    Inspector
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      value={inspection.inspector_name}
+                      onChange={(e) => handleInspectionFieldChange('inspector_name', e.target.value)}
+                    />
+                  ) : (
+                    <div className="text-sm">{inspection.inspector_name}</div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Inspection Date
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      type="date"
+                      value={inspection.inspection_date}
+                      onChange={(e) => handleInspectionFieldChange('inspection_date', e.target.value)}
+                    />
+                  ) : (
+                    <div className="text-sm">{new Date(inspection.inspection_date).toLocaleDateString()}</div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="checklist" className="space-y-6">
+          {/* Checklist Items */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Inspection Checklist</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {checklistItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>No checklist items found for this inspection.</p>
+                </div>
+              ) : (
+                checklistItems.map((item) => (
+                  <div key={item.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{item.description}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{item.requirements}</p>
+                      </div>
+                      <div className="ml-4">
+                        {getItemStatusBadge(item.status)}
+                      </div>
+                    </div>
+                    
+                    {editMode ? (
+                      <div className="space-y-3">
+                        <div className="flex gap-4 items-center">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`${item.id}-pass`}
+                              checked={item.status === 'pass'}
+                              onCheckedChange={(checked) => 
+                                handleChecklistItemChange(item.id, 'status', checked ? 'pass' : '')
+                              }
+                            />
+                            <Label htmlFor={`${item.id}-pass`} className="text-green-600">Pass</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`${item.id}-fail`}
+                              checked={item.status === 'fail'}
+                              onCheckedChange={(checked) => 
+                                handleChecklistItemChange(item.id, 'status', checked ? 'fail' : '')
+                              }
+                            />
+                            <Label htmlFor={`${item.id}-fail`} className="text-red-600">Fail</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`${item.id}-na`}
+                              checked={item.status === 'na'}
+                              onCheckedChange={(checked) => 
+                                handleChecklistItemChange(item.id, 'status', checked ? 'na' : '')
+                              }
+                            />
+                            <Label htmlFor={`${item.id}-na`} className="text-gray-600">N/A</Label>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`${item.id}-comments`}>Comments</Label>
+                          <Textarea
+                            id={`${item.id}-comments`}
+                            value={item.comments || ''}
+                            onChange={(e) => handleChecklistItemChange(item.id, 'comments', e.target.value)}
+                            placeholder="Add comments..."
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      item.comments && (
+                        <div className="bg-gray-50 p-3 rounded-md">
+                          <Label className="text-sm font-medium text-gray-700">Comments:</Label>
+                          <p className="text-sm text-gray-600 mt-1">{item.comments}</p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <QAChangeHistory 
+            inspectionId={inspectionId} 
+            changeHistory={changeHistory}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Action Buttons */}
       {editMode && (
