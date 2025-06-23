@@ -32,7 +32,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     costImpact: '',
     timeImpact: '',
     category: '',
-    priority: 'medium', // Changed from 'normal' to 'medium'
+    priority: 'medium',
     clientEmail: '',
     justification: '',
     location: ''
@@ -66,7 +66,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   };
 
   const exportToPDF = (variation: any) => {
-    // Company details
     const senderCompany = {
       name: "DC Squared Construction",
       address: "123 Builder Street, Brisbane QLD 4000",
@@ -83,7 +82,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       abn: "98 765 432 109"
     };
 
-    // Create PDF content (simplified HTML for demo)
     const pdfContent = `
       <!DOCTYPE html>
       <html>
@@ -159,7 +157,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       </html>
     `;
 
-    // Create and download PDF (simplified approach)
     const blob = new Blob([pdfContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -195,12 +192,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     switch (priority) {
       case 'high':
         return <Badge variant="destructive">High</Badge>;
-      case 'medium': // Changed from 'normal' to 'medium'
+      case 'medium':
         return <Badge variant="secondary">Medium</Badge>;
       case 'low':
         return <Badge variant="outline">Low</Badge>;
       default:
-        return <Badge variant="secondary">Medium</Badge>; // Changed default
+        return <Badge variant="secondary">Medium</Badge>;
     }
   };
 
@@ -235,7 +232,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         costImpact: '',
         timeImpact: '',
         category: '',
-        priority: 'medium', // Changed from 'normal' to 'medium'
+        priority: 'medium',
         clientEmail: '',
         justification: '',
         location: ''

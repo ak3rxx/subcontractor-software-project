@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -129,7 +130,7 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>;
       case 'draft':
         return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
       default:
