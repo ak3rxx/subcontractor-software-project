@@ -20,7 +20,6 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
 }) => {
   const handleFileChange = useCallback((files: UploadedFile[]) => {
     console.log('Files changed for item', item.id, ':', files);
-    // Store the UploadedFile objects directly
     onChecklistChange(item.id, 'evidenceFiles', files);
   }, [item.id, onChecklistChange]);
 
