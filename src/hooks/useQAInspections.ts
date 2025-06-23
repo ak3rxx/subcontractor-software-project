@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -128,6 +129,24 @@ export const useQAInspections = (projectId?: string) => {
     if (!user) return null;
 
     try {
+      // Get user's organization first
+      const { data: orgUser, error: orgError } = await supabase
+        .from('organization_users')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (orgError || !orgUser) {
+        console.error('Error fetching user organization:', orgError);
+        toast({
+          title: "Error",
+          description: "Could not find your organization. Please contact support.",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       // Generate inspection number
       const { data: numberData, error: numberError } = await supabase
         .rpc('generate_inspection_number');
@@ -146,7 +165,7 @@ export const useQAInspections = (projectId?: string) => {
         ...inspectionData,
         inspection_number: numberData,
         created_by: user.id,
-        organization_id: '' // We'll handle organization later
+        organization_id: orgUser.organization_id
       };
 
       console.log('Creating QA inspection with data:', insertData);
