@@ -3,9 +3,12 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Filter, AlertTriangle, Eye, Edit, Download } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Plus, Filter, AlertTriangle, Eye, Edit, Download, Trash2, FileText } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
+import { useAuth } from '@/contexts/AuthContext';
 import QAInspectionViewer from './QAInspectionViewer';
 import QABulkExport from './QABulkExport';
 
@@ -15,14 +18,20 @@ interface QAITPTrackerProps {
 }
 
 const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId }) => {
-  const { inspections, loading } = useQAInspections(projectId);
+  const { inspections, loading, deleteInspection, bulkDeleteInspections, bulkUpdateInspections } = useQAInspections(projectId);
   const { projects } = useProjects();
+  const { user } = useAuth();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState(projectId || 'all');
   const [filterBuilding, setFilterBuilding] = useState('all');
   const [filterLevel, setFilterLevel] = useState('all');
+  const [filterInspectionType, setFilterInspectionType] = useState('all');
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [showBulkExport, setShowBulkExport] = useState(false);
+  const [selectedInspections, setSelectedInspections] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<string>('');
+  const [bulkStatus, setBulkStatus] = useState<string>('');
+  const [bulkInspectionType, setBulkInspectionType] = useState<string>('');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -39,7 +48,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
     }
   };
 
-  // Extract unique buildings and levels from inspections
+  // Extract unique buildings, levels, and inspection types from inspections
   const uniqueBuildings = [...new Set(inspections.map(inspection => {
     const parts = inspection.location_reference.split(' - ');
     return parts[0] || '';
@@ -50,9 +59,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
     return parts[1] || '';
   }).filter(Boolean))];
 
+  const uniqueInspectionTypes = [...new Set(inspections.map(inspection => inspection.inspection_type))];
+
   const filteredInspections = inspections.filter(inspection => {
     const statusMatch = filterStatus === 'all' || inspection.overall_status === filterStatus;
     const projectMatch = filterProject === 'all' || inspection.project_id === filterProject;
+    const inspectionTypeMatch = filterInspectionType === 'all' || inspection.inspection_type === filterInspectionType;
     
     const parts = inspection.location_reference.split(' - ');
     const building = parts[0] || '';
@@ -61,7 +73,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
     const buildingMatch = filterBuilding === 'all' || building === filterBuilding;
     const levelMatch = filterLevel === 'all' || level === filterLevel;
     
-    return statusMatch && projectMatch && buildingMatch && levelMatch;
+    return statusMatch && projectMatch && buildingMatch && levelMatch && inspectionTypeMatch;
   });
 
   const getProjectName = (projectId: string) => {
@@ -78,9 +90,63 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
     };
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedInspections(filteredInspections.map(i => i.id));
+    } else {
+      setSelectedInspections([]);
+    }
+  };
+
+  const handleSelectInspection = (inspectionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedInspections(prev => [...prev, inspectionId]);
+    } else {
+      setSelectedInspections(prev => prev.filter(id => id !== inspectionId));
+    }
+  };
+
+  const handleBulkAction = async () => {
+    if (selectedInspections.length === 0) return;
+
+    switch (bulkAction) {
+      case 'delete':
+        await bulkDeleteInspections(selectedInspections);
+        setSelectedInspections([]);
+        break;
+      case 'export':
+        setShowBulkExport(true);
+        break;
+      case 'updateStatus':
+        if (bulkStatus) {
+          await bulkUpdateInspections(selectedInspections, { overall_status: bulkStatus as any });
+          setSelectedInspections([]);
+        }
+        break;
+      case 'updateType':
+        if (bulkInspectionType) {
+          await bulkUpdateInspections(selectedInspections, { inspection_type: bulkInspectionType as any });
+          setSelectedInspections([]);
+        }
+        break;
+    }
+    setBulkAction('');
+    setBulkStatus('');
+    setBulkInspectionType('');
+  };
+
+  const handleDeleteInspection = async (inspectionId: string) => {
+    await deleteInspection(inspectionId);
+  };
+
+  const isAdminOrPM = user?.role === 'admin' || user?.role === 'project_manager';
+
   if (showBulkExport) {
     return (
-      <QABulkExport onClose={() => setShowBulkExport(false)} />
+      <QABulkExport 
+        onClose={() => setShowBulkExport(false)}
+        selectedInspectionIds={selectedInspections}
+      />
     );
   }
 
@@ -184,7 +250,96 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterInspectionType} onValueChange={setFilterInspectionType}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {uniqueInspectionTypes.map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Bulk Actions */}
+      {isAdminOrPM && selectedInspections.length > 0 && (
+        <div className="flex gap-4 items-center p-4 bg-blue-50 rounded-lg">
+          <span className="text-sm font-medium">
+            {selectedInspections.length} inspection(s) selected
+          </span>
+          <Select value={bulkAction} onValueChange={setBulkAction}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Choose action" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="export">Export PDFs</SelectItem>
+              <SelectItem value="updateStatus">Update Status</SelectItem>
+              <SelectItem value="updateType">Update Type</SelectItem>
+              <SelectItem value="delete">Delete Selected</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {bulkAction === 'updateStatus' && (
+            <Select value={bulkStatus} onValueChange={setBulkStatus}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pass">Pass</SelectItem>
+                <SelectItem value="fail">Fail</SelectItem>
+                <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
+                <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          
+          {bulkAction === 'updateType' && (
+            <Select value={bulkInspectionType} onValueChange={setBulkInspectionType}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="post-installation">Post-Installation</SelectItem>
+                <SelectItem value="final">Final</SelectItem>
+                <SelectItem value="progress">Progress</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          
+          {bulkAction === 'delete' ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Inspections</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete {selectedInspections.length} inspection(s)? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleBulkAction} className="bg-red-600 hover:bg-red-700">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+            <Button onClick={handleBulkAction} size="sm" disabled={!bulkAction || (bulkAction === 'updateStatus' && !bulkStatus) || (bulkAction === 'updateType' && !bulkInspectionType)}>
+              Apply Action
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Quick Filters */}
       <div className="flex gap-2 flex-wrap">
@@ -221,6 +376,14 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
+                {isAdminOrPM && (
+                  <th className="px-4 py-3 text-left">
+                    <Checkbox
+                      checked={selectedInspections.length === filteredInspections.length && filteredInspections.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Inspection #
                 </th>
@@ -260,6 +423,14 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
                 const location = parseLocationReference(inspection.location_reference);
                 return (
                   <tr key={inspection.id} className="hover:bg-gray-50">
+                    {isAdminOrPM && (
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <Checkbox
+                          checked={selectedInspections.includes(inspection.id)}
+                          onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {inspection.inspection_number}
                     </td>
@@ -307,6 +478,33 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
                           <Edit className="h-3 w-3 mr-1" />
                           Edit
                         </Button>
+                        {isAdminOrPM && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="text-red-600 border-red-200">
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Inspection</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete inspection {inspection.inspection_number}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteInspection(inspection.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </td>
                   </tr>

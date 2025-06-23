@@ -318,6 +318,155 @@ export const useQAInspections = (projectId?: string) => {
     }
   };
 
+  const deleteInspection = async (inspectionId: string) => {
+    if (!user) return false;
+
+    try {
+      // First delete related checklist items
+      const { error: checklistError } = await supabase
+        .from('qa_checklist_items')
+        .delete()
+        .eq('inspection_id', inspectionId);
+
+      if (checklistError) {
+        console.error('Error deleting checklist items:', checklistError);
+        toast({
+          title: "Error",
+          description: "Failed to delete inspection checklist items",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Then delete the inspection
+      const { error: inspectionError } = await supabase
+        .from('qa_inspections')
+        .delete()
+        .eq('id', inspectionId);
+
+      if (inspectionError) {
+        console.error('Error deleting inspection:', inspectionError);
+        toast({
+          title: "Error",
+          description: "Failed to delete inspection",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      toast({
+        title: "Success",
+        description: "Inspection deleted successfully"
+      });
+
+      setInspections(prev => prev.filter(inspection => inspection.id !== inspectionId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting inspection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete inspection",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const bulkDeleteInspections = async (inspectionIds: string[]) => {
+    if (!user) return false;
+
+    try {
+      // Delete related checklist items for all inspections
+      const { error: checklistError } = await supabase
+        .from('qa_checklist_items')
+        .delete()
+        .in('inspection_id', inspectionIds);
+
+      if (checklistError) {
+        console.error('Error deleting checklist items:', checklistError);
+        toast({
+          title: "Error",
+          description: "Failed to delete inspection checklist items",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Delete the inspections
+      const { error: inspectionError } = await supabase
+        .from('qa_inspections')
+        .delete()
+        .in('id', inspectionIds);
+
+      if (inspectionError) {
+        console.error('Error deleting inspections:', inspectionError);
+        toast({
+          title: "Error",
+          description: "Failed to delete inspections",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${inspectionIds.length} inspection(s)`
+      });
+
+      setInspections(prev => prev.filter(inspection => !inspectionIds.includes(inspection.id)));
+      return true;
+    } catch (error) {
+      console.error('Error bulk deleting inspections:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete inspections",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const bulkUpdateInspections = async (inspectionIds: string[], updates: Partial<QAInspection>) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('qa_inspections')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .in('id', inspectionIds);
+
+      if (error) {
+        console.error('Error bulk updating inspections:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update inspections",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      toast({
+        title: "Success",
+        description: `Successfully updated ${inspectionIds.length} inspection(s)`
+      });
+
+      // Refresh the inspections list
+      await fetchInspections();
+      return true;
+    } catch (error) {
+      console.error('Error bulk updating inspections:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update inspections",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchInspections();
   }, [user, projectId]);
@@ -327,6 +476,9 @@ export const useQAInspections = (projectId?: string) => {
     loading,
     createInspection,
     updateInspection,
+    deleteInspection,
+    bulkDeleteInspections,
+    bulkUpdateInspections,
     getChecklistItems,
     getInspectionById,
     refetch: fetchInspections
