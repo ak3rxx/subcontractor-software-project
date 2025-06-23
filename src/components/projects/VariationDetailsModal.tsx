@@ -53,25 +53,29 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
 
   if (!variation) return null;
 
-  // Debug: log the user role to console to see what we're working with
+  // Debug: log the user info to console
   console.log('Current user role:', user?.role);
+  console.log('Current user email:', user?.email);
   console.log('Current user:', user);
 
-  // Determine user permissions based on role - made more flexible
+  // Determine user permissions based on role and email
   const userRole = user?.role || 'user';
+  const userEmail = user?.email || '';
   
-  // Allow editing for project managers, contract administrators, and project engineers
-  // Also allow if no role is set (for testing) or if user is authenticated
+  // Check if user is the special admin user
+  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
+  
+  // Allow editing for project managers, contract administrators, project engineers, or the full access user
   const canEdit = [
     'project_manager', 
     'contract_administrator', 
     'project_engineer',
-    'admin', // Added admin as fallback
-    'manager' // Added manager as fallback
-  ].includes(userRole) || !userRole; // Allow if no role set for testing
+    'admin',
+    'manager'
+  ].includes(userRole) || isFullAccessUser || !userRole; // Allow if no role set for testing
   
-  // Allow approval for project managers and admins
-  const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || !userRole; // Allow if no role set for testing
+  // Allow approval for project managers, admins, or the full access user
+  const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser || !userRole; // Allow if no role set for testing
 
   const handleEdit = () => {
     setEditData({
@@ -186,9 +190,9 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
               <DialogDescription>
                 Detailed information for this variation
               </DialogDescription>
-              {/* Debug info - remove this later */}
+              {/* Debug info - shows permissions */}
               <div className="text-xs text-gray-500 mt-1">
-                Debug: User role = {userRole}, Can edit = {canEdit.toString()}, Can approve = {canApprove.toString()}
+                Debug: User = {userEmail}, Role = {userRole}, Full Access = {isFullAccessUser.toString()}, Can edit = {canEdit.toString()}, Can approve = {canApprove.toString()}
               </div>
             </div>
             <div className="flex gap-2">
