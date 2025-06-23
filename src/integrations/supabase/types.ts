@@ -827,6 +827,8 @@ export type Database = {
         Row: {
           approval_date: string | null
           approved_by: string | null
+          category: string | null
+          client_email: string | null
           cost_impact: number | null
           created_at: string | null
           description: string | null
@@ -834,6 +836,8 @@ export type Database = {
           email_sent_by: string | null
           email_sent_date: string | null
           id: string
+          justification: string | null
+          location: string | null
           priority: string | null
           project_id: string | null
           request_date: string | null
@@ -846,6 +850,8 @@ export type Database = {
         Insert: {
           approval_date?: string | null
           approved_by?: string | null
+          category?: string | null
+          client_email?: string | null
           cost_impact?: number | null
           created_at?: string | null
           description?: string | null
@@ -853,6 +859,8 @@ export type Database = {
           email_sent_by?: string | null
           email_sent_date?: string | null
           id?: string
+          justification?: string | null
+          location?: string | null
           priority?: string | null
           project_id?: string | null
           request_date?: string | null
@@ -865,6 +873,8 @@ export type Database = {
         Update: {
           approval_date?: string | null
           approved_by?: string | null
+          category?: string | null
+          client_email?: string | null
           cost_impact?: number | null
           created_at?: string | null
           description?: string | null
@@ -872,6 +882,8 @@ export type Database = {
           email_sent_by?: string | null
           email_sent_date?: string | null
           id?: string
+          justification?: string | null
+          location?: string | null
           priority?: string | null
           project_id?: string | null
           request_date?: string | null
