@@ -18,9 +18,10 @@ interface VariationManagerProps {
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId }) => {
   const { toast } = useToast();
-  const { variations, loading, createVariation } = useVariations(projectId);
+  const { variations, loading, createVariation, sendVariationEmail } = useVariations(projectId);
   const [showNewVariation, setShowNewVariation] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [emailingSending, setEmailSending] = useState<string | null>(null);
   const [newVariation, setNewVariation] = useState({
     title: '',
     description: '',
@@ -48,6 +49,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
 
   const removeFile = (index: number) => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSendEmail = async (variationId: string) => {
+    setEmailSending(variationId);
+    const success = await sendVariationEmail(variationId);
+    setEmailSending(null);
   };
 
   const exportToPDF = (variation: any) => {
@@ -514,7 +521,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                   <TableHead>Time Impact</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead>Attachments</TableHead>
+                  <TableHead>Client Email</TableHead>
+                  <TableHead>Email Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -541,12 +549,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                     </TableCell>
                     <TableCell>{getStatusBadge(variation.status)}</TableCell>
                     <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">
+                      {variation.client_email || 'No email'}
+                    </TableCell>
                     <TableCell>
-                      {variation.attachments && variation.attachments.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Paperclip className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">{variation.attachments.length}</span>
-                        </div>
+                      {variation.email_sent ? (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          ✓ Sent
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Not sent</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -562,6 +574,21 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                         >
                           <Download className="h-4 w-4" />
                         </Button>
+                        {variation.client_email && !variation.email_sent && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Send Email to Client"
+                            onClick={() => handleSendEmail(variation.id)}
+                            disabled={emailingSending === variation.id}
+                          >
+                            {emailingSending === variation.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            ) : (
+                              <span>📧</span>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

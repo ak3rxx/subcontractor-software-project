@@ -830,6 +830,9 @@ export type Database = {
           cost_impact: number | null
           created_at: string | null
           description: string | null
+          email_sent: boolean | null
+          email_sent_by: string | null
+          email_sent_date: string | null
           id: string
           priority: string | null
           project_id: string | null
@@ -846,6 +849,9 @@ export type Database = {
           cost_impact?: number | null
           created_at?: string | null
           description?: string | null
+          email_sent?: boolean | null
+          email_sent_by?: string | null
+          email_sent_date?: string | null
           id?: string
           priority?: string | null
           project_id?: string | null
@@ -862,6 +868,9 @@ export type Database = {
           cost_impact?: number | null
           created_at?: string | null
           description?: string | null
+          email_sent?: boolean | null
+          email_sent_by?: string | null
+          email_sent_date?: string | null
           id?: string
           priority?: string | null
           project_id?: string | null

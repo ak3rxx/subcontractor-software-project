@@ -23,6 +23,9 @@ export interface Variation {
   attachments: any[];
   approved_by?: string;
   approval_date?: string;
+  email_sent?: boolean;
+  email_sent_date?: string;
+  email_sent_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -66,13 +69,16 @@ export const useVariations = (projectId: string) => {
         cost_impact: item.cost_impact || 0,
         time_impact: 0, // Not in database, default to 0
         status: item.status as 'draft' | 'pending' | 'approved' | 'rejected',
-        category: item.category,
+        category: item.category || '',
         priority: item.priority as 'high' | 'normal' | 'low',
-        client_email: item.client_email,
-        justification: item.justification,
+        client_email: item.client_email || '',
+        justification: item.justification || '',
         attachments: [], // Not in database, default to empty array
         approved_by: item.approved_by,
         approval_date: item.approval_date,
+        email_sent: item.email_sent || false,
+        email_sent_date: item.email_sent_date,
+        email_sent_by: item.email_sent_by,
         created_at: item.created_at,
         updated_at: item.updated_at
       }));
@@ -113,6 +119,9 @@ export const useVariations = (projectId: string) => {
         cost_impact: parseFloat(variationData.costImpact) || 0,
         priority: variationData.priority || 'normal',
         status: 'pending',
+        category: variationData.category,
+        client_email: variationData.clientEmail,
+        justification: variationData.justification,
       };
 
       const { data, error } = await supabase
@@ -156,6 +165,9 @@ export const useVariations = (projectId: string) => {
         attachments: [],
         approved_by: data.approved_by,
         approval_date: data.approval_date,
+        email_sent: data.email_sent || false,
+        email_sent_date: data.email_sent_date,
+        email_sent_by: data.email_sent_by,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -212,6 +224,9 @@ export const useVariations = (projectId: string) => {
         attachments: [],
         approved_by: data.approved_by,
         approval_date: data.approval_date,
+        email_sent: data.email_sent || false,
+        email_sent_date: data.email_sent_date,
+        email_sent_by: data.email_sent_by,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -229,6 +244,65 @@ export const useVariations = (projectId: string) => {
     }
   };
 
+  const sendVariationEmail = async (variationId: string) => {
+    if (!user) return false;
+
+    try {
+      const variation = variations.find(v => v.id === variationId);
+      if (!variation || !variation.client_email) {
+        toast({
+          title: "Error",
+          description: "No client email found for this variation",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Call edge function to send email
+      const { data, error } = await supabase.functions.invoke('send-variation-email', {
+        body: {
+          variation: variation,
+          recipientEmail: variation.client_email
+        }
+      });
+
+      if (error) {
+        console.error('Error sending email:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send variation email",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Update variation to mark email as sent
+      const updateResult = await updateVariation(variationId, {
+        email_sent: true,
+        email_sent_date: new Date().toISOString(),
+        email_sent_by: user.id
+      });
+
+      if (updateResult) {
+        toast({
+          title: "Success",
+          description: `Variation email sent to ${variation.client_email}`,
+        });
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error sending variation email:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send variation email",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchVariations();
   }, [projectId]);
@@ -238,6 +312,7 @@ export const useVariations = (projectId: string) => {
     loading,
     createVariation,
     updateVariation,
+    sendVariationEmail,
     refetch: fetchVariations
   };
 };
