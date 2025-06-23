@@ -562,7 +562,7 @@ export type Database = {
           inspector_name: string
           is_fire_door: boolean | null
           location_reference: string
-          organization_id: string
+          organization_id: string | null
           overall_status: string
           project_id: string
           project_name: string
@@ -581,7 +581,7 @@ export type Database = {
           inspector_name: string
           is_fire_door?: boolean | null
           location_reference: string
-          organization_id: string
+          organization_id?: string | null
           overall_status: string
           project_id: string
           project_name: string
@@ -600,7 +600,7 @@ export type Database = {
           inspector_name?: string
           is_fire_door?: boolean | null
           location_reference?: string
-          organization_id?: string
+          organization_id?: string | null
           overall_status?: string
           project_id?: string
           project_name?: string
@@ -614,13 +614,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "qa_inspections_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
