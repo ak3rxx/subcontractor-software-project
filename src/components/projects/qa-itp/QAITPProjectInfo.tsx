@@ -12,7 +12,9 @@ interface QAITPProjectInfoProps {
     projectId: string;
     projectName: string;
     taskArea: string;
-    locationReference: string;
+    building: string;
+    level: string;
+    buildingReference: string;
     inspectionType: string;
     template: string;
   };
@@ -71,28 +73,53 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
               required
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="locationReference">Location/Grid Reference</Label>
+            <Label htmlFor="building">Building</Label>
             <Input
-              id="locationReference"
-              value={formData.locationReference}
-              onChange={(e) => onFormDataChange('locationReference', e.target.value)}
+              id="building"
+              placeholder="e.g. Building A, Tower 1"
+              value={formData.building}
+              onChange={(e) => onFormDataChange('building', e.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="inspectionType">Inspection Type</Label>
-            <Select value={formData.inspectionType} onValueChange={(value) => onFormDataChange('inspectionType', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select inspection type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="post-installation">Post-installation</SelectItem>
-                <SelectItem value="final">Final</SelectItem>
-                <SelectItem value="progress">Progress</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="level">Level</Label>
+            <Input
+              id="level"
+              placeholder="e.g. Ground, Level 5"
+              value={formData.level}
+              onChange={(e) => onFormDataChange('level', e.target.value)}
+              required
+            />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="buildingReference">Building Reference</Label>
+            <Input
+              id="buildingReference"
+              placeholder="e.g. Grid A1-B2"
+              value={formData.buildingReference}
+              onChange={(e) => onFormDataChange('buildingReference', e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="inspectionType">Inspection Type</Label>
+          <Select value={formData.inspectionType} onValueChange={(value) => onFormDataChange('inspectionType', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select inspection type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="post-installation">Post-installation</SelectItem>
+              <SelectItem value="final">Final</SelectItem>
+              <SelectItem value="progress">Progress</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

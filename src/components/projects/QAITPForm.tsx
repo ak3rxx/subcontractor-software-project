@@ -23,7 +23,9 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     projectId: '',
     projectName: '',
     taskArea: '',
-    locationReference: '',
+    building: '',
+    level: '',
+    buildingReference: '',
     inspectionType: '',
     template: '',
     inspectorName: '',
@@ -95,11 +97,14 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
       );
 
+      // Combine building, level, and building reference for location_reference
+      const locationReference = `${formData.building} - ${formData.level} - ${formData.buildingReference}`;
+
       const inspectionData = {
         project_id: formData.projectId,
         project_name: formData.projectName,
         task_area: formData.taskArea,
-        location_reference: formData.locationReference,
+        location_reference: locationReference,
         inspection_type: formData.inspectionType as 'post-installation' | 'final' | 'progress',
         template_type: formData.template as 'doors-jambs-hardware' | 'skirting',
         is_fire_door: isFireDoor,

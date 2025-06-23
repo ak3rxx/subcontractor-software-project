@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -306,7 +305,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="inspection">Inspection Details</TabsTrigger>
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
-            <TabsTrigger value="attachments">Attachments</TabsTrigger>
+            <TabsTrigger value="attachments">Other Attachments</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               History
@@ -518,7 +517,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
           <TabsContent value="attachments" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Inspection Attachments</CardTitle>
+                <CardTitle className="text-base">Other Inspection Attachments</CardTitle>
               </CardHeader>
               <CardContent>
                 {editMode ? (
@@ -532,7 +531,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     {attachmentFiles.length === 0 ? (
-                      <p>No attachments uploaded yet.</p>
+                      <p>No other attachments uploaded yet.</p>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {attachmentFiles.map((file, index) => (
