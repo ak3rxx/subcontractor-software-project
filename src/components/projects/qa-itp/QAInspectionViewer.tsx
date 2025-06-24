@@ -16,6 +16,7 @@ import QAChangeHistory from './QAChangeHistory';
 import SupabaseFileUpload from './SupabaseFileUpload';
 import { exportInspectionToPDF, downloadPDF } from '@/utils/pdfExport';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
+import { supabase } from '@/integrations/supabase/client';
 
 interface QAInspectionViewerProps {
   inspectionId: string;
@@ -166,7 +167,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  // Helper function to safely convert files to SupabaseUploadedFile format
+  // Helper function to safely convert files to SupabaseUploadedFile format or get proper URLs
   const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | File[] | null): SupabaseUploadedFile[] => {
     if (!files || !Array.isArray(files) || files.length === 0) return [];
 
@@ -175,15 +176,26 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       if (typeof file === 'object' && file !== null && 'uploaded' in file && 'path' in file) {
         return file as SupabaseUploadedFile;
       } else if (typeof file === 'string') {
-        // Handle string file paths - convert to SupabaseUploadedFile format
+        // Handle string file paths - convert to SupabaseUploadedFile format with proper Supabase URL
+        const fileName = file.split('/').pop() || file;
+        let publicUrl = file;
+        
+        // If it's a storage path, get the proper public URL
+        if (file.includes('/') && !file.startsWith('http')) {
+          const { data } = supabase.storage
+            .from('qainspectionfiles')
+            .getPublicUrl(file);
+          publicUrl = data.publicUrl;
+        }
+        
         return {
           id: `file-${index}-${Date.now()}`,
-          file: new File([], file.split('/').pop() || file), // Create a dummy File object
-          url: file,
-          name: file.split('/').pop() || file,
+          file: new File([], fileName), // Create a dummy File object
+          url: publicUrl,
+          name: fileName,
           size: 0,
-          type: file.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 
-                file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream',
+          type: fileName.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image/jpeg' : 
+                fileName.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream',
           path: file,
           uploaded: true
         } as SupabaseUploadedFile;
@@ -413,6 +425,8 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
             const fileType = file.type;
             const isPDF = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
             const isImage = fileType.startsWith('image/');
+            
+            console.log('Rendering file:', fileName, 'URL:', file.url, 'Type:', fileType);
             
             return (
               <div key={index} className={`border rounded p-2 text-center relative group ${isPDF ? 'border-amber-200 bg-amber-50' : ''}`}>
