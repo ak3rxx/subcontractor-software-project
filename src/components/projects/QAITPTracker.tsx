@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +21,9 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
   const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
+  const [filterBuilding, setFilterBuilding] = useState('all');
+  const [filterLevel, setFilterLevel] = useState('all');
+  const [filterInspectionType, setFilterInspectionType] = useState('all');
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [selectedInspections, setSelectedInspections] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -40,15 +44,46 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
     }
   };
 
+  // Extract unique buildings, levels, and inspection types from inspections
+  const uniqueBuildings = [...new Set(inspections.map(inspection => {
+    const parts = inspection.location_reference.split(' - ');
+    return parts[0] || '';
+  }).filter(Boolean))];
+
+  const uniqueLevels = [...new Set(inspections.map(inspection => {
+    const parts = inspection.location_reference.split(' - ');
+    return parts[1] || '';
+  }).filter(Boolean))];
+
+  const uniqueInspectionTypes = [...new Set(inspections.map(inspection => inspection.inspection_type))];
+
   const filteredInspections = inspections.filter(inspection => {
     const statusMatch = filterStatus === 'all' || inspection.overall_status === filterStatus;
     const projectMatch = filterProject === 'all' || inspection.project_id === filterProject;
-    return statusMatch && projectMatch;
+    const inspectionTypeMatch = filterInspectionType === 'all' || inspection.inspection_type === filterInspectionType;
+    
+    const parts = inspection.location_reference.split(' - ');
+    const building = parts[0] || '';
+    const level = parts[1] || '';
+    
+    const buildingMatch = filterBuilding === 'all' || building === filterBuilding;
+    const levelMatch = filterLevel === 'all' || level === filterLevel;
+    
+    return statusMatch && projectMatch && buildingMatch && levelMatch && inspectionTypeMatch;
   });
 
   const getProjectName = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
     return project?.name || 'Unknown Project';
+  };
+
+  const parseLocationReference = (locationRef: string) => {
+    const parts = locationRef.split(' - ');
+    return {
+      building: parts[0] || '',
+      level: parts[1] || '',
+      reference: parts[2] || ''
+    };
   };
 
   const handleSelectInspection = (inspectionId: string, checked: boolean) => {
@@ -129,14 +164,14 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex gap-4 items-center">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-center">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4" />
           <span className="text-sm font-medium">Filters:</span>
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
+          <SelectTrigger>
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
@@ -147,14 +182,53 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
           </SelectContent>
         </Select>
         <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by project" />
+          <SelectTrigger>
+            <SelectValue placeholder="Project" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
             {projects.map((project) => (
               <SelectItem key={project.id} value={project.id}>
                 {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterBuilding} onValueChange={setFilterBuilding}>
+          <SelectTrigger>
+            <SelectValue placeholder="Building" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Buildings</SelectItem>
+            {uniqueBuildings.map((building) => (
+              <SelectItem key={building} value={building}>
+                {building}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterLevel} onValueChange={setFilterLevel}>
+          <SelectTrigger>
+            <SelectValue placeholder="Level" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            {uniqueLevels.map((level) => (
+              <SelectItem key={level} value={level}>
+                {level}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterInspectionType} onValueChange={setFilterInspectionType}>
+          <SelectTrigger>
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {uniqueInspectionTypes.map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
               </SelectItem>
             ))}
           </SelectContent>
@@ -230,6 +304,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
                   Task
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Building
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Level
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Inspection Type
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -247,57 +327,66 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredInspections.map((inspection) => (
-                <tr key={inspection.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <Checkbox
-                      checked={selectedInspections.includes(inspection.id)}
-                      onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
-                    />
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {inspection.inspection_number}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {getProjectName(inspection.project_id)}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {inspection.task_area}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {inspection.inspection_type}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    {getStatusBadge(inspection.overall_status)}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(inspection.inspection_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {inspection.inspector_name}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedInspectionId(inspection.id)}
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedInspectionId(inspection.id)}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredInspections.map((inspection) => {
+                const location = parseLocationReference(inspection.location_reference);
+                return (
+                  <tr key={inspection.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <Checkbox
+                        checked={selectedInspections.includes(inspection.id)}
+                        onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
+                      />
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {inspection.inspection_number}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {getProjectName(inspection.project_id)}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {inspection.task_area}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {location.building}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {location.level}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {inspection.inspection_type}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {getStatusBadge(inspection.overall_status)}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(inspection.inspection_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {inspection.inspector_name}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedInspectionId(inspection.id)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedInspectionId(inspection.id)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
