@@ -9,6 +9,7 @@ import { Plus, Filter, AlertTriangle, Eye, Edit, Download, Trash2, FileText } fr
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import QAInspectionViewer from './QAInspectionViewer';
 import QABulkExport from './QABulkExport';
 
@@ -21,6 +22,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
   const { inspections, loading, deleteInspection, bulkDeleteInspections, bulkUpdateInspections } = useQAInspections(projectId);
   const { projects } = useProjects();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState(projectId || 'all');
   const [filterBuilding, setFilterBuilding] = useState('all');
@@ -29,9 +31,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [showBulkExport, setShowBulkExport] = useState(false);
   const [selectedInspections, setSelectedInspections] = useState<string[]>([]);
-  const [bulkAction, setBulkAction] = useState<string>('');
-  const [bulkStatus, setBulkStatus] = useState<string>('');
-  const [bulkInspectionType, setBulkInspectionType] = useState<string>('');
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -106,37 +106,35 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
     }
   };
 
-  const handleBulkAction = async () => {
+  const handleBulkDelete = async () => {
     if (selectedInspections.length === 0) return;
 
-    switch (bulkAction) {
-      case 'delete':
-        await bulkDeleteInspections(selectedInspections);
-        setSelectedInspections([]);
-        break;
-      case 'export':
-        setShowBulkExport(true);
-        break;
-      case 'updateStatus':
-        if (bulkStatus) {
-          await bulkUpdateInspections(selectedInspections, { overall_status: bulkStatus as any });
-          setSelectedInspections([]);
-        }
-        break;
-      case 'updateType':
-        if (bulkInspectionType) {
-          await bulkUpdateInspections(selectedInspections, { inspection_type: bulkInspectionType as any });
-          setSelectedInspections([]);
-        }
-        break;
-    }
-    setBulkAction('');
-    setBulkStatus('');
-    setBulkInspectionType('');
-  };
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedInspections.length} inspection(s)? This action cannot be undone.`
+    );
 
-  const handleDeleteInspection = async (inspectionId: string) => {
-    await deleteInspection(inspectionId);
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    try {
+      const success = await bulkDeleteInspections(selectedInspections);
+      if (success) {
+        setSelectedInspections([]);
+        toast({
+          title: "Success",
+          description: `Successfully deleted ${selectedInspections.length} inspection(s)`,
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting inspections:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete inspections",
+        variant: "destructive"
+      });
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const isAdminOrPM = user?.role === 'admin' || user?.role === 'project_manager';
@@ -171,33 +169,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
 
   return (
     <div className="space-y-4">
-      {/* Header with Export Button */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">QA/ITP Inspection List</h3>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowBulkExport(true)}
-            disabled={inspections.length === 0}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Bulk PDF Export
-          </Button>
-          <Button onClick={onNewInspection} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add ITP/QA
-          </Button>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-center">
-        <div className="flex items-center gap-2 col-span-2 lg:col-span-1">
+        <div className="flex items-center gap-2">
           <Filter className="h-4 w-4" />
           <span className="text-sm font-medium">Filters:</span>
         </div>
-        
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger>
             <SelectValue placeholder="Status" />
@@ -210,7 +187,6 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
           </SelectContent>
         </Select>
-
         {!projectId && (
           <Select value={filterProject} onValueChange={setFilterProject}>
             <SelectTrigger>
@@ -226,7 +202,6 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             </SelectContent>
           </Select>
         )}
-
         <Select value={filterBuilding} onValueChange={setFilterBuilding}>
           <SelectTrigger>
             <SelectValue placeholder="Building" />
@@ -240,7 +215,6 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             ))}
           </SelectContent>
         </Select>
-
         <Select value={filterLevel} onValueChange={setFilterLevel}>
           <SelectTrigger>
             <SelectValue placeholder="Level" />
@@ -254,7 +228,6 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
             ))}
           </SelectContent>
         </Select>
-
         <Select value={filterInspectionType} onValueChange={setFilterInspectionType}>
           <SelectTrigger>
             <SelectValue placeholder="Type" />
@@ -271,106 +244,48 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
       </div>
 
       {/* Bulk Actions */}
-      {isAdminOrPM && selectedInspections.length > 0 && (
-        <div className="flex gap-4 items-center p-4 bg-blue-50 rounded-lg flex-wrap">
+      {selectedInspections.length > 0 && (
+        <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
           <span className="text-sm font-medium">
             {selectedInspections.length} inspection(s) selected
           </span>
-          <Select value={bulkAction} onValueChange={setBulkAction}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Choose action" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="export">Export PDFs</SelectItem>
-              <SelectItem value="updateStatus">Update Status</SelectItem>
-              <SelectItem value="updateType">Update Type</SelectItem>
-              <SelectItem value="delete">Delete Selected</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {bulkAction === 'updateStatus' && (
-            <Select value={bulkStatus} onValueChange={setBulkStatus}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pass">Pass</SelectItem>
-                <SelectItem value="fail">Fail</SelectItem>
-                <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
-                <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          
-          {bulkAction === 'updateType' && (
-            <Select value={bulkInspectionType} onValueChange={setBulkInspectionType}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="post-installation">Post-Installation</SelectItem>
-                <SelectItem value="final">Final</SelectItem>
-                <SelectItem value="progress">Progress</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          
-          {bulkAction === 'delete' ? (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Inspections</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete {selectedInspections.length} inspection(s)? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleBulkAction} className="bg-red-600 hover:bg-red-700">
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          ) : (
-            <Button onClick={handleBulkAction} size="sm" disabled={!bulkAction || (bulkAction === 'updateStatus' && !bulkStatus) || (bulkAction === 'updateType' && !bulkInspectionType)}>
-              Apply Action
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowBulkExport(true)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Bulk Export PDF
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {bulkDeleting ? 'Deleting...' : 'Delete Selected'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedInspections([])}
+          >
+            Clear Selection
+          </Button>
         </div>
       )}
 
       {/* Quick Filters */}
       <div className="flex gap-2 flex-wrap">
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-red-600 border-red-200"
-          onClick={() => setFilterStatus('fail')}
-        >
+        <Button variant="outline" size="sm" className="text-red-600 border-red-200">
           <AlertTriangle className="h-3 w-3 mr-1" />
           Failed Inspections ({inspections.filter(i => i.overall_status === 'fail').length})
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-yellow-600 border-yellow-200"
-          onClick={() => setFilterStatus('pending-reinspection')}
-        >
+        <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200">
           Pending Reinspection ({inspections.filter(i => i.overall_status === 'pending-reinspection').length})
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-blue-600 border-blue-200"
-          onClick={() => setFilterStatus('incomplete-in-progress')}
-        >
+        <Button variant="outline" size="sm" className="text-blue-600 border-blue-200">
           In Progress ({inspections.filter(i => i.overall_status === 'incomplete-in-progress').length})
         </Button>
       </div>
@@ -381,14 +296,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                {isAdminOrPM && (
-                  <th className="px-4 py-3 text-left">
-                    <Checkbox
-                      checked={selectedInspections.length === filteredInspections.length && filteredInspections.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </th>
-                )}
+                <th className="px-4 py-3 text-left">
+                  <Checkbox
+                    checked={selectedInspections.length === filteredInspections.length && filteredInspections.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Inspection #
                 </th>
@@ -428,14 +341,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
                 const location = parseLocationReference(inspection.location_reference);
                 return (
                   <tr key={inspection.id} className="hover:bg-gray-50">
-                    {isAdminOrPM && (
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <Checkbox
-                          checked={selectedInspections.includes(inspection.id)}
-                          onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
-                        />
-                      </td>
-                    )}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <Checkbox
+                        checked={selectedInspections.includes(inspection.id)}
+                        onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
+                      />
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {inspection.inspection_number}
                     </td>
@@ -483,33 +394,6 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId 
                           <Edit className="h-3 w-3 mr-1" />
                           Edit
                         </Button>
-                        {isAdminOrPM && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="text-red-600 border-red-200">
-                                <Trash2 className="h-3 w-3 mr-1" />
-                                Delete
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Inspection</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete inspection {inspection.inspection_number}? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteInspection(inspection.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
                       </div>
                     </td>
                   </tr>
