@@ -37,6 +37,7 @@ export interface QAChecklistItem {
   status: 'pass' | 'fail' | 'na' | '';
   comments: string | null;
   evidence_files: string[] | File[] | null;
+  created_at: string;
 }
 
 const transformInspectionData = (inspection: QAInspectionRow): QAInspection => {
@@ -69,7 +70,8 @@ const transformChecklistItemData = (item: QAChecklistItemRow): QAChecklistItem =
     requirements: item.requirements,
     status: (item.status as QAChecklistItem['status']) || '',
     comments: item.comments,
-    evidence_files: item.evidence_files
+    evidence_files: item.evidence_files,
+    created_at: item.created_at || ''
   };
 };
 
@@ -121,7 +123,7 @@ export const useQAInspections = (projectId?: string) => {
 
   const createInspection = async (
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
-    checklistItems: Omit<QAChecklistItem, 'id' | 'inspection_id'>[]
+    checklistItems: Omit<QAChecklistItem, 'id' | 'inspection_id' | 'created_at'>[]
   ) => {
     if (!user) return null;
 
