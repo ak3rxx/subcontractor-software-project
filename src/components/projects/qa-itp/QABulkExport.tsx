@@ -108,8 +108,9 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
                       <div class="text-sm text-blue-600 mt-2">
                         <strong>Evidence Files:</strong>
                         <ul class="list-disc list-inside ml-2">
-                          ${item.evidence_files.map(file => {
-                            const fileName = typeof file === 'string' ? file : file.name || 'Unknown file';
+                          ${item.evidence_files.map(filePath => {
+                            // Since evidence_files is now string[] only, we can safely extract filename from path
+                            const fileName = filePath.split('/').pop() || 'Unknown file';
                             const isPDF = fileName.toLowerCase().endsWith('.pdf');
                             return `<li>${fileName}${isPDF ? ' <span class="font-semibold text-red-600">(PDF)</span>' : ''}</li>`;
                           }).join('')}
