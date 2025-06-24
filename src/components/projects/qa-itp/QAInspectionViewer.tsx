@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   canEdit = true 
 }) => {
   const { toast } = useToast();
-  const { getChecklistItems, getInspectionById, updateInspection, deleteInspection, refetch } = useQAInspections();
+  const { getChecklistItems, getInspectionById, updateInspection, updateChecklistItem, deleteInspection, refetch } = useQAInspections();
   const { changeHistory, recordChange } = useQAChangeHistory(inspectionId);
   const [inspection, setInspection] = useState<QAInspection | null>(null);
   const [checklistItems, setChecklistItems] = useState<QAChecklistItem[]>([]);
@@ -101,13 +101,31 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  const handleChecklistItemChange = (itemId: string, field: string, value: any) => {
+  const handleChecklistItemChange = useCallback(async (itemId: string, field: string, value: any) => {
     const originalItem = originalChecklistItems.find(item => item.id === itemId);
     const currentItem = checklistItems.find(item => item.id === itemId);
     
     setChecklistItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     ));
+
+    // Update the item in the database immediately to update timestamp
+    if (field === 'evidence_files' || field === 'status' || field === 'comments') {
+      const updates: Partial<QAChecklistItem> = { [field]: value };
+      const updatedItem = await updateChecklistItem(itemId, updates);
+      
+      if (updatedItem) {
+        // Update the local state with the new timestamp
+        setChecklistItems(prev => prev.map(item => 
+          item.id === itemId ? updatedItem : item
+        ));
+        
+        // Also update the original items to reflect the new timestamp
+        setOriginalChecklistItems(prev => prev.map(item => 
+          item.id === itemId ? updatedItem : item
+        ));
+      }
+    }
 
     // Record the change with debouncing
     if (originalItem && currentItem) {
@@ -137,11 +155,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         );
       }
     }
-  };
+  }, [inspectionId, debouncedRecordChange, updateChecklistItem, originalChecklistItems, checklistItems]);
 
-  const handleChecklistItemFileChange = (itemId: string, files: SupabaseUploadedFile[] | File[]) => {
+  const handleChecklistItemFileChange = async (itemId: string, files: SupabaseUploadedFile[] | File[]) => {
     console.log('File change for item', itemId, ':', files);
-    handleChecklistItemChange(itemId, 'evidence_files', files);
+    await handleChecklistItemChange(itemId, 'evidence_files', files);
   };
 
   const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
@@ -730,9 +748,9 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         <div className="flex-1">
                           <h4 className="font-medium" data-item-description>{item.description}</h4>
                           <p className="text-sm text-gray-600 mt-1" data-item-requirements>{item.requirements}</p>
-                          {/* Show last updated date */}
+                          {/* Show individual item timestamp */}
                           <p className="text-xs text-gray-400 mt-2">
-                            Last updated: {item.created_at ? new Date(item.created_at).toLocaleString() : 'Unknown'}
+                            Last updated: {item.created_at ? new Date(item.created_at).toLocaleString() : 'Never'}
                           </p>
                         </div>
                         <div className="ml-4" data-item-status>

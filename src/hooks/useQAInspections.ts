@@ -280,6 +280,32 @@ export const useQAInspections = (projectId?: string) => {
     }
   };
 
+  const updateChecklistItem = async (itemId: string, updates: Partial<QAChecklistItem>) => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('qa_checklist_items')
+        .update({
+          ...updates,
+          created_at: new Date().toISOString() // Update timestamp when item is modified
+        })
+        .eq('id', itemId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating checklist item:', error);
+        return null;
+      }
+
+      return transformChecklistItemData(data);
+    } catch (error) {
+      console.error('Error updating checklist item:', error);
+      return null;
+    }
+  };
+
   const getChecklistItems = async (inspectionId: string): Promise<QAChecklistItem[]> => {
     try {
       const { data, error } = await supabase
@@ -478,6 +504,7 @@ export const useQAInspections = (projectId?: string) => {
     loading,
     createInspection,
     updateInspection,
+    updateChecklistItem,
     deleteInspection,
     bulkDeleteInspections,
     bulkUpdateInspections,

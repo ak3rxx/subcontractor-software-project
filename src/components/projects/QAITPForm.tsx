@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,13 +105,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     }
   };
 
-  const handleChecklistChange = useCallback((id: string, field: string, value: any) => {
+  const handleChecklistChange = useCallback(async (id: string, field: string, value: any) => {
+    const oldItem = checklist.find(item => item.id === id);
+    
     setChecklist(prev => {
-      const oldItem = prev.find(item => item.id === id);
-      const oldValue = oldItem ? oldItem[field as keyof ChecklistItem] : null;
-      
       const updated = prev.map(item => 
-        item.id === id ? { ...item, [field]: value } : item
+        item.id === id ? { ...item, [field]: value, lastUpdated: new Date().toISOString() } : item
       );
 
       // Record change if we have an inspection ID
@@ -126,6 +123,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
           stringOldValue = oldValue ? JSON.stringify(oldValue) : null;
           stringNewValue = value ? JSON.stringify(value) : null;
         } else {
+          const oldValue = oldItem[field as keyof ChecklistItem];
           stringOldValue = oldValue != null ? String(oldValue) : null;
           stringNewValue = value != null ? String(value) : null;
         }
@@ -145,7 +143,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
 
       return updated;
     });
-  }, [inspectionId, debouncedRecordChange]);
+  }, [inspectionId, debouncedRecordChange, checklist]);
 
   const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
     setUploading(isUploading);
@@ -384,4 +382,3 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
 };
 
 export default QAITPForm;
-
