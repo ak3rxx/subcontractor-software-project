@@ -67,6 +67,47 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
         // Create a temporary DOM element with inspection data for PDF generation
         const element = document.createElement('div');
         element.setAttribute('data-inspection-viewer', 'true');
+        
+        // Build checklist items HTML with proper image handling
+        const checklistItemsHtml = checklistItems?.map(item => {
+          let evidenceFilesHtml = '';
+          
+          if (item.evidence_files && item.evidence_files.length > 0) {
+            const imageElements = item.evidence_files.map(filePath => {
+              const fileName = filePath.split('/').pop() || 'Unknown file';
+              const isPDF = fileName.toLowerCase().endsWith('.pdf');
+              const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+              
+              if (isImage) {
+                // Create proper image URL from Supabase storage path
+                const imageUrl = `https://deobtjgmduxzhxstbejm.supabase.co/storage/v1/object/public/qainspectionfiles/${filePath}`;
+                return `<img src="${imageUrl}" alt="${fileName}" class="evidence-image pdf-image" style="max-width: 200px; max-height: 150px; margin: 5px;" crossorigin="anonymous" />`;
+              } else {
+                return `<div class="file-attachment">${fileName}${isPDF ? ' <span class="font-semibold text-red-600">(PDF)</span>' : ''}</div>`;
+              }
+            }).join('');
+            
+            evidenceFilesHtml = `
+              <div class="evidence-section mt-3">
+                <strong>Evidence Files:</strong>
+                <div class="evidence-container mt-2">
+                  ${imageElements}
+                </div>
+              </div>
+            `;
+          }
+          
+          return `
+            <div class="border rounded p-3 mb-3" data-checklist-item>
+              <div class="font-medium" data-item-description>${item.description}</div>
+              <div class="text-sm text-gray-600" data-item-requirements>Requirements: ${item.requirements}</div>
+              <div class="text-sm" data-item-status>Status: ${item.status || 'Not checked'}</div>
+              ${item.comments ? `<div class="text-sm text-gray-600" data-item-comments>Comments: ${item.comments}</div>` : ''}
+              ${evidenceFilesHtml}
+            </div>
+          `;
+        }).join('') || '<p>No checklist items available</p>';
+        
         element.innerHTML = `
           <div class="p-6 space-y-6">
             <div class="border-b pb-4">
@@ -98,27 +139,7 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
             <div>
               <h3 class="text-lg font-semibold mb-3">Inspection Checklist</h3>
               <div class="space-y-2">
-                ${checklistItems?.map(item => `
-                  <div class="border rounded p-3" data-checklist-item>
-                    <div class="font-medium" data-item-description>${item.description}</div>
-                    <div class="text-sm text-gray-600" data-item-requirements>Requirements: ${item.requirements}</div>
-                    <div class="text-sm" data-item-status>Status: ${item.status || 'Not checked'}</div>
-                    ${item.comments ? `<div class="text-sm text-gray-600" data-item-comments>Comments: ${item.comments}</div>` : ''}
-                    ${item.evidence_files && item.evidence_files.length > 0 ? `
-                      <div class="text-sm text-blue-600 mt-2">
-                        <strong>Evidence Files:</strong>
-                        <ul class="list-disc list-inside ml-2">
-                          ${item.evidence_files.map(filePath => {
-                            // Since evidence_files is now string[] only, we can safely extract filename from path
-                            const fileName = filePath.split('/').pop() || 'Unknown file';
-                            const isPDF = fileName.toLowerCase().endsWith('.pdf');
-                            return `<li>${fileName}${isPDF ? ' <span class="font-semibold text-red-600">(PDF)</span>' : ''}</li>`;
-                          }).join('')}
-                        </ul>
-                      </div>
-                    ` : ''}
-                  </div>
-                `).join('') || '<p>No checklist items available</p>'}
+                ${checklistItemsHtml}
               </div>
             </div>
           </div>
@@ -126,6 +147,26 @@ const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspection
         
         // Temporarily add to document for rendering
         document.body.appendChild(element);
+        
+        // Wait for images to load before proceeding
+        const images = element.querySelectorAll('img.evidence-image');
+        const imageLoadPromises = Array.from(images).map(img => {
+          return new Promise((resolve) => {
+            const imageElement = img as HTMLImageElement;
+            if (imageElement.complete) {
+              resolve(true);
+            } else {
+              imageElement.onload = () => resolve(true);
+              imageElement.onerror = () => resolve(false);
+              // Timeout after 5 seconds
+              setTimeout(() => resolve(false), 5000);
+            }
+          });
+        });
+        
+        // Wait for all images to load (or timeout)
+        await Promise.all(imageLoadPromises);
+        
         inspectionElements.push(element);
         
         exportableInspections.push({

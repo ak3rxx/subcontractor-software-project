@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -20,11 +21,57 @@ const convertFileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const loadImageFromUrl = (url: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+};
+
 const addTextToPDF = (pdf: jsPDF, text: string, x: number, y: number, fontSize: number = 10) => {
   pdf.setFontSize(fontSize);
   const splitText = pdf.splitTextToSize(text, 170);
   pdf.text(splitText, x, y);
   return y + (splitText.length * fontSize * 0.4);
+};
+
+const addImageToPDF = async (pdf: jsPDF, imageUrl: string, x: number, y: number, maxWidth: number, maxHeight: number): Promise<number> => {
+  try {
+    const img = await loadImageFromUrl(imageUrl);
+    
+    // Calculate dimensions to maintain aspect ratio
+    const aspectRatio = img.width / img.height;
+    let width = maxWidth;
+    let height = maxWidth / aspectRatio;
+    
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = maxHeight * aspectRatio;
+    }
+    
+    // Convert image to canvas to get image data
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx?.drawImage(img, 0, 0);
+    
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    pdf.addImage(imageData, 'JPEG', x, y, width, height);
+    
+    return y + height + 5; // Return new Y position after image
+  } catch (error) {
+    console.error('Error adding image to PDF:', error);
+    // Add a placeholder text if image fails to load
+    pdf.setFontSize(8);
+    pdf.setTextColor(150);
+    pdf.text('Image could not be loaded', x, y);
+    pdf.setTextColor(0);
+    return y + 10;
+  }
 };
 
 export const exportInspectionToPDF = async (
@@ -100,7 +147,7 @@ export const exportInspectionToPDF = async (
       currentY = addTextToPDF(pdf, `Comments: ${comments}`, 25, currentY, 10);
     }
 
-    // Add evidence images
+    // Add evidence images - look for both rendered images and file info
     const evidenceImages = item.querySelectorAll('.evidence-image, [data-evidence-image]');
     if (evidenceImages.length > 0) {
       currentY += 5;
@@ -115,23 +162,8 @@ export const exportInspectionToPDF = async (
         }
 
         const imageElement = img as HTMLImageElement;
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            canvas.width = imageElement.naturalWidth;
-            canvas.height = imageElement.naturalHeight;
-            ctx.drawImage(imageElement, 0, 0);
-            
-            const imageData = canvas.toDataURL('image/jpeg', 0.8);
-            const maxWidth = 60;
-            const maxHeight = 45;
-            
-            pdf.addImage(imageData, 'JPEG', 25, currentY, maxWidth, maxHeight);
-            currentY += maxHeight + 5;
-          }
-        } catch (error) {
-          console.error('Error adding evidence image:', error);
+        if (imageElement.src && imageElement.src !== '') {
+          currentY = await addImageToPDF(pdf, imageElement.src, 25, currentY, 60, 45);
         }
       }
     }
