@@ -138,7 +138,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  const handleChecklistItemFileChange = (itemId: string, files: SupabaseUploadedFile[]) => {
+  const handleChecklistItemFileChange = (itemId: string, files: SupabaseUploadedFile[] | File[]) => {
     console.log('File change for item', itemId, ':', files);
     handleChecklistItemChange(itemId, 'evidence_files', files);
   };
@@ -167,7 +167,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   };
 
   // Helper function to safely convert files to SupabaseUploadedFile format
-  const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | null): SupabaseUploadedFile[] => {
+  const convertFilesToSupabaseFiles = (files: string[] | SupabaseUploadedFile[] | File[] | null): SupabaseUploadedFile[] => {
     if (!files || !Array.isArray(files) || files.length === 0) return [];
 
     return files.map((file, index) => {
@@ -186,6 +186,18 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                 file.match(/\.pdf$/i) ? 'application/pdf' : 'application/octet-stream',
           path: file,
           uploaded: true
+        } as SupabaseUploadedFile;
+      } else if (file instanceof File) {
+        // Handle File objects - convert to SupabaseUploadedFile format
+        return {
+          id: `file-${index}-${Date.now()}`,
+          file: file,
+          url: URL.createObjectURL(file),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          path: `temp/${file.name}`, // Temporary path for File objects
+          uploaded: false // File objects are typically not yet uploaded
         } as SupabaseUploadedFile;
       } else {
         // Fallback for any other type
@@ -231,7 +243,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         let evidenceFileNames: string[] = [];
         if (item.evidence_files && Array.isArray(item.evidence_files)) {
           // Convert to SupabaseUploadedFile format first to ensure consistency
-          const supabaseFiles = convertFilesToSupabaseFiles(item.evidence_files);
+          const supabaseFiles = convertFilesToSupabaseFiles(item.evidence_files as (string[] | SupabaseUploadedFile[] | File[]));
           evidenceFileNames = supabaseFiles
             .filter(file => file.uploaded === true)
             .map(file => file.path);
@@ -359,7 +371,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
     }
   };
 
-  const renderEvidenceFiles = (files: string[] | SupabaseUploadedFile[] | null) => {
+  const renderEvidenceFiles = (files: string[] | SupabaseUploadedFile[] | File[] | null) => {
     if (!files || files.length === 0) return null;
 
     const supabaseFiles = convertFilesToSupabaseFiles(files);
