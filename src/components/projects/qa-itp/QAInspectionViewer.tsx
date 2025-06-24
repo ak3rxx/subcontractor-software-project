@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Save, Edit, FileText, User, Calendar, MapPin, CheckCircle, History, Download, AlertCircle } from 'lucide-react';
+import { X, Save, Edit, FileText, User, Calendar, MapPin, CheckCircle, History, Download, AlertCircle, Image } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQAInspections, QAInspection, QAChecklistItem } from '@/hooks/useQAInspections';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
@@ -412,19 +412,36 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
             const fileName = file.name;
             const fileType = file.type;
             const isPDF = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+            const isImage = fileType.startsWith('image/');
             
             return (
               <div key={index} className={`border rounded p-2 text-center relative group ${isPDF ? 'border-amber-200 bg-amber-50' : ''}`}>
-                {fileType.startsWith('image/') ? (
-                  <img 
-                    src={file.url} 
-                    alt={fileName}
-                    className="evidence-image w-full h-20 object-cover rounded mb-1"
-                    onError={(e) => {
-                      console.error('Failed to load image:', file.url);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                {isImage ? (
+                  <div className="relative">
+                    <img 
+                      src={file.url} 
+                      alt={fileName}
+                      className="pdf-image evidence-image w-full h-20 object-cover rounded mb-1"
+                      style={{ 
+                        maxWidth: '100%',
+                        height: '80px',
+                        objectFit: 'cover',
+                        display: 'block'
+                      }}
+                      onError={(e) => {
+                        console.error('Failed to load image:', file.url);
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        // Show fallback icon
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'block';
+                      }}
+                      onLoad={() => {
+                        console.log('Image loaded successfully:', file.url);
+                      }}
+                    />
+                    <Image className="h-8 w-8 mx-auto mb-1 text-gray-400" style={{ display: 'none' }} />
+                  </div>
                 ) : (
                   <FileText className={`h-8 w-8 mx-auto mb-1 ${isPDF ? 'text-amber-600' : 'text-gray-400'}`} />
                 )}
@@ -699,6 +716,10 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                         <div className="flex-1">
                           <h4 className="font-medium" data-item-description>{item.description}</h4>
                           <p className="text-sm text-gray-600 mt-1" data-item-requirements>{item.requirements}</p>
+                          {/* Show last updated date */}
+                          <p className="text-xs text-gray-400 mt-2">
+                            Last updated: {item.created_at ? new Date(item.created_at).toLocaleString() : 'Unknown'}
+                          </p>
                         </div>
                         <div className="ml-4" data-item-status>
                           {getItemStatusBadge(item.status)}
