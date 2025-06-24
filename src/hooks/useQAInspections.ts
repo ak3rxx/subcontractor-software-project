@@ -36,7 +36,7 @@ export interface QAChecklistItem {
   requirements: string;
   status: 'pass' | 'fail' | 'na' | '';
   comments: string | null;
-  evidence_files: string[] | File[] | null;
+  evidence_files: string[] | null;
   created_at: string;
 }
 
@@ -172,7 +172,7 @@ export const useQAInspections = (projectId?: string) => {
         const checklistInserts: QAChecklistItemInsert[] = checklistItems.map(item => ({
           ...item,
           inspection_id: inspectionResult.id,
-          // Convert File[] to string[] or keep string[] as is, filter out File objects for now
+          // Ensure evidence_files is always string[] or null
           evidence_files: Array.isArray(item.evidence_files) 
             ? item.evidence_files.filter(f => typeof f === 'string') as string[]
             : null
@@ -248,7 +248,8 @@ export const useQAInspections = (projectId?: string) => {
             .from('qa_checklist_items')
             .update({
               status: item.status,
-              comments: item.comments
+              comments: item.comments,
+              created_at: new Date().toISOString() // Update timestamp when item is modified
             })
             .eq('id', item.id);
 
@@ -284,12 +285,16 @@ export const useQAInspections = (projectId?: string) => {
     if (!user) return null;
 
     try {
+      // Ensure evidence_files is properly typed
+      const updateData = {
+        ...updates,
+        evidence_files: updates.evidence_files ? updates.evidence_files as string[] : null,
+        created_at: new Date().toISOString() // Update timestamp when item is modified
+      };
+
       const { data, error } = await supabase
         .from('qa_checklist_items')
-        .update({
-          ...updates,
-          created_at: new Date().toISOString() // Update timestamp when item is modified
-        })
+        .update(updateData)
         .eq('id', itemId)
         .select()
         .single();

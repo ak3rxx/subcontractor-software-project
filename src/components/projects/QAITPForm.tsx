@@ -120,6 +120,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
         
         // Handle file attachments specially for Supabase files
         if (field === 'evidenceFiles') {
+          const oldValue = oldItem[field as keyof ChecklistItem];
           stringOldValue = oldValue ? JSON.stringify(oldValue) : null;
           stringNewValue = value ? JSON.stringify(value) : null;
         } else {
