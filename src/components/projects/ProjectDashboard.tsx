@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, FileText, Users, Calendar, DollarSign, Package, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building2, FileText, Users, Calendar, DollarSign, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle, Plus, List, CheckSquare } from 'lucide-react';
 import QAITPTracker from './qa-itp/QAITPTracker';
 import QAITPForm from './QAITPForm';
-import MaterialHandover from './MaterialHandover';
 import TaskManager from './TaskManager';
 import TeamNotes from './TeamNotes';
 import DocumentManager from './DocumentManager';
@@ -14,7 +14,6 @@ import VariationManager from './VariationManager';
 import RFIManager from './RFIManager';
 import ProgrammeTracker from './ProgrammeTracker';
 import FinanceManager from './finance/FinanceManager';
-import DeliveryScheduler from './DeliveryScheduler';
 
 interface ProjectDashboardProps {
   projectData: {
@@ -33,6 +32,7 @@ interface ProjectDashboardProps {
 const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [activeQAForm, setActiveQAForm] = useState(false);
+  const [qaActiveTab, setQaActiveTab] = useState('dashboard');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -91,7 +91,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
       {/* Project Management Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
           <TabsTrigger value="overview" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -103,10 +103,6 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
           <TabsTrigger value="qa-itp" className="flex items-center gap-1">
             <ClipboardCheck className="h-4 w-4" />
             <span className="hidden sm:inline">QA/ITP</span>
-          </TabsTrigger>
-          <TabsTrigger value="materials" className="flex items-center gap-1">
-            <Package className="h-4 w-4" />
-            <span className="hidden sm:inline">Materials</span>
           </TabsTrigger>
           <TabsTrigger value="tasks" className="flex items-center gap-1">
             <Settings className="h-4 w-4" />
@@ -127,10 +123,6 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
           <TabsTrigger value="rfi" className="flex items-center gap-1">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">RFI</span>
-          </TabsTrigger>
-          <TabsTrigger value="finance" className="flex items-center gap-1">
-            <DollarSign className="h-4 w-4" />
-            <span className="hidden sm:inline">Finance</span>
           </TabsTrigger>
         </TabsList>
 
@@ -177,31 +169,66 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
         <TabsContent value="qa-itp" className="space-y-6">
           <Card>
-            <CardContent className="p-6">
-              {activeQAForm ? (
-                <QAITPForm onClose={() => setActiveQAForm(false)} />
-              ) : (
-                <QAITPTracker 
-                  onNewInspection={() => setActiveQAForm(true)} 
-                  projectId={projectData.id}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="materials" className="space-y-6">
-          <Card>
-            <CardContent className="p-6">
-              <MaterialHandover />
-            </CardContent>
-          </Card>
-          <Card>
             <CardHeader>
-              <CardTitle>Delivery Scheduler</CardTitle>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Quality Assurance / Inspection Test Plan</CardTitle>
+                  <p className="text-muted-foreground">
+                    Create and track inspection hold points, collect evidence, and generate sign-off records
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <DeliveryScheduler onClose={() => {}} />
+              <Tabs value={qaActiveTab} onValueChange={setQaActiveTab} className="w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <TabsList className="grid w-full max-w-md grid-cols-3">
+                    <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger value="qa-list" className="flex items-center gap-2">
+                      <List className="h-4 w-4" />
+                      QA/ITP List
+                    </TabsTrigger>
+                    <TabsTrigger value="actions" className="flex items-center gap-2">
+                      <CheckSquare className="h-4 w-4" />
+                      Action/Task List
+                    </TabsTrigger>
+                  </TabsList>
+                  <Button onClick={() => setActiveQAForm(true)} className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add ITP/QA
+                  </Button>
+                </div>
+
+                <TabsContent value="dashboard">
+                  <div className="text-center py-8">
+                    <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">QA Dashboard</h3>
+                    <p className="text-gray-600">Dashboard view coming soon...</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="qa-list">
+                  {activeQAForm ? (
+                    <QAITPForm onClose={() => setActiveQAForm(false)} />
+                  ) : (
+                    <QAITPTracker 
+                      onNewInspection={() => setActiveQAForm(true)} 
+                      projectId={projectData.id}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="actions">
+                  <div className="text-center py-8">
+                    <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Action/Task List</h3>
+                    <p className="text-gray-600">Action and task management coming soon...</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
@@ -224,10 +251,6 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
         <TabsContent value="rfi" className="space-y-6">
           <RFIManager projectName={projectData.name} />
-        </TabsContent>
-
-        <TabsContent value="finance" className="space-y-6">
-          <FinanceManager projectName={projectData.name} />
         </TabsContent>
       </Tabs>
     </div>
