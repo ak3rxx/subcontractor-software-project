@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,12 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, User, Bell, Palette, Shield, Building2, Users, Database } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Palette, Building2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import TopNav from '@/components/TopNav';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
-import { Navigate } from 'react-router-dom';
 
 const Settings = () => {
   const { isDeveloper, isOrgAdmin, loading } = usePermissions();
@@ -31,24 +29,30 @@ const Settings = () => {
     );
   }
 
-  // Redirect developers to admin panel
-  if (isDeveloper()) {
-    return <Navigate to="/developer-admin" replace />;
-  }
-
-  // Show organization panel for org admins
+  // Show organization panel for org admins, but keep it within settings context
   if (isOrgAdmin()) {
     return (
       <div className="min-h-screen flex flex-col">
         <TopNav />
         <div className="flex-1">
-          <OrganizationPanelDashboard />
+          <div className="container mx-auto px-6 py-8">
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-2">
+                <Building2 className="h-8 w-8 text-blue-600" />
+                <h1 className="text-3xl font-bold text-gray-900">Organization Settings</h1>
+              </div>
+              <p className="text-gray-600">
+                Manage your organization settings, team members, and compliance requirements.
+              </p>
+            </div>
+            <OrganizationPanelDashboard />
+          </div>
         </div>
       </div>
     );
   }
 
-  // Regular user settings
+  // Regular user settings (including developers who want to access personal settings)
   return (
     <div className="min-h-screen flex flex-col">
       <TopNav />
