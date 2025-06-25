@@ -2,11 +2,12 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from 'lucide-react';
-import { Milestone, getDaysUntil } from './milestoneUtils';
+import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
+import { getDaysUntil } from './milestoneUtils';
 import { getDaysUntilBadge } from './MilestoneBadges';
 
 interface WeeklyCalendarViewProps {
-  milestones: Milestone[];
+  milestones: ProgrammeMilestone[];
 }
 
 const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({ milestones }) => {
@@ -33,7 +34,10 @@ const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({ milestones }) =
   // Group milestones by date
   const getMilestonesForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    return milestones.filter(milestone => milestone.dueDate === dateString);
+    return milestones.filter(milestone => {
+      const milestoneDate = milestone.end_date_planned || milestone.planned_date;
+      return milestoneDate === dateString;
+    });
   };
 
   const isToday = (date: Date) => {
@@ -82,14 +86,14 @@ const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({ milestones }) =
                       key={milestone.id}
                       className="text-xs p-2 bg-white rounded border border-gray-200 shadow-sm"
                     >
-                      <div className="font-medium truncate" title={milestone.name}>
-                        {milestone.name}
+                      <div className="font-medium truncate" title={milestone.milestone_name}>
+                        {milestone.milestone_name}
                       </div>
-                      <div className="text-gray-600 truncate" title={milestone.assignedTo}>
-                        {milestone.assignedTo}
+                      <div className="text-gray-600 truncate" title={milestone.assigned_to || ''}>
+                        {milestone.assigned_to}
                       </div>
                       <div className="mt-1">
-                        {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                        {getDaysUntilBadge(getDaysUntil(milestone.end_date_planned || milestone.planned_date))}
                       </div>
                     </div>
                   ))}

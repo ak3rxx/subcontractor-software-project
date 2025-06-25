@@ -2,13 +2,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, CalendarDays, Target } from 'lucide-react';
-import { Milestone, getDaysUntil } from './milestoneUtils';
+import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
+import { getDaysUntil } from './milestoneUtils';
 import { getDaysUntilBadge, getStatusBadge } from './MilestoneBadges';
 
 interface OutlookOverviewProps {
-  oneWeekOutlook: Milestone[];
-  threeWeekLookAhead: Milestone[];
-  allMilestones: Milestone[];
+  oneWeekOutlook: ProgrammeMilestone[];
+  threeWeekLookAhead: ProgrammeMilestone[];
+  allMilestones: ProgrammeMilestone[];
 }
 
 const OutlookOverview: React.FC<OutlookOverviewProps> = ({ 
@@ -18,7 +19,7 @@ const OutlookOverview: React.FC<OutlookOverviewProps> = ({
 }) => {
   // Get key project milestones (high priority or critical milestones)
   const keyMilestones = allMilestones
-    .filter(milestone => milestone.priority === 'high' || milestone.status === 'overdue')
+    .filter(milestone => milestone.priority === 'high' || milestone.status === 'delayed')
     .slice(0, 4);
 
   return (
@@ -39,18 +40,18 @@ const OutlookOverview: React.FC<OutlookOverviewProps> = ({
               {keyMilestones.map((milestone) => (
                 <div key={milestone.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex-1">
-                    <div className="font-medium">{milestone.name}</div>
+                    <div className="font-medium">{milestone.milestone_name}</div>
                     <div className="text-sm text-gray-600 flex items-center gap-4">
-                      <span>{milestone.assignedTo}</span>
-                      <span>{milestone.dueDate}</span>
-                      {milestone.linkedModule && (
-                        <span className="text-blue-600">📋 {milestone.linkedModule}</span>
+                      <span>{milestone.assigned_to}</span>
+                      <span>{milestone.end_date_planned || milestone.planned_date}</span>
+                      {milestone.linked_tasks && milestone.linked_tasks.length > 0 && (
+                        <span className="text-blue-600">📋 Tasks</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {getStatusBadge(milestone.status, milestone.daysOverdue)}
-                    {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                    {getStatusBadge(milestone.status, 0)}
+                    {getDaysUntilBadge(getDaysUntil(milestone.end_date_planned || milestone.planned_date))}
                   </div>
                 </div>
               ))}
@@ -76,11 +77,11 @@ const OutlookOverview: React.FC<OutlookOverviewProps> = ({
                 {oneWeekOutlook.slice(0, 3).map((milestone) => (
                   <div key={milestone.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <div>
-                      <div className="font-medium text-sm">{milestone.name}</div>
-                      <div className="text-xs text-gray-600">{milestone.assignedTo}</div>
+                      <div className="font-medium text-sm">{milestone.milestone_name}</div>
+                      <div className="text-xs text-gray-600">{milestone.assigned_to}</div>
                     </div>
                     <div className="text-right">
-                      {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                      {getDaysUntilBadge(getDaysUntil(milestone.end_date_planned || milestone.planned_date))}
                     </div>
                   </div>
                 ))}
@@ -109,11 +110,11 @@ const OutlookOverview: React.FC<OutlookOverviewProps> = ({
                 {threeWeekLookAhead.slice(0, 4).map((milestone) => (
                   <div key={milestone.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <div>
-                      <div className="font-medium text-sm">{milestone.name}</div>
-                      <div className="text-xs text-gray-600">{milestone.assignedTo}</div>
+                      <div className="font-medium text-sm">{milestone.milestone_name}</div>
+                      <div className="text-xs text-gray-600">{milestone.assigned_to}</div>
                     </div>
                     <div className="text-right">
-                      {getDaysUntilBadge(getDaysUntil(milestone.dueDate))}
+                      {getDaysUntilBadge(getDaysUntil(milestone.end_date_planned || milestone.planned_date))}
                     </div>
                   </div>
                 ))}

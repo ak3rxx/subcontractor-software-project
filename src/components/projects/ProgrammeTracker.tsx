@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Eye, CalendarDays, Upload, Template, BarChart3 } from 'lucide-react';
+import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3 } from 'lucide-react';
 import { useProgrammeMilestones } from '@/hooks/useProgrammeMilestones';
 import { getUpcomingMilestones, sortMilestonesByDate, isWithinDays } from './programme/milestoneUtils';
 import MilestoneSummaryCards from './programme/MilestoneSummaryCards';
@@ -71,7 +71,7 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             Upload Schedule
           </Button>
           <Button variant="outline" className="flex items-center gap-2">
-            <Template className="h-4 w-4" />
+            <FileText className="h-4 w-4" />
             Templates
           </Button>
           <Button onClick={() => setShowNewMilestone(true)} className="flex items-center gap-2">

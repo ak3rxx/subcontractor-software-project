@@ -2,10 +2,10 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, Clock, AlertTriangle, Calendar } from 'lucide-react';
-import { Milestone } from './milestoneUtils';
+import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
 
 interface MilestoneSummaryCardsProps {
-  milestones: Milestone[];
+  milestones: ProgrammeMilestone[];
 }
 
 const MilestoneSummaryCards: React.FC<MilestoneSummaryCardsProps> = ({ milestones }) => {
@@ -35,9 +35,9 @@ const MilestoneSummaryCards: React.FC<MilestoneSummaryCardsProps> = ({ milestone
         <CardContent className="p-4 text-center">
           <AlertTriangle className="h-8 w-8 mx-auto text-red-500 mb-2" />
           <div className="text-2xl font-bold">
-            {milestones.filter(m => m.status === 'overdue').length}
+            {milestones.filter(m => m.status === 'delayed').length}
           </div>
-          <div className="text-sm text-gray-600">Overdue</div>
+          <div className="text-sm text-gray-600">Delayed</div>
         </CardContent>
       </Card>
 
@@ -45,9 +45,9 @@ const MilestoneSummaryCards: React.FC<MilestoneSummaryCardsProps> = ({ milestone
         <CardContent className="p-4 text-center">
           <Calendar className="h-8 w-8 mx-auto text-gray-500 mb-2" />
           <div className="text-2xl font-bold">
-            {milestones.filter(m => m.status === 'pending').length}
+            {milestones.filter(m => m.status === 'upcoming').length}
           </div>
-          <div className="text-sm text-gray-600">Pending</div>
+          <div className="text-sm text-gray-600">Upcoming</div>
         </CardContent>
       </Card>
     </div>

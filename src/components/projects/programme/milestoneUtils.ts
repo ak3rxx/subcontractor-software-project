@@ -1,6 +1,9 @@
 
 import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
 
+// Legacy type alias for backward compatibility
+export type Milestone = ProgrammeMilestone;
+
 export const isWithinDays = (dateString: string | undefined, days: number): boolean => {
   if (!dateString) return false;
   
@@ -56,6 +59,11 @@ export const calculateDaysUntilDue = (dateString: string | undefined): number =>
   const diffInTime = targetDate.getTime() - today.getTime();
   
   return Math.ceil(diffInTime / (1000 * 3600 * 24));
+};
+
+// Legacy function name for backward compatibility
+export const getDaysUntil = (dateString: string | undefined): number => {
+  return calculateDaysUntilDue(dateString);
 };
 
 export const getUpcomingMilestones = (milestones: ProgrammeMilestone[], days: number = 7): ProgrammeMilestone[] => {
