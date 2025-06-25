@@ -1,109 +1,107 @@
 
-export interface Milestone {
-  id: number;
-  name: string;
-  dueDate: string;
-  status: 'complete' | 'in-progress' | 'pending' | 'overdue';
-  linkedModule: string;
-  priority: 'high' | 'normal' | 'low' | 'medium';
-  assignedTo: string;
-  daysOverdue: number;
-}
+import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
 
-export const isWithinDays = (dateString: string, days: number) => {
+export const isWithinDays = (dateString: string | undefined, days: number): boolean => {
+  if (!dateString) return false;
+  
   const targetDate = new Date(dateString);
   const today = new Date();
-  const futureDate = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
-  return targetDate >= today && targetDate <= futureDate;
+  const diffInTime = targetDate.getTime() - today.getTime();
+  const diffInDays = Math.ceil(diffInTime / (1000 * 3600 * 24));
+  
+  return diffInDays >= 0 && diffInDays <= days;
 };
 
-export const getDaysUntil = (dateString: string) => {
+export const isOverdue = (dateString: string | undefined): boolean => {
+  if (!dateString) return false;
+  
   const targetDate = new Date(dateString);
   const today = new Date();
-  const diffTime = targetDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  
+  return targetDate < today;
 };
 
-export const getSampleMilestones = (): Milestone[] => [
-  {
-    id: 1,
-    name: 'Foundation Completion',
-    dueDate: '2024-02-15',
-    status: 'complete',
-    linkedModule: 'QA/ITP',
-    priority: 'high',
-    assignedTo: 'John Smith',
-    daysOverdue: 0
-  },
-  {
-    id: 2,
-    name: 'Framing Complete',
-    dueDate: '2024-03-01',
-    status: 'in-progress',
-    linkedModule: 'Material Handover',
-    priority: 'high',
-    assignedTo: 'Sarah Johnson',
-    daysOverdue: 0
-  },
-  {
-    id: 3,
-    name: 'Roof Installation',
-    dueDate: '2024-03-15',
-    status: 'pending',
-    linkedModule: 'Delivery Schedule',
-    priority: 'normal',
-    assignedTo: 'Mike Davis',
-    daysOverdue: 0
-  },
-  {
-    id: 4,
-    name: 'Electrical First Fix',
-    dueDate: '2024-01-20',
-    status: 'overdue',
-    linkedModule: 'RFI',
-    priority: 'high',
-    assignedTo: 'Lisa Wang',
-    daysOverdue: 3
-  },
-  {
-    id: 5,
-    name: 'Plumbing Rough-in',
-    dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    status: 'pending',
-    linkedModule: 'QA/ITP',
-    priority: 'high',
-    assignedTo: 'Tom Wilson',
-    daysOverdue: 0
-  },
-  {
-    id: 6,
-    name: 'Insulation Installation',
-    dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    status: 'pending',
-    linkedModule: 'Material Handover',
-    priority: 'medium',
-    assignedTo: 'Emma Brown',
-    daysOverdue: 0
-  },
-  {
-    id: 7,
-    name: 'Drywall Installation',
-    dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    status: 'pending',
-    linkedModule: 'Delivery Schedule',
-    priority: 'medium',
-    assignedTo: 'Chris Green',
-    daysOverdue: 0
-  },
-  {
-    id: 8,
-    name: 'Flooring Installation',
-    dueDate: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    status: 'pending',
-    linkedModule: 'Material Handover',
-    priority: 'normal',
-    assignedTo: 'Alex Turner',
-    daysOverdue: 0
+export const getMilestoneStatusColor = (status: string): string => {
+  switch (status) {
+    case 'complete':
+      return 'bg-green-100 text-green-800';
+    case 'in-progress':
+      return 'bg-blue-100 text-blue-800';
+    case 'delayed':
+      return 'bg-red-100 text-red-800';
+    case 'upcoming':
+    default:
+      return 'bg-gray-100 text-gray-800';
   }
-];
+};
+
+export const getPriorityColor = (priority: string): string => {
+  switch (priority) {
+    case 'high':
+      return 'bg-red-100 text-red-800';
+    case 'medium':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'low':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export const calculateDaysUntilDue = (dateString: string | undefined): number => {
+  if (!dateString) return 0;
+  
+  const targetDate = new Date(dateString);
+  const today = new Date();
+  const diffInTime = targetDate.getTime() - today.getTime();
+  
+  return Math.ceil(diffInTime / (1000 * 3600 * 24));
+};
+
+export const getUpcomingMilestones = (milestones: ProgrammeMilestone[], days: number = 7): ProgrammeMilestone[] => {
+  return milestones.filter(milestone => {
+    const dueDate = milestone.end_date_planned || milestone.planned_date;
+    return milestone.status !== 'complete' && isWithinDays(dueDate, days);
+  });
+};
+
+export const getOverdueMilestones = (milestones: ProgrammeMilestone[]): ProgrammeMilestone[] => {
+  return milestones.filter(milestone => {
+    const dueDate = milestone.end_date_planned || milestone.planned_date;
+    return milestone.status !== 'complete' && isOverdue(dueDate);
+  });
+};
+
+export const getCriticalPathMilestones = (milestones: ProgrammeMilestone[]): ProgrammeMilestone[] => {
+  return milestones.filter(milestone => milestone.critical_path);
+};
+
+export const getDelayRiskMilestones = (milestones: ProgrammeMilestone[]): ProgrammeMilestone[] => {
+  return milestones.filter(milestone => milestone.delay_risk_flag);
+};
+
+export const sortMilestonesByDate = (milestones: ProgrammeMilestone[]): ProgrammeMilestone[] => {
+  return [...milestones].sort((a, b) => {
+    const dateA = new Date(a.start_date_planned || a.planned_date);
+    const dateB = new Date(b.start_date_planned || b.planned_date);
+    return dateA.getTime() - dateB.getTime();
+  });
+};
+
+export const groupMilestonesByCategory = (milestones: ProgrammeMilestone[]): Record<string, ProgrammeMilestone[]> => {
+  return milestones.reduce((groups, milestone) => {
+    const category = milestone.category || 'General';
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(milestone);
+    return groups;
+  }, {} as Record<string, ProgrammeMilestone[]>);
+};
+
+export const calculateProjectProgress = (milestones: ProgrammeMilestone[]): number => {
+  if (milestones.length === 0) return 0;
+  
+  const totalCompletion = milestones.reduce((sum, milestone) => sum + milestone.completion_percentage, 0);
+  return Math.round(totalCompletion / milestones.length);
+};

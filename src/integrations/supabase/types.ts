@@ -76,6 +76,42 @@ export type Database = {
           },
         ]
       }
+      ai_learning_patterns: {
+        Row: {
+          created_at: string | null
+          id: string
+          pattern_data: Json
+          pattern_type: string
+          project_type: string | null
+          success_rate: number | null
+          trade_category: string | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          pattern_data: Json
+          pattern_type: string
+          project_type?: string | null
+          success_rate?: number | null
+          trade_category?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          pattern_data?: Json
+          pattern_type?: string
+          project_type?: string | null
+          success_rate?: number | null
+          trade_category?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       budget_items: {
         Row: {
           budgeted_cost: number
@@ -410,43 +446,82 @@ export type Database = {
       programme_milestones: {
         Row: {
           actual_date: string | null
+          assigned_to: string | null
+          category: string | null
           completion_percentage: number | null
           created_at: string | null
+          critical_path: boolean | null
+          delay_risk_flag: boolean | null
           dependencies: string[] | null
           description: string | null
+          end_date_actual: string | null
+          end_date_planned: string | null
           id: string
+          linked_deliveries: string[] | null
+          linked_handovers: string[] | null
+          linked_itps: string[] | null
+          linked_tasks: string[] | null
           milestone_name: string
           notes: string | null
           planned_date: string
+          priority: string | null
           project_id: string | null
+          start_date_actual: string | null
+          start_date_planned: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
           actual_date?: string | null
+          assigned_to?: string | null
+          category?: string | null
           completion_percentage?: number | null
           created_at?: string | null
+          critical_path?: boolean | null
+          delay_risk_flag?: boolean | null
           dependencies?: string[] | null
           description?: string | null
+          end_date_actual?: string | null
+          end_date_planned?: string | null
           id?: string
+          linked_deliveries?: string[] | null
+          linked_handovers?: string[] | null
+          linked_itps?: string[] | null
+          linked_tasks?: string[] | null
           milestone_name: string
           notes?: string | null
           planned_date: string
+          priority?: string | null
           project_id?: string | null
+          start_date_actual?: string | null
+          start_date_planned?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
           actual_date?: string | null
+          assigned_to?: string | null
+          category?: string | null
           completion_percentage?: number | null
           created_at?: string | null
+          critical_path?: boolean | null
+          delay_risk_flag?: boolean | null
           dependencies?: string[] | null
           description?: string | null
+          end_date_actual?: string | null
+          end_date_planned?: string | null
           id?: string
+          linked_deliveries?: string[] | null
+          linked_handovers?: string[] | null
+          linked_itps?: string[] | null
+          linked_tasks?: string[] | null
           milestone_name?: string
           notes?: string | null
           planned_date?: string
+          priority?: string | null
           project_id?: string | null
+          start_date_actual?: string | null
+          start_date_planned?: string | null
           status?: string | null
           updated_at?: string | null
         }
@@ -459,6 +534,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      programme_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          project_type: string | null
+          template_data: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          project_type?: string | null
+          template_data: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          project_type?: string | null
+          template_data?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      programme_uploads: {
+        Row: {
+          file_path: string | null
+          id: string
+          original_filename: string
+          processed_at: string | null
+          processing_result: Json | null
+          project_id: string | null
+          upload_status: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          file_path?: string | null
+          id?: string
+          original_filename: string
+          processed_at?: string | null
+          processing_result?: Json | null
+          project_id?: string | null
+          upload_status?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          file_path?: string | null
+          id?: string
+          original_filename?: string
+          processed_at?: string | null
+          processing_result?: Json | null
+          project_id?: string | null
+          upload_status?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
       }
       projects: {
         Row: {
