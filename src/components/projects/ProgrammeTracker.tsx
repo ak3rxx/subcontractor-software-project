@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +24,8 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
   
   const { milestones, loading, createMilestone, updateMilestone, deleteMilestone } = useProgrammeMilestones(projectId);
 
+  console.log('ProgrammeTracker render:', { projectId, milestonesCount: milestones.length, loading });
+
   // Filter milestones for different outlooks
   const oneWeekOutlook = getUpcomingMilestones(milestones, 7).filter(milestone => 
     milestone.priority === 'high' || milestone.critical_path
@@ -32,13 +35,25 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
   const sortedMilestones = sortMilestonesByDate(milestones);
 
   const handleCreateMilestone = async (milestoneData: any) => {
+    console.log('handleCreateMilestone called with:', milestoneData);
+    
+    if (!projectId) {
+      console.error('No project ID available for milestone creation');
+      return;
+    }
+    
     const success = await createMilestone({
       ...milestoneData,
       project_id: projectId
     });
     
+    console.log('createMilestone result:', success);
+    
     if (success) {
       setShowNewMilestone(false);
+      console.log('Milestone created successfully, form closed');
+    } else {
+      console.error('Failed to create milestone');
     }
   };
 
@@ -65,6 +80,7 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
         <div>
           <h3 className="text-lg font-semibold">Programme Tracker</h3>
           <p className="text-gray-600">Track project milestones and delivery schedules</p>
+          {projectId && <p className="text-sm text-gray-500">Project ID: {projectId}</p>}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="flex items-center gap-2">
@@ -75,12 +91,31 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             <FileText className="h-4 w-4" />
             Templates
           </Button>
-          <Button onClick={() => setShowNewMilestone(true)} className="flex items-center gap-2">
+          <Button 
+            onClick={() => {
+              console.log('Add Milestone button clicked');
+              setShowNewMilestone(true);
+            }} 
+            className="flex items-center gap-2"
+          >
             <Plus className="h-4 w-4" />
             Add Milestone
           </Button>
         </div>
       </div>
+
+      {/* Show form when requested */}
+      {showNewMilestone && (
+        <MilestoneForm 
+          showForm={showNewMilestone}
+          onCancel={() => {
+            console.log('Form cancelled');
+            setShowNewMilestone(false);
+          }}
+          onSubmit={handleCreateMilestone}
+          projectId={projectId}
+        />
+      )}
 
       {/* Summary Cards */}
       <MilestoneSummaryCards milestones={milestones} />
@@ -161,15 +196,6 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
         </TabsContent>
 
         <TabsContent value="programme">
-          {showNewMilestone && (
-            <MilestoneForm 
-              showForm={showNewMilestone}
-              onCancel={() => setShowNewMilestone(false)}
-              onSubmit={handleCreateMilestone}
-              projectId={projectId}
-            />
-          )}
-
           <MilestoneTable
             milestones={sortedMilestones}
             title="Complete Project Programme"

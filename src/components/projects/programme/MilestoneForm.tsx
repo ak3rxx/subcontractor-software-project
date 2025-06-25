@@ -44,7 +44,10 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Form submission started with data:', formData);
+    
     if (!formData.milestone_name || !formData.start_date_planned) {
+      console.log('Validation failed - missing required fields');
       return;
     }
 
@@ -52,7 +55,11 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
     
     try {
       if (onSubmit) {
+        console.log('Calling onSubmit with form data');
         await onSubmit(formData);
+        console.log('onSubmit completed successfully');
+      } else {
+        console.log('No onSubmit handler provided');
       }
     } catch (error) {
       console.error('Error submitting milestone:', error);
@@ -62,6 +69,7 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
   };
 
   const handleInputChange = (field: keyof ProgrammeMilestone, value: any) => {
+    console.log(`Updating field ${field} with value:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
