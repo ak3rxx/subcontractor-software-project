@@ -6,7 +6,7 @@ import TopNav from '@/components/TopNav';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
-import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus, Activity } from 'lucide-react';
+import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus, Activity, MessageSquare, Milestone } from 'lucide-react';
 
 const Dashboard = () => {
   const { projects, loading: projectsLoading } = useProjects();
@@ -16,12 +16,70 @@ const Dashboard = () => {
   // Calculate real statistics from projects
   const activeProjects = projects.filter(p => p.status === 'in-progress').length;
   const totalProjects = projects.length;
-  const planningProjects = projects.filter(p => p.status === 'planning').length;
-  const completedProjects = projects.filter(p => p.status === 'complete').length;
 
   // Calculate task statistics
   const pendingTasks = tasks.filter(t => t.status === 'todo' || t.status === 'in-progress').length;
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+
+  // Mock RFI data - to be replaced with real data later
+  const openRFIs = 3;
+  const upcomingMilestones = 5;
+
+  // Generate recent activities from projects and tasks
+  const getRecentActivities = () => {
+    const activities = [];
+
+    // Add project-based activities
+    projects.forEach(project => {
+      if (project.created_at) {
+        activities.push({
+          id: `project-${project.id}`,
+          type: 'project',
+          action: 'created',
+          description: `Project "${project.name}" was created`,
+          timestamp: project.created_at,
+          projectName: project.name,
+          icon: <Building className="h-4 w-4 text-blue-500" />
+        });
+      }
+      
+      if (project.status === 'in-progress') {
+        activities.push({
+          id: `project-progress-${project.id}`,
+          type: 'project',
+          action: 'status_change',
+          description: `Project "${project.name}" status changed to in-progress`,
+          timestamp: project.updated_at || project.created_at,
+          projectName: project.name,
+          icon: <Activity className="h-4 w-4 text-green-500" />
+        });
+      }
+    });
+
+    // Add task-based activities
+    tasks.forEach(task => {
+      if (task.created_at) {
+        activities.push({
+          id: `task-${task.id}`,
+          type: 'task',
+          action: task.status === 'completed' ? 'completed' : 'created',
+          description: `Task "${task.title}" was ${task.status === 'completed' ? 'completed' : 'created'}${task.project_name ? ` in ${task.project_name}` : ''}`,
+          timestamp: task.status === 'completed' ? task.completed_date || task.updated_at : task.created_at,
+          projectName: task.project_name,
+          icon: task.status === 'completed' 
+            ? <CheckSquare className="h-4 w-4 text-green-500" />
+            : <Clock className="h-4 w-4 text-blue-500" />
+        });
+      }
+    });
+
+    // Sort by timestamp (most recent first) and take top 10
+    return activities
+      .filter(activity => activity.timestamp)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+  };
+
+  const recentActivities = getRecentActivities();
 
   const handleCreateProject = () => {
     navigate('/projects');
@@ -33,6 +91,20 @@ const Dashboard = () => {
 
   const handleViewTasks = () => {
     navigate('/tasks');
+  };
+
+  const formatRelativeTime = (timestamp: string) => {
+    const now = new Date();
+    const activityTime = new Date(timestamp);
+    const diffInHours = Math.floor((now.getTime() - activityTime.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return activityTime.toLocaleDateString();
   };
 
   return (
@@ -72,17 +144,6 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleViewProjects}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                <CheckSquare className="w-4 h-4 text-gray-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{activeProjects}</div>
-                <p className="text-xs text-blue-500">{planningProjects} in planning</p>
-              </CardContent>
-            </Card>
-            
             <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleViewTasks}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
@@ -90,18 +151,29 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{pendingTasks}</div>
-                <p className="text-xs text-amber-500">{completedTasks} completed</p>
+                <p className="text-xs text-amber-500">Across all projects</p>
               </CardContent>
             </Card>
             
-            <Card className="hover:shadow-md transition-shadow">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Completed</CardTitle>
-                <Clock className="w-4 h-4 text-gray-500" />
+                <CardTitle className="text-sm font-medium">Open RFIs</CardTitle>
+                <MessageSquare className="w-4 h-4 text-gray-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{completedProjects}</div>
-                <p className="text-xs text-green-500">Projects finished</p>
+                <div className="text-2xl font-bold">{openRFIs}</div>
+                <p className="text-xs text-orange-500">Awaiting response</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Upcoming Milestones</CardTitle>
+                <Milestone className="w-4 h-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{upcomingMilestones}</div>
+                <p className="text-xs text-blue-500">Next 30 days</p>
               </CardContent>
             </Card>
           </div>
@@ -191,15 +263,36 @@ const Dashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest updates across your projects</CardDescription>
+              <CardDescription>Latest updates across all your projects and tasks</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="text-center py-8 text-gray-500">
-                  <Activity className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                  <p>Activity tracking coming soon...</p>
-                  <p className="text-sm">Task completions, project updates, and team activities will appear here.</p>
-                </div>
+                {recentActivities.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Activity className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p>No recent activity</p>
+                    <p className="text-sm">Start working on projects and tasks to see activity here.</p>
+                  </div>
+                ) : (
+                  recentActivities.map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-b-0">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {activity.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900">{activity.description}</p>
+                        {activity.projectName && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Project: {activity.projectName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 text-xs text-gray-500">
+                        {formatRelativeTime(activity.timestamp)}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
