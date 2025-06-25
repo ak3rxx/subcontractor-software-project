@@ -91,7 +91,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
       {/* Project Management Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9">
           <TabsTrigger value="overview" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -115,6 +115,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
           <TabsTrigger value="documents" className="flex items-center gap-1">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Documents</span>
+          </TabsTrigger>
+          <TabsTrigger value="finance" className="flex items-center gap-1">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Finance</span>
           </TabsTrigger>
           <TabsTrigger value="variations" className="flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />
@@ -243,6 +247,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
         <TabsContent value="documents" className="space-y-6">
           <DocumentManager projectName={projectData.name} />
+        </TabsContent>
+
+        <TabsContent value="finance" className="space-y-6">
+          <FinanceManager projectName={projectData.name} />
         </TabsContent>
 
         <TabsContent value="variations" className="space-y-6">
