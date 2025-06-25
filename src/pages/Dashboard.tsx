@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import TopNav from '@/components/TopNav';
 import { useProjects } from '@/hooks/useProjects';
+import { useTasks } from '@/hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
-import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus } from 'lucide-react';
+import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus, Activity } from 'lucide-react';
 
 const Dashboard = () => {
-  const { projects, loading } = useProjects();
+  const { projects, loading: projectsLoading } = useProjects();
+  const { tasks, loading: tasksLoading } = useTasks();
   const navigate = useNavigate();
 
   // Calculate real statistics from projects
@@ -16,6 +18,10 @@ const Dashboard = () => {
   const totalProjects = projects.length;
   const planningProjects = projects.filter(p => p.status === 'planning').length;
   const completedProjects = projects.filter(p => p.status === 'complete').length;
+
+  // Calculate task statistics
+  const pendingTasks = tasks.filter(t => t.status === 'todo' || t.status === 'in-progress').length;
+  const completedTasks = tasks.filter(t => t.status === 'completed').length;
 
   const handleCreateProject = () => {
     navigate('/projects');
@@ -83,8 +89,8 @@ const Dashboard = () => {
                 <AlertTriangle className="w-4 h-4 text-gray-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">-</div>
-                <p className="text-xs text-amber-500">View all tasks</p>
+                <div className="text-2xl font-bold">{pendingTasks}</div>
+                <p className="text-xs text-amber-500">{completedTasks} completed</p>
               </CardContent>
             </Card>
             
@@ -114,7 +120,7 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {projectsLoading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                   <p className="mt-4 text-gray-600">Loading projects...</p>
