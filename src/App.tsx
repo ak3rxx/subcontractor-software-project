@@ -1,64 +1,74 @@
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
+import Dashboard from '@/pages/Dashboard';
+import Projects from '@/pages/Projects';
+import SubcontractorOnboarding from '@/pages/SubcontractorOnboarding';
+import AdminPanel from '@/pages/AdminPanel';
+import DeveloperAdmin from '@/pages/DeveloperAdmin';
+import OrganizationPanel from '@/components/organization/OrganizationPanelDashboard';
+import NotFound from '@/pages/NotFound';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import RoleProtectedRoute from '@/components/RoleProtectedRoute';
+import { AuthProvider } from '@/contexts/AuthContext';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import SubcontractorOnboarding from "./pages/SubcontractorOnboarding";
-import Projects from "./pages/Projects";
-import DeveloperAdmin from "./pages/DeveloperAdmin";
-import OrganizationPanel from "./pages/OrganizationPanel";
-import NotFound from "./pages/NotFound";
+// Add these imports for the new routes
+import Tasks from '@/pages/Tasks';
+import Settings from '@/pages/Settings';
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/subcontractor-onboarding" element={
-              <ProtectedRoute>
-                <SubcontractorOnboarding />
-              </ProtectedRoute>
-            } />
-            <Route path="/projects" element={
-              <ProtectedRoute>
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/projects" element={
+            <ProtectedRoute>
+              <RoleProtectedRoute module="projects">
                 <Projects />
-              </ProtectedRoute>
-            } />
-            <Route path="/developer-admin" element={
-              <ProtectedRoute>
-                <DeveloperAdmin />
-              </ProtectedRoute>
-            } />
-            <Route path="/organization-panel" element={
-              <ProtectedRoute>
-                <OrganizationPanel />
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+              </RoleProtectedRoute>
+            </ProtectedRoute>
+          } />
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <RoleProtectedRoute module="tasks">
+                <Tasks />
+              </RoleProtectedRoute>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/subcontractor-onboarding" element={<SubcontractorOnboarding />} />
+          <Route path="/admin-panel" element={
+            <ProtectedRoute>
+              <AdminPanel />
+            </ProtectedRoute>
+          } />
+          <Route path="/developer-admin" element={
+            <ProtectedRoute>
+              <DeveloperAdmin />
+            </ProtectedRoute>
+          } />
+          <Route path="/organization-panel" element={
+            <ProtectedRoute>
+              <OrganizationPanel />
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
+}
 
 export default App;

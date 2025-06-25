@@ -2,7 +2,7 @@
 import React from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Navigate } from 'react-router-dom';
-import DeveloperAdminDashboard from '@/components/admin/DeveloperAdminDashboard';
+import EnhancedDeveloperAdminDashboard from '@/components/admin/EnhancedDeveloperAdminDashboard';
 
 const DeveloperAdmin: React.FC = () => {
   const { isDeveloper, loading } = usePermissions();
@@ -22,7 +22,7 @@ const DeveloperAdmin: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <DeveloperAdminDashboard />;
+  return <EnhancedDeveloperAdminDashboard />;
 };
 
 export default DeveloperAdmin;
