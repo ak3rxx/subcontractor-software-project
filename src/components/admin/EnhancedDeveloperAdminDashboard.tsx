@@ -13,6 +13,7 @@ import OrganizationManagement from '@/components/admin/OrganizationManagement';
 import ClientManagement from '@/components/admin/ClientManagement';
 import IssueManagement from '@/components/admin/IssueManagement';
 import QADiagnosticTool from '@/components/admin/QADiagnosticTool';
+import TopNav from '@/components/TopNav';
 
 const EnhancedDeveloperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -51,23 +52,27 @@ const EnhancedDeveloperAdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen flex flex-col">
+      <TopNav />
       
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <Settings className="h-8 w-8 text-purple-600" />
-              <h1 className="text-3xl font-bold text-gray-900">Developer Admin</h1>
-              <Badge variant="destructive" className="ml-2">Developer Only</Badge>
+      <div className="flex flex-1 bg-gray-50">
+        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        
+        <div className="flex-1 overflow-auto">
+          <div className="p-8">
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-2">
+                <Settings className="h-8 w-8 text-purple-600" />
+                <h1 className="text-3xl font-bold text-gray-900">Developer Admin</h1>
+                <Badge variant="destructive" className="ml-2">Developer Only</Badge>
+              </div>
+              <p className="text-gray-600">
+                Global system administration, client management, and development tools.
+              </p>
             </div>
-            <p className="text-gray-600">
-              Global system administration, client management, and development tools.
-            </p>
+            
+            {renderContent()}
           </div>
-          
-          {renderContent()}
         </div>
       </div>
     </div>

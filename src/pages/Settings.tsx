@@ -8,15 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, Database, Zap, Bell, Shield, Palette, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Palette, Shield, Building2, Users, Database } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import TopNav from '@/components/TopNav';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
+import { Navigate } from 'react-router-dom';
 
 const Settings = () => {
   const { isDeveloper, isOrgAdmin, loading } = usePermissions();
-  const [activeTab, setActiveTab] = useState('system');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('profile');
 
   if (loading) {
     return (
@@ -29,12 +31,13 @@ const Settings = () => {
     );
   }
 
-  if (!isDeveloper() && !isOrgAdmin()) {
-    return <Navigate to="/dashboard" replace />;
+  // Redirect developers to admin panel
+  if (isDeveloper()) {
+    return <Navigate to="/developer-admin" replace />;
   }
 
-  // If organization admin, show organization panel
-  if (isOrgAdmin() && !isDeveloper()) {
+  // Show organization panel for org admins
+  if (isOrgAdmin()) {
     return (
       <div className="min-h-screen flex flex-col">
         <TopNav />
@@ -45,121 +48,162 @@ const Settings = () => {
     );
   }
 
-  // Developer gets system settings only
+  // Regular user settings
   return (
     <div className="min-h-screen flex flex-col">
       <TopNav />
       
-      <div className="flex-1 container mx-auto px-6 py-8">
+      <div className="flex-1 container mx-auto px-6 py-8 max-w-4xl">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <SettingsIcon className="h-8 w-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
           </div>
           <p className="text-gray-600">
-            Configure system-level settings and preferences.
+            Manage your profile, preferences, and account settings.
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="system" className="flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              System
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Profile
             </TabsTrigger>
-            <TabsTrigger value="performance" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              Performance
+            <TabsTrigger value="appearance" className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              Appearance
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Notifications
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Security
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="system">
+          <TabsContent value="profile">
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Database Settings</CardTitle>
-                  <CardDescription>Configure database connection and performance settings</CardDescription>
+                  <CardTitle>Personal Information</CardTitle>
+                  <CardDescription>Update your personal details and contact information</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="dbPool">Connection Pool Size</Label>
-                    <Input id="dbPool" type="number" defaultValue="20" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input id="firstName" placeholder="Enter your first name" />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input id="lastName" placeholder="Enter your last name" />
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="dbTimeout">Query Timeout (seconds)</Label>
-                    <Input id="dbTimeout" type="number" defaultValue="30" />
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" type="email" value={user?.email || ''} disabled />
+                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="dbLogging" />
-                    <Label htmlFor="dbLogging">Enable Query Logging</Label>
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" type="tel" placeholder="Enter your phone number" />
+                  </div>
+                  <div>
+                    <Label htmlFor="company">Company</Label>
+                    <Input id="company" placeholder="Enter your company name" />
+                  </div>
+                  <div>
+                    <Label htmlFor="jobTitle">Job Title</Label>
+                    <Input id="jobTitle" placeholder="Enter your job title" />
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>File Storage</CardTitle>
-                  <CardDescription>Configure file upload and storage settings</CardDescription>
+                  <CardTitle>Account Security</CardTitle>
+                  <CardDescription>Manage your account security settings</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="maxFileSize">Max File Size (MB)</Label>
-                    <Input id="maxFileSize" type="number" defaultValue="10" />
-                  </div>
-                  <div>
-                    <Label htmlFor="allowedTypes">Allowed File Types</Label>
-                    <Input id="allowedTypes" defaultValue="pdf,jpg,png,doc,docx" />
-                  </div>
+                  <Button variant="outline" className="w-full">
+                    Change Password
+                  </Button>
                   <div className="flex items-center space-x-2">
-                    <Switch id="virusScanning" />
-                    <Label htmlFor="virusScanning">Enable Virus Scanning</Label>
+                    <Switch id="twoFactor" />
+                    <Label htmlFor="twoFactor">Enable Two-Factor Authentication (Coming Soon)</Label>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="performance">
+          <TabsContent value="appearance">
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Caching</CardTitle>
-                  <CardDescription>Configure caching settings for better performance</CardDescription>
+                  <CardTitle>Theme Settings</CardTitle>
+                  <CardDescription>Customize the appearance of your interface</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch id="enableCaching" defaultChecked />
-                    <Label htmlFor="enableCaching">Enable Caching</Label>
+                  <div>
+                    <Label htmlFor="theme">Color Theme</Label>
+                    <Select defaultValue="light">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="dark">Dark (Coming Soon)</SelectItem>
+                        <SelectItem value="auto">Auto (Coming Soon)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <Label htmlFor="cacheExpiry">Cache Expiry (minutes)</Label>
-                    <Input id="cacheExpiry" type="number" defaultValue="60" />
+                    <Label htmlFor="accentColor">Accent Color</Label>
+                    <Select defaultValue="blue">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select accent color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="blue">Blue</SelectItem>
+                        <SelectItem value="green">Green (Coming Soon)</SelectItem>
+                        <SelectItem value="purple">Purple (Coming Soon)</SelectItem>
+                        <SelectItem value="orange">Orange (Coming Soon)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button variant="outline">Clear All Cache</Button>
+                  <div>
+                    <Label htmlFor="fontSize">Font Size</Label>
+                    <Select defaultValue="medium">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select font size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Rate Limiting</CardTitle>
-                  <CardDescription>Configure API rate limiting settings</CardDescription>
+                  <CardTitle>Display Preferences</CardTitle>
+                  <CardDescription>Configure how information is displayed</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="rateLimit">Requests per minute</Label>
-                    <Input id="rateLimit" type="number" defaultValue="100" />
+                  <div className="flex items-center space-x-2">
+                    <Switch id="compactMode" />
+                    <Label htmlFor="compactMode">Compact Mode</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Switch id="rateLimitEnabled" defaultChecked />
-                    <Label htmlFor="rateLimitEnabled">Enable Rate Limiting</Label>
+                    <Switch id="showHelperText" defaultChecked />
+                    <Label htmlFor="showHelperText">Show Helper Text</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="animateTransitions" defaultChecked />
+                    <Label htmlFor="animateTransitions">Animate Transitions</Label>
                   </div>
                 </CardContent>
               </Card>
@@ -171,66 +215,71 @@ const Settings = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Email Notifications</CardTitle>
-                  <CardDescription>Configure system email notification settings</CardDescription>
+                  <CardDescription>Configure when you receive email notifications</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="smtpServer">SMTP Server</Label>
-                    <Input id="smtpServer" placeholder="smtp.gmail.com" />
-                  </div>
-                  <div>
-                    <Label htmlFor="smtpPort">SMTP Port</Label>
-                    <Input id="smtpPort" type="number" defaultValue="587" />
-                  </div>
-                  <div>
-                    <Label htmlFor="fromEmail">From Email</Label>
-                    <Input id="fromEmail" type="email" placeholder="noreply@grandscale.com" />
+                  <div className="flex items-center space-x-2">
+                    <Switch id="taskAssigned" defaultChecked />
+                    <Label htmlFor="taskAssigned">When tasks are assigned to me</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Switch id="emailEnabled" defaultChecked />
-                    <Label htmlFor="emailEnabled">Enable Email Notifications</Label>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="security">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Authentication</CardTitle>
-                  <CardDescription>Configure authentication and security settings</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="sessionTimeout">Session Timeout (hours)</Label>
-                    <Input id="sessionTimeout" type="number" defaultValue="24" />
+                    <Switch id="taskDue" defaultChecked />
+                    <Label htmlFor="taskDue">When tasks are due soon</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Switch id="mfaRequired" />
-                    <Label htmlFor="mfaRequired">Require Multi-Factor Authentication</Label>
+                    <Switch id="projectUpdates" defaultChecked />
+                    <Label htmlFor="projectUpdates">Project status updates</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Switch id="passwordComplexity" defaultChecked />
-                    <Label htmlFor="passwordComplexity">Enforce Password Complexity</Label>
+                    <Switch id="rfiUpdates" defaultChecked />
+                    <Label htmlFor="rfiUpdates">RFI responses and updates</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="variationUpdates" defaultChecked />
+                    <Label htmlFor="variationUpdates">Variation approvals and changes</Label>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Audit Logging</CardTitle>
-                  <CardDescription>Configure system audit and logging settings</CardDescription>
+                  <CardTitle>In-App Notifications</CardTitle>
+                  <CardDescription>Configure notifications within the application</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center space-x-2">
-                    <Switch id="auditLogging" defaultChecked />
-                    <Label htmlFor="auditLogging">Enable Audit Logging</Label>
+                    <Switch id="browserNotifications" />
+                    <Label htmlFor="browserNotifications">Browser notifications</Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="soundNotifications" />
+                    <Label htmlFor="soundNotifications">Sound notifications</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="desktopNotifications" />
+                    <Label htmlFor="desktopNotifications">Desktop notifications</Label>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Frequency</CardTitle>
+                  <CardDescription>How often you receive notification summaries</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="logRetention">Log Retention (days)</Label>
-                    <Input id="logRetention" type="number" defaultValue="90" />
+                    <Label htmlFor="digestFrequency">Daily Digest</Label>
+                    <Select defaultValue="daily">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
@@ -240,8 +289,11 @@ const Settings = () => {
 
         <Separator className="my-8" />
 
-        <div className="flex justify-end">
-          <Button>Save Settings</Button>
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-500">
+            Last updated: Never
+          </div>
+          <Button>Save Changes</Button>
         </div>
       </div>
     </div>

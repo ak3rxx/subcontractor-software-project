@@ -12,113 +12,85 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckSquare, Plus, Calendar, User, Building2, Filter, Search, Clock, AlertCircle } from 'lucide-react';
 import TopNav from '@/components/TopNav';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTasks } from '@/hooks/useTasks';
+import { useProjects } from '@/hooks/useProjects';
 
 const Tasks = () => {
   const { user } = useAuth();
+  const { tasks, loading, createTask, updateTask } = useTasks();
+  const { projects } = useProjects();
   const [activeTab, setActiveTab] = useState('my-tasks');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data - replace with real data from Supabase
-  const tasks = [
-    {
-      id: '1',
-      title: 'Review foundation inspection photos',
-      description: 'Review and approve QA photos for foundation work',
-      project: 'Riverside Apartments',
-      assignee: user?.email,
-      priority: 'high',
-      status: 'in-progress',
-      dueDate: '2024-12-22',
-      createdAt: '2024-12-20',
-      module: 'QA/ITP'
-    },
-    {
-      id: '2',
-      title: 'Update project budget variations',
-      description: 'Input approved variations into finance module',
-      project: 'Commercial Plaza',
-      assignee: user?.email,
-      priority: 'medium',
-      status: 'pending',
-      dueDate: '2024-12-25',
-      createdAt: '2024-12-19',
-      module: 'Finance'
-    },
-    {
-      id: '3',
-      title: 'Upload electrical compliance certificates',
-      description: 'Upload and organize electrical certificates in document manager',
-      project: 'City Hospital Wing',
-      assignee: 'sarah@company.com',
-      priority: 'high',
-      status: 'completed',
-      dueDate: '2024-12-20',
-      createdAt: '2024-12-18',
-      module: 'Documents'
-    },
-    {
-      id: '4',
-      title: 'Schedule material delivery',
-      description: 'Coordinate delivery of steel materials for next phase',
-      project: 'Riverside Apartments',
-      assignee: user?.email,
-      priority: 'medium',
-      status: 'pending',
-      dueDate: '2024-12-23',
-      createdAt: '2024-12-20',
-      module: 'Programme'
-    }
-  ];
+  // Form state for new task
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    project_id: '',
+    priority: 'medium' as const,
+    due_date: '',
+  });
 
-  const myTasks = tasks.filter(task => task.assignee === user?.email);
+  const myTasks = tasks.filter(task => task.assigned_to === user?.id);
   const allTasks = tasks;
 
   const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'high': return <Badge className="bg-red-100 text-red-800">High</Badge>;
-      case 'medium': return <Badge className="bg-yellow-100 text-yellow-800">Medium</Badge>;
-      case 'low': return <Badge className="bg-green-100 text-green-800">Low</Badge>;
-      default: return <Badge variant="outline">Normal</Badge>;
-    }
+    const priorityConfig = {
+      'high': { bg: 'bg-red-100', text: 'text-red-800', label: 'High' },
+      'medium': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Medium' },
+      'low': { bg: 'bg-green-100', text: 'text-green-800', label: 'Low' },
+    };
+    
+    const config = priorityConfig[priority as keyof typeof priorityConfig] || { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Normal' };
+    
+    return <Badge className={`${config.bg} ${config.text}`}>{config.label}</Badge>;
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed': return <Badge className="bg-green-100 text-green-800">✓ Completed</Badge>;
-      case 'in-progress': return <Badge className="bg-blue-100 text-blue-800">⏳ In Progress</Badge>;
-      case 'pending': return <Badge className="bg-orange-100 text-orange-800">⏸ Pending</Badge>;
-      case 'overdue': return <Badge className="bg-red-100 text-red-800">⚠ Overdue</Badge>;
-      default: return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  const getModuleBadge = (module: string) => {
-    const moduleColors: { [key: string]: string } = {
-      'QA/ITP': 'bg-purple-100 text-purple-800',
-      'Finance': 'bg-green-100 text-green-800',
-      'Documents': 'bg-blue-100 text-blue-800',
-      'Programme': 'bg-orange-100 text-orange-800',
-      'Tasks': 'bg-gray-100 text-gray-800',
-      'RFI': 'bg-indigo-100 text-indigo-800',
-      'Variations': 'bg-red-100 text-red-800'
+    const statusConfig = {
+      'completed': { bg: 'bg-green-100', text: 'text-green-800', icon: '✓', label: 'Completed' },
+      'in-progress': { bg: 'bg-blue-100', text: 'text-blue-800', icon: '⏳', label: 'In Progress' },
+      'todo': { bg: 'bg-orange-100', text: 'text-orange-800', icon: '⏸', label: 'To Do' },
     };
     
-    return <Badge className={moduleColors[module] || 'bg-gray-100 text-gray-800'}>{module}</Badge>;
+    const config = statusConfig[status as keyof typeof statusConfig] || { bg: 'bg-gray-100', text: 'text-gray-800', icon: '❓', label: 'Unknown' };
+    
+    return <Badge className={`${config.bg} ${config.text}`}>{config.icon} {config.label}</Badge>;
   };
 
   const filteredTasks = (taskList: typeof tasks) => {
     return taskList.filter(task => {
-      const matchesProject = filterProject === 'all' || task.project === filterProject;
+      const matchesProject = filterProject === 'all' || task.project_id === filterProject;
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
       const matchesSearch = searchTerm === '' || 
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase());
+        (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
       
       return matchesProject && matchesStatus && matchesSearch;
     });
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTask.title.trim()) return;
+
+    const success = await createTask({
+      ...newTask,
+      assigned_to: user?.id,
+    });
+
+    if (success) {
+      setShowCreateDialog(false);
+      setNewTask({
+        title: '',
+        description: '',
+        project_id: '',
+        priority: 'medium',
+        due_date: '',
+      });
+    }
   };
 
   const TaskCard = ({ task }: { task: typeof tasks[0] }) => (
@@ -133,24 +105,29 @@ const Tasks = () => {
             </div>
           </div>
           
-          <p className="text-gray-600 text-sm">{task.description}</p>
+          {task.description && (
+            <p className="text-gray-600 text-sm">{task.description}</p>
+          )}
           
           <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <Building2 className="h-4 w-4" />
-              {task.project}
-            </div>
-            {getModuleBadge(task.module)}
+            {task.project_name && (
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <Building2 className="h-4 w-4" />
+                {task.project_name}
+              </div>
+            )}
           </div>
           
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <Calendar className="h-4 w-4" />
-              Due: {new Date(task.dueDate).toLocaleDateString()}
-            </div>
+            {task.due_date && (
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <Calendar className="h-4 w-4" />
+                Due: {new Date(task.due_date).toLocaleDateString()}
+              </div>
+            )}
             <div className="flex items-center gap-1 text-sm text-gray-500">
               <User className="h-4 w-4" />
-              {task.assignee === user?.email ? 'Me' : task.assignee}
+              {task.assignee_name || 'Unassigned'}
             </div>
           </div>
         </div>
@@ -162,7 +139,7 @@ const Tasks = () => {
     <div className="min-h-screen flex flex-col">
       <TopNav />
       
-      <div className="flex-1 container mx-auto px-6 py-8">
+      <div className="flex-1 container mx-auto px-6 py-8 max-w-7xl">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Task Management</h1>
@@ -183,46 +160,41 @@ const Tasks = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="taskTitle">Task Title</Label>
-                  <Input id="taskTitle" placeholder="Enter task title" />
+                  <Input 
+                    id="taskTitle" 
+                    placeholder="Enter task title"
+                    value={newTask.title}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="taskDescription">Description</Label>
-                  <Textarea id="taskDescription" placeholder="Describe the task..." />
+                  <Textarea 
+                    id="taskDescription" 
+                    placeholder="Describe the task..."
+                    value={newTask.description}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="taskProject">Project</Label>
-                  <Select>
+                  <Select value={newTask.project_id} onValueChange={(value) => setNewTask(prev => ({ ...prev, project_id: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="riverside">Riverside Apartments</SelectItem>
-                      <SelectItem value="commercial">Commercial Plaza</SelectItem>
-                      <SelectItem value="hospital">City Hospital Wing</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="taskModule">Module</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select module" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="qa-itp">QA/ITP</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="documents">Documents</SelectItem>
-                      <SelectItem value="programme">Programme</SelectItem>
-                      <SelectItem value="tasks">Tasks</SelectItem>
-                      <SelectItem value="rfi">RFI</SelectItem>
-                      <SelectItem value="variations">Variations</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="taskPriority">Priority</Label>
-                    <Select>
+                    <Select value={newTask.priority} onValueChange={(value: any) => setNewTask(prev => ({ ...prev, priority: value }))}>
                       <SelectTrigger>
                         <SelectValue placeholder="Priority" />
                       </SelectTrigger>
@@ -235,14 +207,21 @@ const Tasks = () => {
                   </div>
                   <div>
                     <Label htmlFor="taskDueDate">Due Date</Label>
-                    <Input id="taskDueDate" type="date" />
+                    <Input 
+                      id="taskDueDate" 
+                      type="date"
+                      value={newTask.due_date}
+                      onChange={(e) => setNewTask(prev => ({ ...prev, due_date: e.target.value }))}
+                    />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                     Cancel
                   </Button>
-                  <Button>Create Task</Button>
+                  <Button onClick={handleCreateTask} disabled={!newTask.title.trim()}>
+                    Create Task
+                  </Button>
                 </div>
               </div>
             </DialogContent>
@@ -275,7 +254,9 @@ const Tasks = () => {
           <Card>
             <CardContent className="p-6 text-center">
               <Calendar className="h-8 w-8 mx-auto text-green-500 mb-2" />
-              <div className="text-2xl font-bold">{myTasks.filter(t => new Date(t.dueDate) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)).length}</div>
+              <div className="text-2xl font-bold">
+                {myTasks.filter(t => t.due_date && new Date(t.due_date) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)).length}
+              </div>
               <div className="text-sm text-gray-600">Due Soon</div>
             </CardContent>
           </Card>
@@ -308,9 +289,11 @@ const Tasks = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Projects</SelectItem>
-                      <SelectItem value="Riverside Apartments">Riverside Apartments</SelectItem>
-                      <SelectItem value="Commercial Plaza">Commercial Plaza</SelectItem>
-                      <SelectItem value="City Hospital Wing">City Hospital Wing</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -320,7 +303,7 @@ const Tasks = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="todo">To Do</SelectItem>
                     <SelectItem value="in-progress">In Progress</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
@@ -330,12 +313,19 @@ const Tasks = () => {
           </Card>
 
           <TabsContent value="my-tasks">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredTasks(myTasks).map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-            {filteredTasks(myTasks).length === 0 && (
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading tasks...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredTasks(myTasks).map((task) => (
+                  <TaskCard key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+            {!loading && filteredTasks(myTasks).length === 0 && (
               <Card>
                 <CardContent className="p-12 text-center">
                   <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -347,12 +337,19 @@ const Tasks = () => {
           </TabsContent>
 
           <TabsContent value="all-tasks">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredTasks(allTasks).map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-            {filteredTasks(allTasks).length === 0 && (
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading tasks...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredTasks(allTasks).map((task) => (
+                  <TaskCard key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+            {!loading && filteredTasks(allTasks).length === 0 && (
               <Card>
                 <CardContent className="p-12 text-center">
                   <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />

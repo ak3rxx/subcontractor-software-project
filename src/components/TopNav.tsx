@@ -29,26 +29,28 @@ const TopNav = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm">
-      <div className="container flex items-center justify-between h-16 px-4 mx-auto">
+      <div className="container flex items-center justify-between h-16 px-4 mx-auto max-w-7xl">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-md bg-blue-600">
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 shadow-md">
             <span className="text-xl font-bold text-white">GS</span>
           </div>
-          <h1 className="text-xl font-bold hidden sm:block">Grandscale</h1>
+          <h1 className="text-xl font-bold text-gray-900 hidden sm:block">Grandscale</h1>
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-6">
+        <div className="hidden md:flex items-center space-x-1">
           {navigationItems.map((item) => (
             item.module ? (
               <PermissionGate key={item.name} module={item.module} fallback={null}>
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
-                    isActive
-                      ? "text-blue-600 font-medium border-b-2 border-blue-600 pb-1"
-                      : "text-gray-600 hover:text-blue-600 transition-colors"
+                    `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? "bg-blue-100 text-blue-700 shadow-sm"
+                        : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                    }`
                   }
                 >
                   {item.name}
@@ -59,9 +61,11 @@ const TopNav = () => {
                 key={item.name}
                 to={item.path}
                 className={({ isActive }) =>
-                  isActive
-                    ? "text-blue-600 font-medium border-b-2 border-blue-600 pb-1"
-                    : "text-gray-600 hover:text-blue-600 transition-colors"
+                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-blue-100 text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                  }`
                 }
               >
                 {item.name}
@@ -69,31 +73,33 @@ const TopNav = () => {
             )
           ))}
           
-          {/* Settings - Only for Developer + Org Admin */}
-          {(isDeveloper() || isOrgAdmin()) && (
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
+          {/* Settings - All users */}
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? "text-blue-600 font-medium border-b-2 border-blue-600 pb-1"
-                  : "text-gray-600 hover:text-blue-600 transition-colors"
-              }
-            >
-              Settings
-            </NavLink>
-          )}
+                  ? "bg-blue-100 text-blue-700 shadow-sm"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+              }`
+            }
+          >
+            Settings
+          </NavLink>
 
-          {/* Admin Panel - Developer Only */}
-          {isDeveloper() && (
+          {/* Admin Panel - Developer + Org Admin */}
+          {(isDeveloper() || isOrgAdmin()) && (
             <NavLink
               to="/admin-panel"
               className={({ isActive }) =>
-                isActive
-                  ? "text-blue-600 font-medium border-b-2 border-blue-600 pb-1"
-                  : "text-gray-600 hover:text-blue-600 transition-colors"
+                `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? "bg-purple-100 text-purple-700 shadow-sm"
+                    : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                }`
               }
             >
-              Admin Panel
+              Admin
             </NavLink>
           )}
         </div>
@@ -102,15 +108,23 @@ const TopNav = () => {
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-blue-200 transition-all">
+                <Avatar className="h-9 w-9">
                   <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-sm font-medium">
+                    {getUserInitials()}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
+            <DropdownMenuContent className="w-64" align="end" forceMount>
+              <div className="flex items-center justify-start gap-3 p-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                    {getUserInitials()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex flex-col space-y-1 leading-none">
                   <p className="text-sm font-medium">{user?.email}</p>
                   <p className="text-xs text-gray-500">
@@ -119,20 +133,14 @@ const TopNav = () => {
                 </div>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                Profile
+              <DropdownMenuItem asChild>
+                <NavLink to="/settings" className="flex items-center">
+                  <SettingsIcon className="mr-2 h-4 w-4" />
+                  Settings
+                </NavLink>
               </DropdownMenuItem>
-              {(isDeveloper() || isOrgAdmin()) && (
-                <DropdownMenuItem asChild>
-                  <NavLink to="/settings">
-                    <SettingsIcon className="mr-2 h-4 w-4" />
-                    Settings
-                  </NavLink>
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-red-600">
+              <DropdownMenuItem onClick={signOut} className="text-red-600 focus:text-red-600">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>
@@ -143,7 +151,7 @@ const TopNav = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="md:hidden"
+            className="md:hidden h-10 w-10 p-0"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -153,17 +161,19 @@ const TopNav = () => {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
-          <div className="px-2 pt-2 pb-3 space-y-1">
+        <div className="md:hidden border-t border-gray-200 bg-white shadow-lg">
+          <div className="px-4 pt-4 pb-6 space-y-2">
             {navigationItems.map((item) => (
               item.module ? (
                 <PermissionGate key={item.name} module={item.module} fallback={null}>
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      isActive
-                        ? "block px-3 py-2 text-blue-600 font-medium bg-blue-50 rounded-md"
-                        : "block px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+                      `block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-blue-100 text-blue-700"
+                          : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                      }`
                     }
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -175,9 +185,11 @@ const TopNav = () => {
                   key={item.name}
                   to={item.path}
                   className={({ isActive }) =>
-                    isActive
-                      ? "block px-3 py-2 text-blue-600 font-medium bg-blue-50 rounded-md"
-                      : "block px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+                    `block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-blue-100 text-blue-700"
+                        : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    }`
                   }
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -186,27 +198,29 @@ const TopNav = () => {
               )
             ))}
             
-            {(isDeveloper() || isOrgAdmin()) && (
-              <NavLink
-                to="/settings"
-                className={({ isActive }) =>
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? "block px-3 py-2 text-blue-600 font-medium bg-blue-50 rounded-md"
-                    : "block px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-                }
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Settings
-              </NavLink>
-            )}
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                }`
+              }
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Settings
+            </NavLink>
 
-            {isDeveloper() && (
+            {(isDeveloper() || isOrgAdmin()) && (
               <NavLink
                 to="/admin-panel"
                 className={({ isActive }) =>
-                  isActive
-                    ? "block px-3 py-2 text-blue-600 font-medium bg-blue-50 rounded-md"
-                    : "block px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+                  `block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-purple-100 text-purple-700"
+                      : "text-gray-700 hover:text-purple-600 hover:bg-purple-50"
+                  }`
                 }
                 onClick={() => setMobileMenuOpen(false)}
               >
