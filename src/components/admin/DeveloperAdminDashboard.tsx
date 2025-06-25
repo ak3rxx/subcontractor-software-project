@@ -3,14 +3,13 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Settings, Users, Flag, Activity, Wrench, Eye, ShieldCheck } from 'lucide-react';
-import PermissionMatrix from './PermissionMatrix';
-import FeatureFlagManager from './FeatureFlagManager';
-import TestUserMode from './TestUserMode';
-import SystemDiagnostics from './SystemDiagnostics';
-import OnboardingEditor from './OnboardingEditor';
-import UserActivityLogs from './UserActivityLogs';
+import { Settings, Users, Flag, TestTube, Activity, BookOpen, Shield } from 'lucide-react';
+import PermissionMatrix from '@/components/admin/PermissionMatrix';
+import FeatureFlagManager from '@/components/admin/FeatureFlagManager';
+import TestUserMode from '@/components/admin/TestUserMode';
+import SystemDiagnostics from '@/components/admin/SystemDiagnostics';
+import OnboardingEditor from '@/components/admin/OnboardingEditor';
+import UserActivityLogs from '@/components/admin/UserActivityLogs';
 
 const DeveloperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -19,38 +18,39 @@ const DeveloperAdminDashboard: React.FC = () => {
     <div className="container mx-auto px-6 py-8">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <ShieldCheck className="h-8 w-8 text-red-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Developer Admin Panel</h1>
+          <Settings className="h-8 w-8 text-purple-600" />
+          <h1 className="text-3xl font-bold text-gray-900">Developer Admin</h1>
+          <Badge variant="destructive" className="ml-2">Developer Only</Badge>
         </div>
         <p className="text-gray-600">
-          System-wide controls and diagnostics. Developer access only.
+          System administration, permissions management, and development tools.
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
+            <Settings className="h-4 w-4" />
             Overview
           </TabsTrigger>
           <TabsTrigger value="permissions" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
+            <Shield className="h-4 w-4" />
             Permissions
           </TabsTrigger>
           <TabsTrigger value="features" className="flex items-center gap-2">
             <Flag className="h-4 w-4" />
             Features
           </TabsTrigger>
-          <TabsTrigger value="test-mode" className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            Test Mode
+          <TabsTrigger value="testing" className="flex items-center gap-2">
+            <TestTube className="h-4 w-4" />
+            Testing
           </TabsTrigger>
           <TabsTrigger value="diagnostics" className="flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
+            <Activity className="h-4 w-4" />
             Diagnostics
           </TabsTrigger>
           <TabsTrigger value="onboarding" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+            <BookOpen className="h-4 w-4" />
             Onboarding
           </TabsTrigger>
         </TabsList>
@@ -60,23 +60,23 @@ const DeveloperAdminDashboard: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  System Status
+                  <Users className="h-5 w-5" />
+                  System Users
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Role System</span>
-                    <Badge variant="default">Active</Badge>
+                    <span>Total Users</span>
+                    <span className="font-semibold">47</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Permissions</span>
-                    <Badge variant="default">Enforced</Badge>
+                    <span>Active Sessions</span>
+                    <span className="font-semibold">23</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Feature Flags</span>
-                    <Badge variant="default">Running</Badge>
+                    <span>Developers</span>
+                    <span className="font-semibold">3</span>
                   </div>
                 </div>
               </CardContent>
@@ -85,20 +85,24 @@ const DeveloperAdminDashboard: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Active Roles
+                  <Flag className="h-5 w-5" />
+                  Feature Flags
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-1">
-                  <Badge variant="outline">Developer</Badge>
-                  <Badge variant="outline">Org Admin</Badge>
-                  <Badge variant="outline">Project Manager</Badge>
-                  <Badge variant="outline">Estimator</Badge>
-                  <Badge variant="outline">Admin</Badge>
-                  <Badge variant="outline">Site Supervisor</Badge>
-                  <Badge variant="outline">Subcontractor</Badge>
-                  <Badge variant="outline">Client</Badge>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Total Flags</span>
+                    <span className="font-semibold">12</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Enabled</span>
+                    <span className="text-green-600 font-semibold">9</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Disabled</span>
+                    <span className="text-red-600 font-semibold">3</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -106,20 +110,25 @@ const DeveloperAdminDashboard: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  Quick Actions
+                  <Activity className="h-5 w-5" />
+                  System Health
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full">
-                  Run Health Check
-                </Button>
-                <Button variant="outline" size="sm" className="w-full">
-                  Clear Cache
-                </Button>
-                <Button variant="outline" size="sm" className="w-full">
-                  Export Logs
-                </Button>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Database</span>
+                    <span className="text-green-600 font-semibold">Healthy</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>API Response</span>
+                    <span className="text-green-600 font-semibold">142ms</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Error Rate</span>
+                    <span className="text-green-600 font-semibold">0.1%</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -133,7 +142,7 @@ const DeveloperAdminDashboard: React.FC = () => {
           <FeatureFlagManager />
         </TabsContent>
 
-        <TabsContent value="test-mode">
+        <TabsContent value="testing">
           <TestUserMode />
         </TabsContent>
 
