@@ -2,14 +2,16 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3 } from 'lucide-react';
+import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Timeline, GitBranch } from 'lucide-react';
 import { useProgrammeMilestones } from '@/hooks/useProgrammeMilestones';
-import { getUpcomingMilestones, sortMilestonesByDate, isWithinDays } from './programme/milestoneUtils';
+import { getUpcomingMilestones, sortMilestonesByDate } from './programme/milestoneUtils';
 import MilestoneSummaryCards from './programme/MilestoneSummaryCards';
 import MilestoneForm from './programme/MilestoneForm';
 import MilestoneTable from './programme/MilestoneTable';
 import OutlookOverview from './programme/OutlookOverview';
 import WeeklyCalendarView from './programme/WeeklyCalendarView';
+import GanttChart from './programme/GanttChart';
+import TimelineView from './programme/TimelineView';
 
 interface ProgrammeTrackerProps {
   projectName: string;
@@ -86,10 +88,18 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
 
       {/* Programme Outlook Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="gantt" className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4" />
+            Gantt Chart
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="flex items-center gap-2">
+            <Timeline className="h-4 w-4" />
+            Timeline
           </TabsTrigger>
           <TabsTrigger value="planner" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -111,6 +121,17 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             threeWeekLookAhead={threeWeekLookAhead}
             allMilestones={milestones}
           />
+        </TabsContent>
+
+        <TabsContent value="gantt" className="space-y-4">
+          <GanttChart 
+            milestones={milestones}
+            onMilestoneUpdate={updateMilestone}
+          />
+        </TabsContent>
+
+        <TabsContent value="timeline" className="space-y-4">
+          <TimelineView milestones={milestones} />
         </TabsContent>
 
         <TabsContent value="planner" className="space-y-4">
