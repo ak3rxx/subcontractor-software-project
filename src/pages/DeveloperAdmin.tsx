@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
+import { Navigate } from 'react-router-dom';
+import DeveloperAdminDashboard from '@/components/admin/DeveloperAdminDashboard';
 
-const AdminPanel: React.FC = () => {
+const DeveloperAdmin: React.FC = () => {
   const { isDeveloper, loading } = usePermissions();
 
   if (loading) {
@@ -17,13 +18,11 @@ const AdminPanel: React.FC = () => {
     );
   }
 
-  // Redirect based on user role
-  if (isDeveloper()) {
-    return <Navigate to="/developer-admin" replace />;
+  if (!isDeveloper()) {
+    return <Navigate to="/dashboard" replace />;
   }
 
-  // Redirect to organization panel or dashboard
-  return <Navigate to="/organization-panel" replace />;
+  return <DeveloperAdminDashboard />;
 };
 
-export default AdminPanel;
+export default DeveloperAdmin;

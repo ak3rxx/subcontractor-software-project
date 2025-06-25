@@ -11,6 +11,8 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import SubcontractorOnboarding from "./pages/SubcontractorOnboarding";
 import Projects from "./pages/Projects";
+import DeveloperAdmin from "./pages/DeveloperAdmin";
+import OrganizationPanel from "./pages/OrganizationPanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,16 @@ const App = () => (
             <Route path="/projects" element={
               <ProtectedRoute>
                 <Projects />
+              </ProtectedRoute>
+            } />
+            <Route path="/developer-admin" element={
+              <ProtectedRoute>
+                <DeveloperAdmin />
+              </ProtectedRoute>
+            } />
+            <Route path="/organization-panel" element={
+              <ProtectedRoute>
+                <OrganizationPanel />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

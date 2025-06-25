@@ -202,6 +202,33 @@ export type Database = {
           },
         ]
       }
+      feature_flags: {
+        Row: {
+          created_at: string
+          description: string | null
+          flag_name: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          flag_name: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          flag_name?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       organization_invitations: {
         Row: {
           created_at: string | null
@@ -351,6 +378,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_developer: boolean
           phone: string | null
           role: string | null
           updated_at: string | null
@@ -361,6 +389,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          is_developer?: boolean
           phone?: string | null
           role?: string | null
           updated_at?: string | null
@@ -371,6 +400,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_developer?: boolean
           phone?: string | null
           role?: string | null
           updated_at?: string | null
@@ -758,6 +788,57 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          module: string
+          permission_level: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          module: string
+          permission_level: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          module?: string
+          permission_level?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      system_diagnostics: {
+        Row: {
+          check_type: string
+          created_at: string
+          details: Json | null
+          id: string
+          message: string
+          status: string
+        }
+        Insert: {
+          check_type: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message: string
+          status: string
+        }
+        Update: {
+          check_type?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message?: string
+          status?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -872,6 +953,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_onboarding_state: {
+        Row: {
+          completed_steps: Json
+          created_at: string
+          current_step: string | null
+          id: string
+          is_completed: boolean
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_steps?: Json
+          created_at?: string
+          current_step?: string | null
+          id?: string
+          is_completed?: boolean
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_steps?: Json
+          created_at?: string
+          current_step?: string | null
+          id?: string
+          is_completed?: boolean
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       variations: {
         Row: {
