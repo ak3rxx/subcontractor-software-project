@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Timeline, GitBranch } from 'lucide-react';
+import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Clock, GitBranch } from 'lucide-react';
 import { useProgrammeMilestones } from '@/hooks/useProgrammeMilestones';
 import { getUpcomingMilestones, sortMilestonesByDate } from './programme/milestoneUtils';
 import MilestoneSummaryCards from './programme/MilestoneSummaryCards';
@@ -98,7 +97,7 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             Gantt Chart
           </TabsTrigger>
           <TabsTrigger value="timeline" className="flex items-center gap-2">
-            <Timeline className="h-4 w-4" />
+            <Clock className="h-4 w-4" />
             Timeline
           </TabsTrigger>
           <TabsTrigger value="planner" className="flex items-center gap-2">
