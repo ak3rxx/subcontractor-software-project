@@ -118,6 +118,7 @@ export type Database = {
           created_at: string | null
           description: string
           id: string
+          last_variation_update: string | null
           notes: string | null
           project_id: string | null
           quantity: number | null
@@ -125,12 +126,15 @@ export type Database = {
           unit: string | null
           unit_cost: number | null
           updated_at: string | null
+          variation_allowance: number | null
+          variation_impact: number | null
         }
         Insert: {
           budgeted_cost: number
           created_at?: string | null
           description: string
           id?: string
+          last_variation_update?: string | null
           notes?: string | null
           project_id?: string | null
           quantity?: number | null
@@ -138,12 +142,15 @@ export type Database = {
           unit?: string | null
           unit_cost?: number | null
           updated_at?: string | null
+          variation_allowance?: number | null
+          variation_impact?: number | null
         }
         Update: {
           budgeted_cost?: number
           created_at?: string | null
           description?: string
           id?: string
+          last_variation_update?: string | null
           notes?: string | null
           project_id?: string | null
           quantity?: number | null
@@ -151,6 +158,8 @@ export type Database = {
           unit?: string | null
           unit_cost?: number | null
           updated_at?: string | null
+          variation_allowance?: number | null
+          variation_impact?: number | null
         }
         Relationships: [
           {
@@ -528,7 +537,9 @@ export type Database = {
       programme_milestones: {
         Row: {
           actual_date: string | null
+          affected_by_variations: Json | null
           assigned_to: string | null
+          baseline_date: string | null
           category: string | null
           completion_percentage: number | null
           created_at: string | null
@@ -552,10 +563,14 @@ export type Database = {
           start_date_planned: string | null
           status: string | null
           updated_at: string | null
+          variation_adjusted_date: string | null
+          variation_time_impact: number | null
         }
         Insert: {
           actual_date?: string | null
+          affected_by_variations?: Json | null
           assigned_to?: string | null
+          baseline_date?: string | null
           category?: string | null
           completion_percentage?: number | null
           created_at?: string | null
@@ -579,10 +594,14 @@ export type Database = {
           start_date_planned?: string | null
           status?: string | null
           updated_at?: string | null
+          variation_adjusted_date?: string | null
+          variation_time_impact?: number | null
         }
         Update: {
           actual_date?: string | null
+          affected_by_variations?: Json | null
           assigned_to?: string | null
+          baseline_date?: string | null
           category?: string | null
           completion_percentage?: number | null
           created_at?: string | null
@@ -606,6 +625,8 @@ export type Database = {
           start_date_planned?: string | null
           status?: string | null
           updated_at?: string | null
+          variation_adjusted_date?: string | null
+          variation_time_impact?: number | null
         }
         Relationships: [
           {
@@ -1307,6 +1328,87 @@ export type Database = {
           },
         ]
       }
+      variation_budget_impacts: {
+        Row: {
+          budget_item_id: string | null
+          created_at: string
+          id: string
+          impact_amount: number
+          impact_type: string
+          variation_id: string | null
+        }
+        Insert: {
+          budget_item_id?: string | null
+          created_at?: string
+          id?: string
+          impact_amount?: number
+          impact_type: string
+          variation_id?: string | null
+        }
+        Update: {
+          budget_item_id?: string | null
+          created_at?: string
+          id?: string
+          impact_amount?: number
+          impact_type?: string
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variation_budget_impacts_budget_item_id_fkey"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variation_budget_impacts_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      variation_milestones: {
+        Row: {
+          created_at: string
+          id: string
+          milestone_id: string | null
+          time_impact_days: number
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          milestone_id?: string | null
+          time_impact_days?: number
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          milestone_id?: string | null
+          time_impact_days?: number
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variation_milestones_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "programme_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variation_milestones_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       variations: {
         Row: {
           approval_comments: string | null
@@ -1330,6 +1432,8 @@ export type Database = {
           request_date: string | null
           requested_by: string | null
           status: string | null
+          submitted_by: string | null
+          submitted_date: string | null
           time_impact: number | null
           time_impact_details: Json | null
           title: string
@@ -1359,6 +1463,8 @@ export type Database = {
           request_date?: string | null
           requested_by?: string | null
           status?: string | null
+          submitted_by?: string | null
+          submitted_date?: string | null
           time_impact?: number | null
           time_impact_details?: Json | null
           title: string
@@ -1388,6 +1494,8 @@ export type Database = {
           request_date?: string | null
           requested_by?: string | null
           status?: string | null
+          submitted_by?: string | null
+          submitted_date?: string | null
           time_impact?: number | null
           time_impact_details?: Json | null
           title?: string
@@ -1424,6 +1532,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_project_variation_impact: {
+        Args: { project_uuid: string }
+        Returns: {
+          total_approved_cost: number
+          total_pending_cost: number
+          total_time_impact: number
+        }[]
+      }
       generate_inspection_number: {
         Args: Record<PropertyKey, never>
         Returns: string

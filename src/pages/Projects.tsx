@@ -1,189 +1,239 @@
-
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Building2, Calendar, MapPin, DollarSign, ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Building2, Calendar, Users, Settings, Calculator } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import ProjectDashboard from '@/components/projects/ProjectDashboard';
-import TopNav from '@/components/TopNav';
+import EnhancedVariationManager from '@/components/projects/EnhancedVariationManager';
+import TaskManager from '@/components/projects/TaskManager';
+import RFIManager from '@/components/projects/RFIManager';
+import QAITPTracker from '@/components/projects/QAITPTracker';
+import ProgrammeTracker from '@/components/projects/ProgrammeTracker';
+import FinanceManager from '@/components/projects/finance/FinanceManager';
+import DocumentManager from '@/components/projects/DocumentManager';
+import TeamNotes from '@/components/projects/TeamNotes';
 
 const Projects = () => {
-  const { user } = useAuth();
   const { projects, loading, createProject } = useProjects();
-  const [showProjectSetup, setShowProjectSetup] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  const handleProjectCreated = async (projectData: any) => {
+  const handleCreateProject = async (projectData: any) => {
     const newProject = await createProject(projectData);
     if (newProject) {
       setSelectedProject(newProject);
-      setShowProjectSetup(false);
+      setShowNewProject(false);
+      setActiveTab('dashboard');
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      'planning': { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: '📋' },
-      'in-progress': { bg: 'bg-green-100', text: 'text-green-800', icon: '⚡' },
-      'paused': { bg: 'bg-orange-100', text: 'text-orange-800', icon: '⏸️' },
-      'complete': { bg: 'bg-blue-100', text: 'text-blue-800', icon: '✅' },
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || { bg: 'bg-gray-100', text: 'text-gray-800', icon: '❓' };
-    
-    return (
-      <Badge className={`${config.bg} ${config.text} font-medium`}>
-        {config.icon} {status.replace('-', ' ')}
-      </Badge>
-    );
+    switch (status) {
+      case 'planning':
+        return <Badge variant="secondary">Planning</Badge>;
+      case 'in-progress':
+        return <Badge className="bg-blue-100 text-blue-800">In Progress</Badge>;
+      case 'paused':
+        return <Badge variant="outline">Paused</Badge>;
+      case 'complete':
+        return <Badge className="bg-green-100 text-green-800">Complete</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
   };
 
-  if (selectedProject) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <TopNav />
-        <div className="flex-1 container mx-auto py-6 space-y-6 max-w-7xl">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setSelectedProject(null)}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Projects
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold">{selectedProject.name}</h1>
-                <p className="text-muted-foreground">Project Management Dashboard</p>
-              </div>
-            </div>
-          </div>
-
-          <ProjectDashboard projectData={selectedProject} />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading projects...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <TopNav />
-      
-      <div className="flex-1 container mx-auto py-6 space-y-6 max-w-7xl">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Projects Management</h1>
-            <p className="text-muted-foreground">Manage your construction projects and workflows</p>
+  if (selectedProject) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{selectedProject.name}</h1>
+              <p className="text-gray-600">{selectedProject.description}</p>
+              <div className="flex items-center gap-4 mt-2">
+                {getStatusBadge(selectedProject.status)}
+                <span className="text-sm text-gray-500">
+                  Created: {new Date(selectedProject.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedProject(null)}
+            >
+              ← Back to Projects
+            </Button>
           </div>
-          <Button onClick={() => setShowProjectSetup(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
         </div>
 
-        {showProjectSetup && (
-          <ProjectSetup 
-            onClose={() => setShowProjectSetup(false)}
-            onProjectCreated={handleProjectCreated}
-          />
-        )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-9">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="variations">Variations</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="rfis">RFIs</TabsTrigger>
+            <TabsTrigger value="qa">QA/ITP</TabsTrigger>
+            <TabsTrigger value="programme">Programme</TabsTrigger>
+            <TabsTrigger value="finance">Finance</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
+          </TabsList>
 
-        {!showProjectSetup && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-blue-600" />
-                Active Projects ({projects.length})
-              </CardTitle>
-              <CardDescription>
-                Select a project to access its management dashboard and tools
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading projects...</p>
-                </div>
-              ) : projects.length === 0 ? (
-                <div className="text-center py-12">
-                  <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No Projects Yet</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Create your first project to start managing construction workflows, tasks, and team collaboration.
-                  </p>
-                  <Button onClick={() => setShowProjectSetup(true)} className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Create Your First Project
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {projects.map((project) => (
-                    <Card 
-                      key={project.id}
-                      className="hover:border-blue-400 hover:shadow-lg cursor-pointer transition-all duration-200 group"
-                      onClick={() => setSelectedProject(project)}
-                    >
-                      <CardContent className="p-6">
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold mb-1 group-hover:text-blue-600 transition-colors truncate">
-                                {project.name}
-                              </h3>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                                <Building2 className="h-4 w-4 flex-shrink-0" />
-                                <span className="truncate">{project.project_type || 'Construction Project'}</span>
-                              </div>
-                            </div>
-                            {getStatusBadge(project.status)}
-                          </div>
-                          
-                          {project.description && (
-                            <p className="text-sm text-gray-600 line-clamp-2">
-                              {project.description}
-                            </p>
-                          )}
-                          
-                          {project.site_address && (
-                            <div className="flex items-start gap-2 text-sm text-gray-600">
-                              <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                              <span className="line-clamp-2">{project.site_address}</span>
-                            </div>
-                          )}
-                          
-                          <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                              <Calendar className="h-4 w-4" />
-                              <span>
-                                {project.start_date 
-                                  ? new Date(project.start_date).toLocaleDateString()
-                                  : 'Start TBD'
-                                }
-                              </span>
-                            </div>
-                            {project.total_budget && (
-                              <div className="flex items-center gap-1 text-sm font-medium text-green-600">
-                                <DollarSign className="h-4 w-4" />
-                                <span>{project.total_budget.toLocaleString()}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+          <TabsContent value="dashboard" className="mt-6">
+            <ProjectDashboard 
+              project={selectedProject}
+              onNavigateToModule={(module) => setActiveTab(module)}
+            />
+          </TabsContent>
+
+          <TabsContent value="variations" className="mt-6">
+            <EnhancedVariationManager
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+
+          <TabsContent value="tasks" className="mt-6">
+            <TaskManager projectId={selectedProject.id} />
+          </TabsContent>
+
+          <TabsContent value="rfis" className="mt-6">
+            <RFIManager 
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+
+          <TabsContent value="qa" className="mt-6">
+            <QAITPTracker 
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+
+          <TabsContent value="programme" className="mt-6">
+            <ProgrammeTracker 
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+
+          <TabsContent value="finance" className="mt-6">
+            <FinanceManager 
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-6">
+            <DocumentManager 
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+
+          <TabsContent value="notes" className="mt-6">
+            <TeamNotes 
+              projectName={selectedProject.name}
+              projectId={selectedProject.id}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
+          <p className="text-gray-600">Manage your construction projects with integrated modules</p>
+        </div>
+        <Button onClick={() => setShowNewProject(true)} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          New Project
+        </Button>
+      </div>
+
+      {showNewProject && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Create New Project</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProjectSetup 
+              onSubmit={handleCreateProject}
+              onCancel={() => setShowNewProject(false)}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {projects.length === 0 ? (
+        <div className="text-center py-12">
+          <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Projects Yet</h3>
+          <p className="text-gray-600 mb-6">Create your first project to get started with the integrated management system</p>
+          <Button onClick={() => setShowNewProject(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create First Project
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project) => (
+            <Card key={project.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">{project.name}</CardTitle>
+                  {getStatusBadge(project.status)}
+                </div>
+                <p className="text-gray-600 text-sm line-clamp-2">{project.description}</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-4 w-4" />
+                    <span>Started: {project.start_date || 'Not set'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users className="h-4 w-4" />
+                    <span>PM: {project.project_manager_id ? 'Assigned' : 'Not assigned'}</span>
+                  </div>
+                  {project.total_budget && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Calculator className="h-4 w-4" />
+                      <span>Budget: ${project.total_budget.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+                <Button 
+                  className="w-full mt-4" 
+                  onClick={() => setSelectedProject(project)}
+                >
+                  Open Project
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
