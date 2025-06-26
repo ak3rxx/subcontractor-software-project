@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,7 +43,13 @@ export const useProgrammeMilestones = (projectId?: string) => {
   const { toast } = useToast();
 
   const fetchMilestones = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping milestone fetch');
+      setLoading(false);
+      return;
+    }
+
+    console.log('Fetching milestones for user:', user.id, 'project:', projectId);
 
     try {
       let query = supabase
@@ -58,11 +63,13 @@ export const useProgrammeMilestones = (projectId?: string) => {
 
       const { data, error } = await query;
 
+      console.log('Supabase query result:', { data, error, projectId });
+
       if (error) {
         console.error('Error fetching milestones:', error);
         toast({
-          title: "Error",
-          description: "Failed to load programme milestones",
+          title: "Database Error",
+          description: `Failed to load programme milestones: ${error.message}`,
           variant: "destructive"
         });
         return;
@@ -96,6 +103,7 @@ export const useProgrammeMilestones = (projectId?: string) => {
         updated_at: milestone.updated_at || '',
       }));
 
+      console.log('Transformed milestones:', transformedMilestones);
       setMilestones(transformedMilestones);
     } catch (error) {
       console.error('Error:', error);
@@ -110,7 +118,18 @@ export const useProgrammeMilestones = (projectId?: string) => {
   };
 
   const createMilestone = async (milestoneData: Partial<ProgrammeMilestone>) => {
-    if (!user) return null;
+    if (!user) {
+      console.error('No user found for milestone creation');
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create milestones",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    console.log('Creating milestone with data:', milestoneData);
+    console.log('User context:', user);
 
     try {
       const insertData: MilestoneInsert = {
@@ -135,17 +154,21 @@ export const useProgrammeMilestones = (projectId?: string) => {
         notes: milestoneData.notes,
       };
 
+      console.log('Insert data prepared:', insertData);
+
       const { data, error } = await supabase
         .from('programme_milestones')
         .insert(insertData)
         .select()
         .single();
 
+      console.log('Supabase insert result:', { data, error });
+
       if (error) {
         console.error('Error creating milestone:', error);
         toast({
-          title: "Error",
-          description: "Failed to create milestone",
+          title: "Database Error",
+          description: `Failed to create milestone: ${error.message}`,
           variant: "destructive"
         });
         return null;
@@ -159,7 +182,12 @@ export const useProgrammeMilestones = (projectId?: string) => {
       await fetchMilestones();
       return data;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while creating the milestone",
+        variant: "destructive"
+      });
       return null;
     }
   };
@@ -245,6 +273,7 @@ export const useProgrammeMilestones = (projectId?: string) => {
   };
 
   useEffect(() => {
+    console.log('useProgrammeMilestones effect triggered:', { user: user?.id, projectId });
     fetchMilestones();
   }, [user, projectId]);
 
