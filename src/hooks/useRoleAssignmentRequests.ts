@@ -67,6 +67,7 @@ export const useRoleAssignmentRequests = () => {
 
       const transformedRequests = (requestsData || []).map(request => ({
         ...request,
+        status: request.status as 'pending' | 'approved' | 'rejected',
         user_profile: request.profiles ? {
           full_name: request.profiles.full_name,
           email: request.profiles.email

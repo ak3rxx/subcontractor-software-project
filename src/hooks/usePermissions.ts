@@ -38,6 +38,8 @@ interface UserProfile {
   is_developer: boolean;
   email: string;
   full_name?: string;
+  company?: string;
+  phone?: string;
 }
 
 interface RolePermission {
@@ -65,7 +67,7 @@ export const usePermissions = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, is_developer, email, full_name')
+        .select('id, role, is_developer, email, full_name, company, phone')
         .eq('id', user.id)
         .single();
 

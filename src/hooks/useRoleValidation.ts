@@ -49,7 +49,12 @@ export const useRoleValidation = () => {
         return;
       }
 
-      setValidation(data);
+      if (data) {
+        setValidation({
+          ...data,
+          validation_status: data.validation_status as ValidationStatus
+        });
+      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
