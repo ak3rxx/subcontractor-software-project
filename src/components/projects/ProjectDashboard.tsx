@@ -168,7 +168,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="programme" className="space-y-6">
-          <ProgrammeTracker projectName={projectData.name} />
+          <ProgrammeTracker projectName={projectData.name} projectId={projectData.id} />
         </TabsContent>
 
         <TabsContent value="qa-itp" className="space-y-6">
