@@ -29,31 +29,31 @@ const CostBreakdown: React.FC<CostBreakdownProps> = ({
   setGstRate
 }) => {
   const updateCostBreakdown = (index: number, field: keyof CostBreakdownItem, value: any) => {
-    setCostBreakdown(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      
-      if (field === 'quantity' || field === 'rate') {
-        updated[index].subtotal = updated[index].quantity * updated[index].rate;
-      }
-      
-      return updated;
-    });
+    const updated = [...costBreakdown];
+    updated[index] = { ...updated[index], [field]: value };
+    
+    if (field === 'quantity' || field === 'rate') {
+      updated[index].subtotal = updated[index].quantity * updated[index].rate;
+    }
+    
+    setCostBreakdown(updated);
   };
 
   const addCostItem = () => {
-    setCostBreakdown(prev => [...prev, {
+    const newItem = {
       id: Date.now().toString(),
       description: '',
       quantity: 1,
       rate: 0,
       subtotal: 0
-    }]);
+    };
+    setCostBreakdown([...costBreakdown, newItem]);
   };
 
   const removeCostItem = (index: number) => {
     if (costBreakdown.length > 1) {
-      setCostBreakdown(prev => prev.filter((_, i) => i !== index));
+      const filtered = costBreakdown.filter((_, i) => i !== index);
+      setCostBreakdown(filtered);
     }
   };
 
