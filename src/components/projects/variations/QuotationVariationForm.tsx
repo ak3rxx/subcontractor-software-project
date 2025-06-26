@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -99,6 +100,25 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
       if (editingVariation.id && fetchAttachments) {
         fetchAttachments();
       }
+    } else {
+      // Reset form for new variation
+      setFormData({
+        title: '',
+        description: '',
+        location: '',
+        category: '',
+        trade: '',
+        priority: 'medium',
+        clientEmail: '',
+        justification: '',
+        requires_eot: false,
+        requires_nod: false,
+        eot_days: 0,
+        nod_days: 0
+      });
+      setCostBreakdown([{ id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 }]);
+      setGstRate(10);
+      setUploadedFiles([]);
     }
   }, [editingVariation, fetchAttachments]);
 
@@ -155,7 +175,19 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
 
   const handleDeleteAttachment = async (attachmentId: string) => {
     if (deleteAttachment) {
-      await deleteAttachment(attachmentId);
+      try {
+        await deleteAttachment(attachmentId);
+        toast({
+          title: "Success",
+          description: "Attachment deleted successfully"
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete attachment",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -185,7 +217,16 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
       // Upload files if we have any and we're editing a variation
       if (uploadedFiles.length > 0 && editingVariation && uploadAttachment) {
         for (const file of uploadedFiles) {
-          await uploadAttachment(file);
+          try {
+            await uploadAttachment(file);
+          } catch (error) {
+            console.error('Error uploading file:', file.name, error);
+            toast({
+              title: "Warning",
+              description: `Failed to upload ${file.name}`,
+              variant: "destructive"
+            });
+          }
         }
       }
       
@@ -500,7 +541,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   type="file"
                   multiple
                   onChange={handleFileUpload}
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
                 />
               </div>
 

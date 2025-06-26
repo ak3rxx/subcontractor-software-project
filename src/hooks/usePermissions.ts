@@ -106,10 +106,24 @@ export const usePermissions = () => {
     return userProfile?.role || 'client';
   };
 
+  const isDeveloper = (): boolean => {
+    return userProfile?.is_developer === true;
+  };
+
   const hasPermission = (module: Module, requiredLevel: PermissionLevel = 'read'): boolean => {
     if (!userProfile) return false;
 
+    // Developers have full access to everything
+    if (isDeveloper()) return true;
+
     const userRole = getUserRole();
+    
+    // org_admin should have admin access to most modules
+    if (userRole === 'org_admin') {
+      const adminModules: Module[] = ['projects', 'variations', 'tasks', 'rfis', 'qa_itp', 'finance', 'documents', 'programme', 'deliveries', 'handovers', 'notes'];
+      if (adminModules.includes(module)) return true;
+    }
+
     const permission = permissions.find(p => p.role === userRole && p.module === module);
     
     if (!permission) return false;
@@ -133,10 +147,6 @@ export const usePermissions = () => {
     return hasPermission(module, 'admin');
   };
 
-  const isDeveloper = (): boolean => {
-    return userProfile?.is_developer === true;
-  };
-
   const isOrgAdmin = (): boolean => {
     return getUserRole() === 'org_admin';
   };
@@ -146,12 +156,18 @@ export const usePermissions = () => {
   };
 
   const getPermissionLevel = (module: Module): PermissionLevel => {
+    if (isDeveloper()) return 'admin';
+    
     const userRole = getUserRole();
     const permission = permissions.find(p => p.role === userRole && p.module === module);
     return permission?.permission_level || 'none';
   };
 
   const getAccessibleModules = (): Module[] => {
+    if (isDeveloper()) {
+      return ['admin_panel', 'organization_panel', 'projects', 'tasks', 'rfis', 'qa_itp', 'variations', 'finance', 'documents', 'programme', 'deliveries', 'handovers', 'notes', 'onboarding', 'diagnostics'];
+    }
+
     const userRole = getUserRole();
     return permissions
       .filter(p => p.role === userRole && p.permission_level !== 'none')

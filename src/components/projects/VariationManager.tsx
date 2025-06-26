@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,9 @@ import {
 } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
 import QuotationVariationForm from './variations/QuotationVariationForm';
-import VariationDetailsModal from './VariationDetailsModal';
+import EnhancedVariationDetailsModal from './variations/EnhancedVariationDetailsModal';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface VariationManagerProps {
   projectName: string;
@@ -22,6 +24,7 @@ interface VariationManagerProps {
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId }) => {
   const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
   const { toast } = useToast();
+  const { isDeveloper, canEdit, canAdmin } = usePermissions();
   
   const [showForm, setShowForm] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
@@ -30,6 +33,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+
+  // Permission checks - developers have full access
+  const canCreateVariations = isDeveloper() || canEdit('variations');
+  const canEditVariations = isDeveloper() || canEdit('variations') || canAdmin('variations');
+  const canSendEmails = isDeveloper() || canAdmin('variations');
 
   const filteredVariations = variations.filter(variation => {
     const matchesSearch = variation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -87,6 +95,14 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   };
 
   const handleEdit = (variation: any) => {
+    if (!canEditVariations) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to edit variations",
+        variant: "destructive"
+      });
+      return;
+    }
     setEditingVariation(variation);
     setShowForm(true);
   };
@@ -97,6 +113,15 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   };
 
   const handleSendEmail = async (variationId: string) => {
+    if (!canSendEmails) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to send emails",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const success = await sendVariationEmail(variationId);
       if (success) {
@@ -122,6 +147,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           title: "Success",
           description: "Variation updated successfully"
         });
+        // Refresh the selected variation to show updated data
+        setSelectedVariation(result);
       }
     } catch (error) {
       toast({
@@ -183,10 +210,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <h2 className="text-2xl font-bold text-gray-900">Variations</h2>
           <p className="text-gray-600">Manage project variations and change orders</p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          New Variation
-        </Button>
+        {canCreateVariations && (
+          <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            New Variation
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -302,9 +331,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           {filteredVariations.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No variations found</p>
-              <Button onClick={() => setShowForm(true)}>
-                Create First Variation
-              </Button>
+              {canCreateVariations && (
+                <Button onClick={() => setShowForm(true)}>
+                  Create First Variation
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -364,14 +395,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(variation)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {variation.client_email && !variation.email_sent && (
+                          {canEditVariations && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(variation)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canSendEmails && variation.client_email && !variation.email_sent && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -392,18 +425,20 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       </Card>
 
       {/* Modals */}
-      <QuotationVariationForm
-        isOpen={showForm}
-        onClose={() => {
-          setShowForm(false);
-          setEditingVariation(null);
-        }}
-        onSubmit={handleFormSubmit}
-        projectName={projectName}
-        editingVariation={editingVariation}
-      />
+      {canCreateVariations && (
+        <QuotationVariationForm
+          isOpen={showForm}
+          onClose={() => {
+            setShowForm(false);
+            setEditingVariation(null);
+          }}
+          onSubmit={handleFormSubmit}
+          projectName={projectName}
+          editingVariation={editingVariation}
+        />
+      )}
 
-      <VariationDetailsModal
+      <EnhancedVariationDetailsModal
         variation={selectedVariation}
         isOpen={showDetailsModal}
         onClose={() => {
