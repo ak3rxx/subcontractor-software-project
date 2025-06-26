@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, MapPin, MessageSquare, Calculator, Wrench, Edit } from 'lucide-react';
+import { 
+  Plus, Search, Filter, Eye, Edit, Send, 
+  DollarSign, Clock, MapPin, AlertTriangle, CheckCircle, XCircle
+} from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
-import { useVariationAttachments } from '@/hooks/useVariationAttachments';
-import EnhancedVariationDetailsModal from './variations/EnhancedVariationDetailsModal';
 import QuotationVariationForm from './variations/QuotationVariationForm';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import VariationDetailsModal from './VariationDetailsModal';
+import { useToast } from '@/hooks/use-toast';
 
 interface VariationManagerProps {
   projectName: string;
@@ -18,53 +21,110 @@ interface VariationManagerProps {
 }
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId }) => {
-  const { toast } = useToast();
-  const { user } = useAuth();
   const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
-  const [showNewVariation, setShowNewVariation] = useState(false);
-  const [editingVariation, setEditingVariation] = useState<any>(null);
-  const [emailingSending, setEmailSending] = useState<string | null>(null);
+  const { toast } = useToast();
+  
+  const [showForm, setShowForm] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [editingVariation, setEditingVariation] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
-  // Permission checks
-  const userRole = user?.role || 'user';
-  const userEmail = user?.email || '';
-  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
-  const canEdit = [
-    'project_manager', 
-    'contract_administrator', 
-    'project_engineer',
-    'admin',
-    'manager'
-  ].includes(userRole) || isFullAccessUser || !userRole;
+  const filteredVariations = variations.filter(variation => {
+    const matchesSearch = variation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         variation.variation_number.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || variation.status === statusFilter;
+    const matchesPriority = priorityFilter === 'all' || variation.priority === priorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  const handleCreateVariation = async (data: any) => {
+    try {
+      await createVariation(data);
+      toast({
+        title: "Success",
+        description: "Variation created successfully"
+      });
+      setShowForm(false);
+      setEditingVariation(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create variation",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateVariation = async (data: any) => {
+    if (!editingVariation) return;
+    
+    try {
+      await updateVariation(editingVariation.id, data);
+      toast({
+        title: "Success",
+        description: "Variation updated successfully"
+      });
+      setShowForm(false);
+      setEditingVariation(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update variation",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFormSubmit = async (data: any) => {
+    if (editingVariation) {
+      await handleUpdateVariation(data);
+    } else {
+      await handleCreateVariation(data);
+    }
+  };
+
+  const handleEdit = (variation: any) => {
+    setEditingVariation(variation);
+    setShowForm(true);
+  };
 
   const handleViewDetails = (variation: any) => {
     setSelectedVariation(variation);
     setShowDetailsModal(true);
   };
 
-  const handleEditVariation = (variation: any) => {
-    setEditingVariation(variation);
-    setShowDetailsModal(false);
-  };
-
   const handleSendEmail = async (variationId: string) => {
-    setEmailSending(variationId);
-    const success = await sendVariationEmail(variationId);
-    setEmailSending(null);
+    try {
+      const success = await sendVariationEmail(variationId);
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Variation email sent successfully"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send variation email",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-100 text-green-800">✅ Approved</Badge>;
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
       case 'rejected':
-        return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>;
+        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       case 'pending_approval':
-        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       case 'draft':
-        return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -73,7 +133,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return <Badge variant="destructive">High</Badge>;
+        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />High</Badge>;
       case 'medium':
         return <Badge variant="secondary">Medium</Badge>;
       case 'low':
@@ -83,30 +143,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     }
   };
 
-  const getTradeBadge = (trade: string) => {
-    if (!trade) return <Badge variant="outline">Not specified</Badge>;
-    
-    const tradeColors: { [key: string]: string } = {
-      'carpentry': 'bg-orange-100 text-orange-800',
-      'tiling': 'bg-blue-100 text-blue-800',
-      'painting': 'bg-purple-100 text-purple-800',
-      'rendering': 'bg-green-100 text-green-800',
-      'builder': 'bg-yellow-100 text-yellow-800',
-      'electrical': 'bg-red-100 text-red-800',
-      'plumbing': 'bg-cyan-100 text-cyan-800',
-      'hvac': 'bg-indigo-100 text-indigo-800',
-    };
-
-    const colorClass = tradeColors[trade.toLowerCase()] || 'bg-gray-100 text-gray-800';
-    
-    return (
-      <Badge className={colorClass}>
-        <Wrench className="h-3 w-3 mr-1" />
-        {trade.charAt(0).toUpperCase() + trade.slice(1)}
-      </Badge>
-    );
-  };
-
   const formatCurrency = (amount: number) => {
     if (amount >= 0) {
       return `+$${amount.toLocaleString()}`;
@@ -114,332 +150,250 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     return `-$${Math.abs(amount).toLocaleString()}`;
   };
 
-  const handleSubmitVariation = async (variationData: any) => {
-    try {
-      const result = await createVariation(variationData);
-      
-      if (result && variationData.attachedFiles && variationData.attachedFiles.length > 0) {
-        // Upload files after variation is created
-        for (const file of variationData.attachedFiles) {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${result.id}/${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('variation-attachments')
-            .upload(fileName, file);
-
-          if (!uploadError) {
-            await supabase
-              .from('variation_attachments')
-              .insert({
-                variation_id: result.id,
-                file_name: file.name,
-                file_path: fileName,
-                file_size: file.size,
-                file_type: file.type
-              });
-          }
-        }
-      }
-      
-      if (result) {
-        setShowNewVariation(false);
-        
-        toast({
-          title: "Success",
-          description: "Variation created successfully!"
-        });
-      }
-    } catch (error) {
-      console.error('Error creating variation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create variation",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleUpdateVariation = async (variationData: any) => {
-    try {
-      const result = await updateVariation(editingVariation.id, variationData);
-      
-      if (result && variationData.attachedFiles && variationData.attachedFiles.length > 0) {
-        // Upload new files for updated variation
-        for (const file of variationData.attachedFiles) {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${editingVariation.id}/${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('variation-attachments')
-            .upload(fileName, file);
-
-          if (!uploadError) {
-            await supabase
-              .from('variation_attachments')
-              .insert({
-                variation_id: editingVariation.id,
-                file_name: file.name,
-                file_path: fileName,
-                file_size: file.size,
-                file_type: file.type
-              });
-          }
-        }
-      }
-      
-      if (result) {
-        setEditingVariation(null); // Close the form
-        
-        toast({
-          title: "Success",
-          description: "Variation updated successfully!"
-        });
-      }
-    } catch (error) {
-      console.error('Error updating variation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update variation",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleVariationUpdate = async (id: string, updates: any) => {
-    await updateVariation(id, updates);
-  };
-
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading variations...</p>
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Variation Manager</h3>
-          <p className="text-gray-600">Create professional variations with detailed cost breakdowns and trade classification</p>
+          <h2 className="text-2xl font-bold text-gray-900">Variations</h2>
+          <p className="text-gray-600">Manage project variations and change orders</p>
         </div>
-        <Button onClick={() => setShowNewVariation(true)} className="flex items-center gap-2">
-          <Calculator className="h-4 w-4" />
+        <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
           New Variation
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4 text-center">
-            <FileText className="h-8 w-8 mx-auto text-gray-500 mb-2" />
-            <div className="text-2xl font-bold">{variations.length}</div>
-            <div className="text-sm text-gray-600">Total</div>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Variations</p>
+                <p className="text-2xl font-bold">{variations.length}</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-blue-500" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto text-gray-500 mb-2" />
-            <div className="text-2xl font-bold">
-              {variations.filter(v => v.status === 'draft').length}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Approved Value</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ${variations
+                    .filter(v => v.status === 'approved')
+                    .reduce((sum, v) => sum + (v.total_amount || 0), 0)
+                    .toLocaleString()}
+                </p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
-            <div className="text-sm text-gray-600">Draft</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4 text-center">
-            <AlertTriangle className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
-            <div className="text-2xl font-bold">
-              {variations.filter(v => v.status === 'pending_approval').length}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Pending Approval</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {variations.filter(v => v.status === 'pending_approval').length}
+                </p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-500" />
             </div>
-            <div className="text-sm text-gray-600">Pending</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4 text-center">
-            <DollarSign className="h-8 w-8 mx-auto text-green-500 mb-2" />
-            <div className="text-2xl font-bold">
-              ${variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + (v.total_amount || v.cost_impact), 0).toLocaleString()}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">High Priority</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {variations.filter(v => v.priority === 'high').length}
+                </p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-red-500" />
             </div>
-            <div className="text-sm text-gray-600">Approved Value</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Clock className="h-8 w-8 mx-auto text-blue-500 mb-2" />
-            <div className="text-2xl font-bold">
-              {variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.time_impact, 0)}
-            </div>
-            <div className="text-sm text-gray-600">Days Extension</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* New/Edit Variation Form */}
-      {(showNewVariation || editingVariation) && (
-        <Card>
-          <CardContent className="p-6">
-            <QuotationVariationForm
-              onSubmit={editingVariation ? handleUpdateVariation : handleSubmitVariation}
-              onCancel={() => {
-                setShowNewVariation(false);
-                setEditingVariation(null);
-              }}
-              projectName={projectName}
-              isEdit={!!editingVariation}
-              initialData={editingVariation}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search variations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-48">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Variations Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Variation Register</CardTitle>
+          <CardTitle>Variations List</CardTitle>
         </CardHeader>
         <CardContent>
-          {variations.length === 0 ? (
+          {filteredVariations.length === 0 ? (
             <div className="text-center py-8">
-              <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Variations Yet</h3>
-              <p className="text-gray-600 mb-4">Create your first variation to get started</p>
-              <Button onClick={() => setShowNewVariation(true)}>
-                <Calculator className="h-4 w-4 mr-2" />
-                Create Variation
+              <p className="text-gray-500 mb-4">No variations found</p>
+              <Button onClick={() => setShowForm(true)}>
+                Create First Variation
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Trade</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>GST</TableHead>
-                  <TableHead>Time Impact</TableHead>
-                  <TableHead>EOT/NOD</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Email Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {variations.map((variation) => (
-                  <TableRow key={variation.id}>
-                    <TableCell className="font-mono text-sm">{variation.variation_number}</TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate">
-                      {variation.title}
-                    </TableCell>
-                    <TableCell>
-                      {getTradeBadge(variation.trade)}
-                    </TableCell>
-                    <TableCell className="max-w-[150px] truncate">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-gray-500" />
-                        <span title={variation.location}>{variation.location}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{variation.request_date}</TableCell>
-                    <TableCell className="text-green-600 font-medium">
-                      ${(variation.total_amount || variation.cost_impact).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-blue-600">
-                      ${variation.gst_amount?.toLocaleString() || '0'}
-                    </TableCell>
-                    <TableCell>
-                      {variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        {variation.requires_eot && (
-                          <Badge variant="outline" className="text-xs">
-                            EOT: {variation.eot_days}d
-                          </Badge>
-                        )}
-                        {variation.requires_nod && (
-                          <Badge variant="outline" className="text-xs">
-                            NOD: {variation.nod_days}d
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(variation.status)}</TableCell>
-                    <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
-                    <TableCell>
-                      {variation.email_sent ? (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          ✓ Sent
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Not sent</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          title="View Details"
-                          onClick={() => handleViewDetails(variation)}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        {canEdit && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Number</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Cost Impact</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredVariations.map((variation) => (
+                    <TableRow key={variation.id}>
+                      <TableCell className="font-medium">
+                        {variation.variation_number}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{variation.title}</div>
+                          {variation.description && (
+                            <div className="text-sm text-gray-500 truncate max-w-xs">
+                              {variation.description}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(variation.status)}
+                      </TableCell>
+                      <TableCell>
+                        {getPriorityBadge(variation.priority)}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-semibold ${
+                          (variation.total_amount || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {formatCurrency(variation.total_amount || 0)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-gray-400" />
+                          <span className="text-sm">{variation.location || 'Not specified'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Edit Variation"
-                            onClick={() => handleEditVariation(variation)}
+                            onClick={() => handleViewDetails(variation)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(variation)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                        )}
-                        {variation.client_email && !variation.email_sent && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Send Email to Client"
-                            onClick={() => handleSendEmail(variation.id)}
-                            disabled={emailingSending === variation.id}
-                          >
-                            {emailingSending === variation.id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            ) : (
-                              <span>📧</span>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          {variation.client_email && !variation.email_sent && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSendEmail(variation.id)}
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Enhanced Variation Details Modal */}
-      <EnhancedVariationDetailsModal
+      {/* Modals */}
+      <QuotationVariationForm
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingVariation(null);
+        }}
+        onSubmit={handleFormSubmit}
+        projectName={projectName}
+        editingVariation={editingVariation}
+      />
+
+      <VariationDetailsModal
         variation={selectedVariation}
         isOpen={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        onUpdate={handleVariationUpdate}
-        onEdit={canEdit ? handleEditVariation : undefined}
-        projectName={projectName}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedVariation(null);
+        }}
+        onUpdate={updateVariation}
       />
     </div>
   );

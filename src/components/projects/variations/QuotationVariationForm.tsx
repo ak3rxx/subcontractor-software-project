@@ -1,17 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, Calculator, Upload, Paperclip, X, ArrowLeft } from 'lucide-react';
-import SmartTradeSelector from './SmartTradeSelector';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Plus, Minus, Upload, X, FileText, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import CategorySelector from './CategorySelector';
+import SmartTradeSelector from './SmartTradeSelector';
 import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 
 interface CostBreakdownItem {
@@ -22,594 +22,547 @@ interface CostBreakdownItem {
   subtotal: number;
 }
 
-interface TimeImpactDetails {
-  requiresNoticeOfDelay: boolean;
-  requiresExtensionOfTime: boolean;
-  noticeOfDelayDays?: number;
-  extensionOfTimeDays?: number;
-}
-
 interface QuotationVariationFormProps {
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: any) => Promise<void>;
   projectName: string;
-  isEdit?: boolean;
-  initialData?: any;
+  editingVariation?: any;
 }
 
 const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
+  isOpen,
+  onClose,
   onSubmit,
-  onCancel,
   projectName,
-  isEdit = false,
-  initialData
+  editingVariation
 }) => {
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [showCloseDialog, setShowCloseDialog] = useState(false);
-  
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    title: initialData?.title || '',
-    description: initialData?.description || '',
-    requested_by: initialData?.requested_by || '',
-    location: initialData?.location || '',
-    priority: initialData?.priority || 'medium',
-    clientEmail: initialData?.client_email || '',
-    justification: initialData?.justification || '',
-    trade: initialData?.trade || '',
-    category: initialData?.category || '',
-    gstRate: initialData?.gst_rate || 10
+    title: '',
+    description: '',
+    location: '',
+    category: '',
+    trade: '',
+    priority: 'medium',
+    clientEmail: '',
+    justification: '',
+    requires_eot: false,
+    requires_nod: false,
+    eot_days: 0,
+    nod_days: 0
   });
 
-  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>(
-    initialData?.cost_breakdown?.length > 0 ? initialData.cost_breakdown : [
-      { id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 },
-      { id: '2', description: '', quantity: 1, rate: 0, subtotal: 0 },
-      { id: '3', description: '', quantity: 1, rate: 0, subtotal: 0 }
-    ]
-  );
+  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>([
+    { id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 }
+  ]);
+  const [gstRate, setGstRate] = useState(10);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const [timeImpactDetails, setTimeImpactDetails] = useState<TimeImpactDetails>({
-    requiresNoticeOfDelay: initialData?.requires_nod || false,
-    requiresExtensionOfTime: initialData?.requires_eot || false,
-    noticeOfDelayDays: initialData?.nod_days || undefined,
-    extensionOfTimeDays: initialData?.eot_days || undefined
-  });
+  // Initialize variation attachments hook only when editing
+  const variationAttachments = editingVariation ? 
+    useVariationAttachments(editingVariation.id) : 
+    { attachments: [], uploadAttachment: null, deleteAttachment: null, loading: false };
 
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const { uploadAttachment } = useVariationAttachments(initialData?.id || '');
+  const { attachments, uploadAttachment, deleteAttachment, loading: attachmentsLoading } = variationAttachments;
 
-  // Track changes for unsaved changes warning
   useEffect(() => {
-    const hasData = formData.title || formData.description || 
-                   costBreakdown.some(item => item.description || item.quantity > 1 || item.rate > 0) ||
-                   attachedFiles.length > 0;
-    setHasUnsavedChanges(hasData);
-  }, [formData, costBreakdown, attachedFiles]);
+    if (editingVariation) {
+      setFormData({
+        title: editingVariation.title || '',
+        description: editingVariation.description || '',
+        location: editingVariation.location || '',
+        category: editingVariation.category || '',
+        trade: editingVariation.trade || '',
+        priority: editingVariation.priority || 'medium',
+        clientEmail: editingVariation.client_email || '',
+        justification: editingVariation.justification || '',
+        requires_eot: editingVariation.requires_eot || false,
+        requires_nod: editingVariation.requires_nod || false,
+        eot_days: editingVariation.eot_days || 0,
+        nod_days: editingVariation.nod_days || 0
+      });
 
-  const handleClose = () => {
-    if (hasUnsavedChanges) {
-      setShowCloseDialog(true);
-    } else {
-      onCancel();
+      if (editingVariation.cost_breakdown && editingVariation.cost_breakdown.length > 0) {
+        setCostBreakdown(editingVariation.cost_breakdown);
+      }
+
+      // Fetch attachments for editing variation
+      if (editingVariation.id && variationAttachments.fetchAttachments) {
+        variationAttachments.fetchAttachments();
+      }
     }
+  }, [editingVariation]);
+
+  useEffect(() => {
+    setHasUnsavedChanges(true);
+  }, [formData, costBreakdown, uploadedFiles]);
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleConfirmClose = () => {
-    setShowCloseDialog(false);
-    onCancel();
+  const updateCostBreakdown = (index: number, field: keyof CostBreakdownItem, value: any) => {
+    const updated = [...costBreakdown];
+    updated[index] = { ...updated[index], [field]: value };
+    
+    if (field === 'quantity' || field === 'rate') {
+      updated[index].subtotal = updated[index].quantity * updated[index].rate;
+    }
+    
+    setCostBreakdown(updated);
   };
 
-  const addCostRow = () => {
-    const newId = Date.now().toString();
-    setCostBreakdown(prev => [...prev, { 
-      id: newId, 
-      description: '', 
-      quantity: 1, 
-      rate: 0, 
-      subtotal: 0 
+  const addCostItem = () => {
+    setCostBreakdown(prev => [...prev, {
+      id: Date.now().toString(),
+      description: '',
+      quantity: 1,
+      rate: 0,
+      subtotal: 0
     }]);
   };
 
-  const removeCostRow = (id: string) => {
+  const removeCostItem = (index: number) => {
     if (costBreakdown.length > 1) {
-      setCostBreakdown(prev => prev.filter(item => item.id !== id));
+      setCostBreakdown(prev => prev.filter((_, i) => i !== index));
     }
-  };
-
-  const updateCostItem = (id: string, field: keyof CostBreakdownItem, value: any) => {
-    setCostBreakdown(prev => prev.map(item => {
-      if (item.id === id) {
-        const updated = { ...item, [field]: value };
-        if (field === 'quantity' || field === 'rate') {
-          updated.subtotal = Number(updated.quantity) * Number(updated.rate);
-        }
-        return updated;
-      }
-      return item;
-    }));
   };
 
   const calculateTotals = () => {
     const subtotal = costBreakdown.reduce((sum, item) => sum + item.subtotal, 0);
-    const gstAmount = (subtotal * formData.gstRate) / 100;
-    const totalAmount = subtotal + gstAmount;
-    return { subtotal, gstAmount, totalAmount };
+    const gstAmount = subtotal * (gstRate / 100);
+    const total = subtotal + gstAmount;
+    return { subtotal, gstAmount, total };
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      const validFiles = Array.from(files).filter(file => {
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        const allowedTypes = [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'image/jpeg',
-          'image/png',
-          'image/gif'
-        ];
-        
-        if (file.size > maxSize) {
-          alert(`File ${file.name} is too large. Maximum size is 10MB.`);
-          return false;
-        }
-        
-        if (!allowedTypes.includes(file.type)) {
-          alert(`File ${file.name} has an unsupported format.`);
-          return false;
-        }
-        
-        return true;
-      });
-      
-      setAttachedFiles(prev => [...prev, ...validFiles]);
-    }
+    const files = Array.from(event.target.files || []);
+    setUploadedFiles(prev => [...prev, ...files]);
   };
 
   const removeFile = (index: number) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (deleteAttachment) {
+      await deleteAttachment(attachmentId);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { subtotal, gstAmount, totalAmount } = calculateTotals();
+    const { subtotal, gstAmount, total } = calculateTotals();
     
-    const variationData = {
+    const submissionData = {
       ...formData,
-      costImpact: totalAmount,
-      cost_breakdown: costBreakdown.filter(item => item.description.trim() !== ''),
+      cost_breakdown: costBreakdown,
       gst_amount: gstAmount,
-      total_amount: totalAmount,
-      time_impact_details: timeImpactDetails,
-      timeImpact: (timeImpactDetails.noticeOfDelayDays || 0) + (timeImpactDetails.extensionOfTimeDays || 0),
-      requires_eot: timeImpactDetails.requiresExtensionOfTime,
-      requires_nod: timeImpactDetails.requiresNoticeOfDelay,
-      eot_days: timeImpactDetails.extensionOfTimeDays || 0,
-      nod_days: timeImpactDetails.noticeOfDelayDays || 0,
-      attachments: attachedFiles.map(file => ({
-        name: file.name,
-        size: file.size,
-        type: file.type
-      })),
-      attachedFiles: attachedFiles // Pass actual files for upload
+      total_amount: total,
+      costImpact: total,
+      timeImpact: formData.requires_eot ? formData.eot_days : 0,
+      time_impact_details: {
+        requiresNoticeOfDelay: formData.requires_nod,
+        requiresExtensionOfTime: formData.requires_eot,
+        noticeOfDelayDays: formData.requires_nod ? formData.nod_days : undefined,
+        extensionOfTimeDays: formData.requires_eot ? formData.eot_days : undefined,
+      }
     };
 
-    onSubmit(variationData);
+    try {
+      await onSubmit(submissionData);
+      
+      // Upload files if we have any and we're editing a variation
+      if (uploadedFiles.length > 0 && editingVariation && uploadAttachment) {
+        for (const file of uploadedFiles) {
+          await uploadAttachment(file);
+        }
+      }
+      
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        location: '',
+        category: '',
+        trade: '',
+        priority: 'medium',
+        clientEmail: '',
+        justification: '',
+        requires_eot: false,
+        requires_nod: false,
+        eot_days: 0,
+        nod_days: 0
+      });
+      setCostBreakdown([{ id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 }]);
+      setUploadedFiles([]);
+      setHasUnsavedChanges(false);
+      
+      onClose();
+    } catch (error) {
+      console.error('Error submitting variation:', error);
+    }
   };
 
-  const { subtotal, gstAmount, totalAmount } = calculateTotals();
+  const handleClose = () => {
+    if (hasUnsavedChanges) {
+      const confirmClose = window.confirm('You have unsaved changes. Are you sure you want to close?');
+      if (!confirmClose) return;
+    }
+    
+    setHasUnsavedChanges(false);
+    onClose();
+  };
+
+  const { subtotal, gstAmount, total } = calculateTotals();
 
   return (
-    <div className="space-y-6">
-      {/* Header with close button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleClose}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-lg font-semibold">
-            {isEdit ? 'Edit Variation' : 'New Variation Request'}
-          </h2>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleClose}>
-          <X className="h-4 w-4 mr-2" />
-          Close
-        </Button>
-      </div>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {editingVariation ? 'Edit Variation' : 'Create New Variation'} - {projectName}
+          </DialogTitle>
+        </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5" />
-              Variation Request
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Variation Title *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Brief description of variation"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="title">Variation Title *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  rows={3}
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="requestedBy">Requested By *</Label>
-                <Input
-                  id="requestedBy"
-                  value={formData.requested_by}
-                  onChange={(e) => setFormData(prev => ({ ...prev, requested_by: e.target.value }))}
-                  placeholder="Your name"
-                  required
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Category</Label>
+                  <CategorySelector
+                    value={formData.category}
+                    onChange={(value) => handleInputChange('category', value)}
+                    trade={formData.trade}
+                  />
+                </div>
+                <div>
+                  <Label>Trade</Label>
+                  <SmartTradeSelector
+                    value={formData.trade}
+                    onChange={(value) => handleInputChange('trade', value)}
+                    description={formData.description}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="Specific location within project"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Detailed Description *</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Detailed description of the variation (AI will suggest trade based on this)"
-                rows={3}
-                required
-              />
-            </div>
-
-            {/* Trade and Category Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SmartTradeSelector
-                value={formData.trade}
-                onChange={(value) => setFormData(prev => ({ ...prev, trade: value }))}
-                description={formData.description}
-                showAISuggestion={true}
-              />
-
-              <CategorySelector
-                value={formData.category}
-                onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                selectedTrade={formData.trade}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Cost Breakdown - Quotation Style */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
+          {/* Cost Breakdown */}
+          <Card>
+            <CardHeader>
               <CardTitle>Cost Breakdown</CardTitle>
-              <Button type="button" variant="outline" size="sm" onClick={addCostRow}>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {costBreakdown.map((item, index) => (
+                <div key={item.id} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5">
+                    <Label>Description</Label>
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateCostBreakdown(index, 'description', e.target.value)}
+                      placeholder="Item description"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateCostBreakdown(index, 'quantity', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Rate ($)</Label>
+                    <Input
+                      type="number"
+                      value={item.rate}
+                      onChange={(e) => updateCostBreakdown(index, 'rate', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Subtotal</Label>
+                    <Input
+                      value={`$${item.subtotal.toFixed(2)}`}
+                      readOnly
+                      className="bg-gray-50"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeCostItem(index)}
+                      disabled={costBreakdown.length === 1}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              <Button type="button" variant="outline" onClick={addCostItem}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Row
+                Add Item
               </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40%]">Description</TableHead>
-                    <TableHead className="w-[15%]">Quantity</TableHead>
-                    <TableHead className="w-[20%]">Rate ($)</TableHead>
-                    <TableHead className="w-[20%]">Subtotal ($)</TableHead>
-                    <TableHead className="w-[5%]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {costBreakdown.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateCostItem(item.id, 'description', e.target.value)}
-                          placeholder="Description of work/materials"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateCostItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                          min="0"
-                          step="0.01"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={item.rate}
-                          onChange={(e) => updateCostItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                          min="0"
-                          step="0.01"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          ${item.subtotal.toFixed(2)}
+
+              <Separator />
+
+              <div className="grid grid-cols-3 gap-4 text-right">
+                <div>
+                  <Label>GST Rate (%)</Label>
+                  <Input
+                    type="number"
+                    value={gstRate}
+                    onChange={(e) => setGstRate(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    max="100"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label>Subtotal</Label>
+                  <div className="text-lg font-semibold">${subtotal.toFixed(2)}</div>
+                </div>
+                <div>
+                  <Label>GST</Label>
+                  <div className="text-lg font-semibold">${gstAmount.toFixed(2)}</div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <Label>Total Amount</Label>
+                <div className="text-2xl font-bold text-green-600">${total.toFixed(2)}</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Time Impact */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Time Impact</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="requires_eot"
+                    checked={formData.requires_eot}
+                    onChange={(e) => handleInputChange('requires_eot', e.target.checked)}
+                  />
+                  <Label htmlFor="requires_eot">Requires Extension of Time (EOT)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="requires_nod"
+                    checked={formData.requires_nod}
+                    onChange={(e) => handleInputChange('requires_nod', e.target.checked)}
+                  />
+                  <Label htmlFor="requires_nod">Requires Notice of Delay (NOD)</Label>
+                </div>
+              </div>
+
+              {(formData.requires_eot || formData.requires_nod) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {formData.requires_eot && (
+                    <div>
+                      <Label htmlFor="eot_days">EOT Days</Label>
+                      <Input
+                        id="eot_days"
+                        type="number"
+                        value={formData.eot_days}
+                        onChange={(e) => handleInputChange('eot_days', parseInt(e.target.value) || 0)}
+                        min="0"
+                      />
+                    </div>
+                  )}
+                  {formData.requires_nod && (
+                    <div>
+                      <Label htmlFor="nod_days">NOD Days</Label>
+                      <Input
+                        id="nod_days"
+                        type="number"
+                        value={formData.nod_days}
+                        onChange={(e) => handleInputChange('nod_days', parseInt(e.target.value) || 0)}
+                        min="0"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* File Attachments */}
+          <Card>
+            <CardHeader>
+              <CardTitle>File Attachments</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Existing attachments (when editing) */}
+              {editingVariation && attachments.length > 0 && (
+                <div>
+                  <Label>Existing Attachments</Label>
+                  <div className="space-y-2">
+                    {attachments.map((attachment) => (
+                      <div key={attachment.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          <span className="text-sm">{attachment.file_name}</span>
+                          <Badge variant="outline">{(attachment.file_size / 1024 / 1024).toFixed(2)} MB</Badge>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {costBreakdown.length > 1 && (
+                        <div className="flex gap-2">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => removeCostRow(item.id)}
+                            onClick={() => handleDeleteAttachment(attachment.id)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <X className="h-4 w-4" />
                           </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Totals */}
-            <div className="mt-6 space-y-2 border-t pt-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Subtotal:</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span>GST ({formData.gstRate}%):</span>
-                  <Input
-                    type="number"
-                    value={formData.gstRate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, gstRate: parseFloat(e.target.value) || 0 }))}
-                    className="w-16 h-6"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                </div>
-                <span className="font-medium">${gstAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
-                <span>Total Amount:</span>
-                <span>${totalAmount.toFixed(2)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Time Impact - Enhanced EOT/NOD Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Time Impact Assessment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="noticeOfDelay"
-                    checked={timeImpactDetails.requiresNoticeOfDelay}
-                    onCheckedChange={(checked) => 
-                      setTimeImpactDetails(prev => ({ 
-                        ...prev, 
-                        requiresNoticeOfDelay: checked as boolean 
-                      }))
-                    }
-                  />
-                  <Label htmlFor="noticeOfDelay" className="font-medium">
-                    Notice of Delay (NOD) Required
-                  </Label>
-                </div>
-
-                {timeImpactDetails.requiresNoticeOfDelay && (
-                  <div className="ml-6 space-y-2">
-                    <Label htmlFor="delayDays">Days for Notice of Delay</Label>
-                    <Input
-                      id="delayDays"
-                      type="number"
-                      value={timeImpactDetails.noticeOfDelayDays || ''}
-                      onChange={(e) => setTimeImpactDetails(prev => ({ 
-                        ...prev, 
-                        noticeOfDelayDays: parseInt(e.target.value) || 0 
-                      }))}
-                      placeholder="Number of days"
-                      min="0"
-                    />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="extensionOfTime"
-                    checked={timeImpactDetails.requiresExtensionOfTime}
-                    onCheckedChange={(checked) => 
-                      setTimeImpactDetails(prev => ({ 
-                        ...prev, 
-                        requiresExtensionOfTime: checked as boolean 
-                      }))
-                    }
-                  />
-                  <Label htmlFor="extensionOfTime" className="font-medium">
-                    Extension of Time (EOT) Required
-                  </Label>
                 </div>
+              )}
 
-                {timeImpactDetails.requiresExtensionOfTime && (
-                  <div className="ml-6 space-y-2">
-                    <Label htmlFor="extensionDays">Days for Extension of Time</Label>
-                    <Input
-                      id="extensionDays"
-                      type="number"
-                      value={timeImpactDetails.extensionOfTimeDays || ''}
-                      onChange={(e) => setTimeImpactDetails(prev => ({ 
-                        ...prev, 
-                        extensionOfTimeDays: parseInt(e.target.value) || 0 
-                      }))}
-                      placeholder="Number of days"
-                      min="0"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {(timeImpactDetails.requiresNoticeOfDelay || timeImpactDetails.requiresExtensionOfTime) && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-md">
-                <p className="text-sm text-blue-800">
-                  <strong>Total Time Impact:</strong> {' '}
-                  {(timeImpactDetails.noticeOfDelayDays || 0) + (timeImpactDetails.extensionOfTimeDays || 0)} days
-                  {timeImpactDetails.requiresNoticeOfDelay && ` (NOD: ${timeImpactDetails.noticeOfDelayDays || 0} days)`}
-                  {timeImpactDetails.requiresExtensionOfTime && ` (EOT: ${timeImpactDetails.extensionOfTimeDays || 0} days)`}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Additional Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientEmail">Client Email</Label>
-              <Input
-                id="clientEmail"
-                type="email"
-                value={formData.clientEmail}
-                onChange={(e) => setFormData(prev => ({ ...prev, clientEmail: e.target.value }))}
-                placeholder="client@example.com"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="justification">Justification / Reason for Variation</Label>
-              <Textarea
-                id="justification"
-                value={formData.justification}
-                onChange={(e) => setFormData(prev => ({ ...prev, justification: e.target.value }))}
-                placeholder="Explain why this variation is necessary"
-                rows={2}
-              />
-            </div>
-
-            {/* File Attachments */}
-            <div className="space-y-2">
-              <Label htmlFor="attachments">Attachments</Label>
-              <div className="flex items-center gap-4">
+              {/* New file uploads */}
+              <div>
+                <Label htmlFor="file-upload">Upload New Files</Label>
                 <Input
-                  id="attachments"
+                  id="file-upload"
                   type="file"
                   multiple
                   onChange={handleFileUpload}
-                  className="hidden"
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('attachments')?.click()}
-                  className="flex items-center gap-2"
-                >
-                  <Upload className="h-4 w-4" />
-                  Upload Files
-                </Button>
-                <span className="text-sm text-gray-600">
-                  PDF, DOC, DOCX, JPG, PNG, GIF (Max 10MB each)
-                </span>
               </div>
 
-              {attachedFiles.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <Label>Attached Files:</Label>
-                  {attachedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
-                      <div className="flex items-center gap-2">
-                        <Paperclip className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{file.name}</span>
-                        <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+              {uploadedFiles.length > 0 && (
+                <div>
+                  <Label>Files to Upload</Label>
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Upload className="h-4 w-4" />
+                          <span className="text-sm">{file.name}</span>
+                          <Badge variant="outline">{(file.size / 1024 / 1024).toFixed(2)} MB</Badge>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button type="submit">
-            {isEdit ? 'Update Variation' : 'Submit Variation'}
-          </Button>
-        </div>
-      </form>
+          {/* Additional Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="justification">Justification</Label>
+                <Textarea
+                  id="justification"
+                  value={formData.justification}
+                  onChange={(e) => handleInputChange('justification', e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientEmail">Client Email</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={formData.clientEmail}
+                  onChange={(e) => handleInputChange('clientEmail', e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Close Confirmation Dialog */}
-      <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Are you sure you want to close this form? All changes will be lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Continue Editing</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClose} className="bg-red-600 hover:bg-red-700">
-              Discard Changes
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          {/* Form Actions */}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              {editingVariation ? 'Update Variation' : 'Create Variation'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
