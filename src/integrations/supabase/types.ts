@@ -112,6 +112,50 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_trade_learning: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          description_context: string
+          id: string
+          is_approved: boolean | null
+          organization_id: string
+          suggested_trade: string
+          updated_at: string | null
+          usage_frequency: number | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          description_context: string
+          id?: string
+          is_approved?: boolean | null
+          organization_id: string
+          suggested_trade: string
+          updated_at?: string | null
+          usage_frequency?: number | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          description_context?: string
+          id?: string
+          is_approved?: boolean | null
+          organization_id?: string
+          suggested_trade?: string
+          updated_at?: string | null
+          usage_frequency?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_trade_learning_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_items: {
         Row: {
           budgeted_cost: number
@@ -1438,6 +1482,7 @@ export type Database = {
           time_impact_details: Json | null
           title: string
           total_amount: number | null
+          trade: string | null
           updated_at: string | null
           variation_number: string
         }
@@ -1469,6 +1514,7 @@ export type Database = {
           time_impact_details?: Json | null
           title: string
           total_amount?: number | null
+          trade?: string | null
           updated_at?: string | null
           variation_number: string
         }
@@ -1500,6 +1546,7 @@ export type Database = {
           time_impact_details?: Json | null
           title?: string
           total_amount?: number | null
+          trade?: string | null
           updated_at?: string | null
           variation_number?: string
         }
@@ -1532,6 +1579,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_approve_frequent_trades: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       calculate_project_variation_impact: {
         Args: { project_uuid: string }
         Returns: {
@@ -1582,6 +1633,13 @@ export type Database = {
           p_item_description?: string
         }
         Returns: string
+      }
+      suggest_trade_from_description: {
+        Args: { description_text: string; org_id: string }
+        Returns: {
+          suggested_trade: string
+          confidence: number
+        }[]
       }
       update_category_usage: {
         Args: { org_id: string; category: string; trade?: string }

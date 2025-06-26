@@ -32,7 +32,8 @@ export interface Variation {
   time_impact: number;
   status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
   category?: string;
-  priority: 'high' | 'normal' | 'low';
+  trade?: string;
+  priority: 'high' | 'medium' | 'low';
   client_email?: string;
   justification?: string;
   attachments: any[];
@@ -92,7 +93,8 @@ const transformDatabaseItem = (item: any): Variation => ({
   time_impact: item.time_impact || 0,
   status: item.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
   category: item.category || '',
-  priority: item.priority as 'high' | 'normal' | 'low',
+  trade: item.trade || undefined,
+  priority: (item.priority as 'high' | 'medium' | 'low') || 'medium',
   client_email: item.client_email || '',
   justification: item.justification || '',
   attachments: [],
@@ -136,10 +138,7 @@ export const useVariations = (projectId: string) => {
         return;
       }
 
-      // Transform the data to match our interface
       const transformedData = (data || []).map(transformDatabaseItem);
-
-      console.log('Fetched variations:', transformedData);
       setVariations(transformedData);
     } catch (error) {
       console.error('Error:', error);
@@ -152,7 +151,6 @@ export const useVariations = (projectId: string) => {
     if (!user || !projectId) return null;
 
     try {
-      // Generate variation number
       const { data: numberData, error: numberError } = await supabase
         .rpc('generate_variation_number', { project_uuid: projectId });
 
@@ -178,6 +176,7 @@ export const useVariations = (projectId: string) => {
         priority: variationData.priority || 'medium',
         status: 'draft',
         category: variationData.category,
+        trade: variationData.trade,
         client_email: variationData.clientEmail,
         justification: variationData.justification,
         cost_breakdown: variationData.cost_breakdown || [],
@@ -207,9 +206,7 @@ export const useVariations = (projectId: string) => {
         description: `Variation ${data.variation_number} created successfully`
       });
 
-      // Transform the returned data to match our interface exactly
       const transformedData = transformDatabaseItem(data);
-
       setVariations(prev => [transformedData, ...prev]);
       return transformedData;
     } catch (error) {
@@ -225,8 +222,6 @@ export const useVariations = (projectId: string) => {
 
   const updateVariation = async (id: string, updates: Partial<Variation>) => {
     try {
-      console.log('Updating variation with:', updates);
-      
       const dbUpdates: any = {};
       
       if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -236,6 +231,7 @@ export const useVariations = (projectId: string) => {
       if (updates.cost_impact !== undefined) dbUpdates.cost_impact = updates.cost_impact;
       if (updates.time_impact !== undefined) dbUpdates.time_impact = updates.time_impact;
       if (updates.category !== undefined) dbUpdates.category = updates.category;
+      if (updates.trade !== undefined) dbUpdates.trade = updates.trade;
       if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
       if (updates.client_email !== undefined) dbUpdates.client_email = updates.client_email;
       if (updates.justification !== undefined) dbUpdates.justification = updates.justification;
@@ -251,8 +247,6 @@ export const useVariations = (projectId: string) => {
       if (updates.time_impact_details !== undefined) dbUpdates.time_impact_details = updates.time_impact_details;
       if (updates.gst_amount !== undefined) dbUpdates.gst_amount = updates.gst_amount;
       if (updates.total_amount !== undefined) dbUpdates.total_amount = updates.total_amount;
-
-      console.log('Database updates:', dbUpdates);
 
       const { data, error } = await supabase
         .from('variations')
@@ -271,12 +265,7 @@ export const useVariations = (projectId: string) => {
         return null;
       }
 
-      console.log('Updated variation data from DB:', data);
-
       const transformedData = transformDatabaseItem(data);
-
-      console.log('Transformed updated variation:', transformedData);
-
       setVariations(prev => 
         prev.map(variation => 
           variation.id === id ? transformedData : variation
@@ -304,7 +293,6 @@ export const useVariations = (projectId: string) => {
         return false;
       }
 
-      // Call edge function to send email
       const { data, error } = await supabase.functions.invoke('send-variation-email', {
         body: {
           variation: variation,
@@ -322,7 +310,6 @@ export const useVariations = (projectId: string) => {
         return false;
       }
 
-      // Update variation to mark email as sent
       const updateResult = await updateVariation(variationId, {
         email_sent: true,
         email_sent_date: new Date().toISOString(),

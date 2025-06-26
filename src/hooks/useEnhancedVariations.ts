@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +20,7 @@ export interface EnhancedVariation {
   time_impact: number;
   status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
   category?: string;
+  trade?: string;
   priority: 'high' | 'medium' | 'low';
   client_email?: string;
   justification?: string;
@@ -38,6 +40,8 @@ export interface EnhancedVariation {
   linked_milestones?: string[];
   budget_impacts?: any[];
   integrationStatus?: 'pending' | 'linked' | 'applied';
+  ai_suggested_trade?: string;
+  ai_confidence?: number;
 }
 
 export const useEnhancedVariations = (projectId: string) => {
@@ -89,7 +93,8 @@ export const useEnhancedVariations = (projectId: string) => {
           integrationStatus,
           // Ensure proper typing
           priority: (variation.priority as 'high' | 'medium' | 'low') || 'medium',
-          status: variation.status as 'draft' | 'pending_approval' | 'approved' | 'rejected'
+          status: variation.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
+          trade: variation.trade || undefined
         } as EnhancedVariation;
       });
 
@@ -98,6 +103,26 @@ export const useEnhancedVariations = (projectId: string) => {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const suggestTradeFromDescription = async (description: string, organizationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('suggest_trade_from_description', {
+          description_text: description,
+          org_id: organizationId
+        });
+
+      if (error) {
+        console.error('Error suggesting trade:', error);
+        return { suggested_trade: 'other', confidence: 0 };
+      }
+
+      return data?.[0] || { suggested_trade: 'other', confidence: 0 };
+    } catch (error) {
+      console.error('Error:', error);
+      return { suggested_trade: 'other', confidence: 0 };
     }
   };
 
@@ -119,6 +144,26 @@ export const useEnhancedVariations = (projectId: string) => {
         return null;
       }
 
+      // Get organization ID for AI trade suggestion
+      const { data: projectData } = await supabase
+        .from('projects')
+        .select('organization_id')
+        .eq('id', projectId)
+        .single();
+
+      let suggestedTrade = variationData.trade || 'other';
+      let aiConfidence = 0;
+
+      // Auto-suggest trade if not provided and description exists
+      if (!variationData.trade && variationData.description && projectData?.organization_id) {
+        const tradeResult = await suggestTradeFromDescription(
+          variationData.description, 
+          projectData.organization_id
+        );
+        suggestedTrade = tradeResult.suggested_trade || 'other';
+        aiConfidence = tradeResult.confidence || 0;
+      }
+
       const insertData = {
         project_id: projectId,
         variation_number: numberData,
@@ -132,6 +177,7 @@ export const useEnhancedVariations = (projectId: string) => {
         priority: variationData.priority || 'medium',
         status: 'draft',
         category: variationData.category,
+        trade: suggestedTrade,
         client_email: variationData.clientEmail,
         justification: variationData.justification,
         cost_breakdown: variationData.cost_breakdown || [],
@@ -154,6 +200,14 @@ export const useEnhancedVariations = (projectId: string) => {
           variant: "destructive"
         });
         return null;
+      }
+
+      // Show AI suggestion feedback if confidence is high
+      if (aiConfidence > 0.5) {
+        toast({
+          title: "AI Trade Suggestion",
+          description: `Suggested trade "${suggestedTrade}" for this variation (${Math.round(aiConfidence * 100)}% confidence)`
+        });
       }
 
       toast({
@@ -181,6 +235,7 @@ export const useEnhancedVariations = (projectId: string) => {
           time_impact: updates.time_impact,
           status: updates.status,
           category: updates.category,
+          trade: updates.trade,
           priority: updates.priority,
           client_email: updates.client_email,
           justification: updates.justification,
@@ -231,6 +286,7 @@ export const useEnhancedVariations = (projectId: string) => {
     loading,
     createVariation,
     updateVariation,
-    refetch: fetchEnhancedVariations
+    refetch: fetchEnhancedVariations,
+    suggestTradeFromDescription
   };
 };

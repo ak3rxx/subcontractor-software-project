@@ -17,7 +17,9 @@ import {
   MessageSquare, 
   Calculator,
   Link2,
-  TrendingUp
+  TrendingUp,
+  Brain,
+  Wrench
 } from 'lucide-react';
 import { useEnhancedVariations } from '@/hooks/useEnhancedVariations';
 import { useVariationIntegration } from '@/hooks/useVariationIntegration';
@@ -80,6 +82,29 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
     }
   };
 
+  const getTradeBadge = (trade?: string) => {
+    if (!trade) return <Badge variant="outline">No Trade</Badge>;
+    
+    const tradeColors: Record<string, string> = {
+      'carpentry': 'bg-amber-100 text-amber-800',
+      'tiling': 'bg-blue-100 text-blue-800',
+      'painting': 'bg-purple-100 text-purple-800',
+      'rendering': 'bg-orange-100 text-orange-800',
+      'builder': 'bg-slate-100 text-slate-800',
+      'electrical': 'bg-yellow-100 text-yellow-800',
+      'plumbing': 'bg-cyan-100 text-cyan-800',
+      'hvac': 'bg-indigo-100 text-indigo-800',
+      'other': 'bg-gray-100 text-gray-800'
+    };
+
+    return (
+      <Badge className={tradeColors[trade] || 'bg-gray-100 text-gray-800'}>
+        <Wrench className="h-3 w-3 mr-1" />
+        {trade.charAt(0).toUpperCase() + trade.slice(1)}
+      </Badge>
+    );
+  };
+
   const getIntegrationBadge = (status: string) => {
     switch (status) {
       case 'linked':
@@ -109,6 +134,12 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
     await updateVariation(id, updates);
   };
 
+  const tradeStats = variations.reduce((acc, variation) => {
+    const trade = variation.trade || 'unassigned';
+    acc[trade] = (acc[trade] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -124,22 +155,32 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
         <div>
           <h3 className="text-lg font-semibold">Enhanced Variation Manager</h3>
           <p className="text-gray-600">
-            Integrated variation management with finance and programme tracking
+            AI-powered integrated variation management with trade classification
           </p>
         </div>
         <Button onClick={() => setShowNewVariation(true)} className="flex items-center gap-2">
           <Calculator className="h-4 w-4" />
-          New Integrated Variation
+          New Smart Variation
         </Button>
       </div>
 
       {/* Enhanced Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <FileText className="h-8 w-8 mx-auto text-gray-500 mb-2" />
             <div className="text-2xl font-bold">{variations.length}</div>
             <div className="text-sm text-gray-600">Total Variations</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Brain className="h-8 w-8 mx-auto text-purple-500 mb-2" />
+            <div className="text-2xl font-bold">
+              {variations.filter(v => v.trade && v.trade !== 'other').length}
+            </div>
+            <div className="text-sm text-gray-600">AI Classified</div>
           </CardContent>
         </Card>
 
@@ -198,6 +239,7 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
         <TabsList>
           <TabsTrigger value="register">Variation Register</TabsTrigger>
           <TabsTrigger value="create">Create New</TabsTrigger>
+          <TabsTrigger value="trades">Trade Analysis</TabsTrigger>
           <TabsTrigger value="integration">Integration Overview</TabsTrigger>
         </TabsList>
 
@@ -211,10 +253,10 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
                 <div className="text-center py-8">
                   <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Variations Yet</h3>
-                  <p className="text-gray-600 mb-4">Create your first integrated variation</p>
+                  <p className="text-gray-600 mb-4">Create your first AI-powered variation</p>
                   <Button onClick={() => setShowNewVariation(true)}>
                     <Calculator className="h-4 w-4 mr-2" />
-                    Create Variation
+                    Create Smart Variation
                   </Button>
                 </div>
               ) : (
@@ -223,6 +265,7 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
                     <TableRow>
                       <TableHead>ID</TableHead>
                       <TableHead>Title</TableHead>
+                      <TableHead>Trade</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Total Amount</TableHead>
                       <TableHead>Time Impact</TableHead>
@@ -240,6 +283,9 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
                         </TableCell>
                         <TableCell className="font-medium max-w-[200px] truncate">
                           {variation.title}
+                        </TableCell>
+                        <TableCell>
+                          {getTradeBadge(variation.trade)}
                         </TableCell>
                         <TableCell className="max-w-[150px] truncate">
                           <div className="flex items-center gap-1">
@@ -294,7 +340,7 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calculator className="h-5 w-5" />
-                Create New Integrated Variation
+                Create New AI-Powered Variation
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -305,6 +351,68 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="trades" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Trade Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(tradeStats).map(([trade, count]) => (
+                    <div key={trade} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        {getTradeBadge(trade)}
+                      </div>
+                      <span className="font-bold text-lg">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  AI Classification Stats
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Total Variations:</span>
+                    <span className="font-bold">{variations.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>AI Classified:</span>
+                    <span className="font-bold text-purple-600">
+                      {variations.filter(v => v.trade && v.trade !== 'other').length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Unclassified:</span>
+                    <span className="font-bold text-gray-600">
+                      {variations.filter(v => !v.trade || v.trade === 'other').length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Classification Rate:</span>
+                    <span className="font-bold text-green-600">
+                      {variations.length > 0 
+                        ? Math.round((variations.filter(v => v.trade && v.trade !== 'other').length / variations.length) * 100)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="integration" className="mt-6">
