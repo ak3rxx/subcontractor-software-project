@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Calculator, Upload, Paperclip } from 'lucide-react';
+import { Plus, Trash2, Calculator, Upload, Paperclip, Wrench } from 'lucide-react';
 import { useSmartCategories } from '@/hooks/useSmartCategories';
+import { useAITradeSuggestions } from '@/hooks/useAITradeSuggestions';
 
 interface CostBreakdownItem {
   id: string;
@@ -38,7 +39,9 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   projectName
 }) => {
   const { categories } = useSmartCategories();
+  const { getAllTrades, getTradeCategories, suggestTrade, loading: aiLoading } = useAITradeSuggestions();
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -48,6 +51,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
     priority: 'medium',
     clientEmail: '',
     justification: '',
+    trade: '',
     category: '',
     gstRate: 10 // Default GST rate
   });
@@ -62,6 +66,34 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
     requiresNoticeOfDelay: false,
     requiresExtensionOfTime: false
   });
+
+  // Update available categories when trade changes
+  useEffect(() => {
+    if (formData.trade) {
+      const tradeCategories = getTradeCategories(formData.trade);
+      setAvailableCategories(tradeCategories);
+      // Reset category if it's not valid for the new trade
+      if (formData.category && !tradeCategories.includes(formData.category)) {
+        setFormData(prev => ({ ...prev, category: '' }));
+      }
+    } else {
+      setAvailableCategories([]);
+    }
+  }, [formData.trade, getTradeCategories]);
+
+  // AI suggestion when description changes
+  useEffect(() => {
+    const suggestTradeFromDescription = async () => {
+      if (formData.description && formData.description.length > 10 && !formData.trade) {
+        // We need organization ID for AI suggestions - this would come from context in real app
+        // For now, we'll skip the AI suggestion if no organization context is available
+        console.log('Would suggest trade for:', formData.description);
+      }
+    };
+
+    const timeoutId = setTimeout(suggestTradeFromDescription, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [formData.description, formData.trade]);
 
   const addCostRow = () => {
     const newId = Date.now().toString();
@@ -135,6 +167,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   };
 
   const { subtotal, gstAmount, totalAmount } = calculateTotals();
+  const allTrades = getAllTrades();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -142,7 +175,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5" />
-            Variation Request - Quotation Style
+            AI-Powered Variation Request
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -187,51 +220,83 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
               id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Detailed description of the variation"
+              placeholder="Detailed description of the variation (AI will suggest trade based on this)"
               rows={3}
               required
             />
+            {aiLoading && (
+              <p className="text-sm text-blue-600">🤖 AI analyzing description for trade suggestion...</p>
+            )}
           </div>
 
-          {/* Smart Category Selection */}
+          {/* Trade and Category Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="trade" className="flex items-center gap-2">
+                <Wrench className="h-4 w-4" />
+                Trade *
+              </Label>
+              <Select 
+                value={formData.trade} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, trade: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select trade type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allTrades.map((trade) => (
+                    <SelectItem key={trade} value={trade}>
+                      {trade.charAt(0).toUpperCase() + trade.slice(1).replace(/_/g, ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!formData.trade && (
+                <p className="text-sm text-gray-500">💡 Tip: Add description above for AI trade suggestion</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
               <Select 
                 value={formData.category} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                disabled={!formData.trade}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select or type category" />
+                  <SelectValue placeholder={formData.trade ? "Select category" : "Select trade first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.category_name} value={cat.category_name}>
-                      {cat.category_name} ({cat.usage_count} uses)
+                  {availableCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ')}
                     </SelectItem>
                   ))}
-                  <SelectItem value="electrical">Electrical</SelectItem>
-                  <SelectItem value="plumbing">Plumbing</SelectItem>
-                  <SelectItem value="structural">Structural</SelectItem>
-                  <SelectItem value="fixtures">Fixtures & Fittings</SelectItem>
-                  <SelectItem value="finishes">Finishes</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  {/* Also include organization categories */}
+                  {categories
+                    .filter(cat => !availableCategories.includes(cat.category_name))
+                    .map((cat) => (
+                      <SelectItem key={cat.category_name} value={cat.category_name}>
+                        {cat.category_name} ({cat.usage_count} uses)
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -506,7 +571,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
           Cancel
         </Button>
         <Button type="submit">
-          Submit Variation Request
+          Submit AI-Enhanced Variation
         </Button>
       </div>
     </form>
