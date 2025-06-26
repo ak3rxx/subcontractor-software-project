@@ -1,16 +1,14 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, Upload, Paperclip, MapPin, MessageSquare } from 'lucide-react';
+import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, MapPin, MessageSquare, Calculator } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
 import VariationDetailsModal from './VariationDetailsModal';
+import QuotationVariationForm from './variations/QuotationVariationForm';
 
 interface VariationManagerProps {
   projectName: string;
@@ -21,42 +19,13 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const { toast } = useToast();
   const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
   const [showNewVariation, setShowNewVariation] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [emailingSending, setEmailSending] = useState<string | null>(null);
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [newVariation, setNewVariation] = useState({
-    title: '',
-    description: '',
-    requested_by: '',
-    costImpact: '',
-    timeImpact: '',
-    category: '',
-    priority: 'medium',
-    clientEmail: '',
-    justification: '',
-    location: ''
-  });
 
   const handleViewDetails = (variation: any) => {
     setSelectedVariation(variation);
     setShowDetailsModal(true);
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files);
-      setAttachedFiles(prev => [...prev, ...newFiles]);
-      toast({
-        title: "Files Attached",
-        description: `${newFiles.length} file(s) attached successfully`,
-      });
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSendEmail = async (variationId: string) => {
@@ -82,6 +51,38 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       abn: "98 765 432 109"
     };
 
+    // Generate detailed cost breakdown
+    const costBreakdownHtml = variation.cost_breakdown && variation.cost_breakdown.length > 0 
+      ? `
+        <h3>Cost Breakdown</h3>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <thead>
+            <tr style="border-bottom: 2px solid #333;">
+              <th style="text-align: left; padding: 8px;">Description</th>
+              <th style="text-align: center; padding: 8px;">Quantity</th>
+              <th style="text-align: right; padding: 8px;">Rate</th>
+              <th style="text-align: right; padding: 8px;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${variation.cost_breakdown.map((item: any) => `
+              <tr style="border-bottom: 1px solid #ccc;">
+                <td style="padding: 8px;">${item.description}</td>
+                <td style="text-align: center; padding: 8px;">${item.quantity}</td>
+                <td style="text-align: right; padding: 8px;">$${item.rate.toFixed(2)}</td>
+                <td style="text-align: right; padding: 8px;">$${item.subtotal.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="text-align: right; margin-top: 20px;">
+          <p><strong>Subtotal: $${(variation.total_amount - variation.gst_amount).toFixed(2)}</strong></p>
+          <p><strong>GST: $${variation.gst_amount.toFixed(2)}</strong></p>
+          <p style="font-size: 18px;"><strong>Total: $${variation.total_amount.toFixed(2)}</strong></p>
+        </div>
+      `
+      : `<div class="field"><span class="label">Cost Impact:</span> ${formatCurrency(variation.cost_impact)}</div>`;
+
     const pdfContent = `
       <!DOCTYPE html>
       <html>
@@ -94,6 +95,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           .field { margin: 10px 0; }
           .label { font-weight: bold; }
           .signature-section { margin-top: 50px; border-top: 1px solid #ccc; padding-top: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
         </style>
       </head>
       <body>
@@ -114,7 +118,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           </div>
         </div>
         
-        <h2 style="text-align: center; margin: 30px 0;">VARIATION ORDER</h2>
+        <h2 style="text-align: center; margin: 30px 0;">VARIATION ORDER - QUOTATION</h2>
         
         <div class="variation-details">
           <div class="field"><span class="label">Variation Number:</span> ${variation.variation_number}</div>
@@ -125,7 +129,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <div class="field"><span class="label">Title:</span> ${variation.title}</div>
           <div class="field"><span class="label">Description:</span><br/>${variation.description}</div>
           
-          <div class="field"><span class="label">Cost Impact:</span> ${formatCurrency(variation.cost_impact)}</div>
+          ${costBreakdownHtml}
+          
           <div class="field"><span class="label">Time Impact:</span> ${variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}</div>
           <div class="field"><span class="label">Priority:</span> ${variation.priority}</div>
           <div class="field"><span class="label">Category:</span> ${variation.category}</div>
@@ -161,7 +166,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${variation.variation_number}_Variation_Order.html`;
+    link.download = `${variation.variation_number}_Variation_Quotation.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -208,41 +213,15 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     return `-$${Math.abs(amount).toLocaleString()}`;
   };
 
-  const handleSubmitVariation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const attachmentData = attachedFiles.map(file => ({
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }));
-
-    const variationData = {
-      ...newVariation,
-      attachments: attachmentData
-    };
-
+  const handleSubmitVariation = async (variationData: any) => {
     const result = await createVariation(variationData);
     
     if (result) {
-      setNewVariation({
-        title: '',
-        description: '',
-        requested_by: '',
-        costImpact: '',
-        timeImpact: '',
-        category: '',
-        priority: 'medium',
-        clientEmail: '',
-        justification: '',
-        location: ''
-      });
-      setAttachedFiles([]);
       setShowNewVariation(false);
       
       toast({
         title: "Success",
-        description: "Variation created as draft. You can now submit it for approval."
+        description: "Quotation-style variation created successfully!"
       });
     }
   };
@@ -264,12 +243,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Variation Manager</h3>
-          <p className="text-gray-600">Track project variations and cost impacts</p>
+          <h3 className="text-lg font-semibold">Variation Manager - Quotation Style</h3>
+          <p className="text-gray-600">Create professional quotation-style variations with detailed cost breakdowns</p>
         </div>
         <Button onClick={() => setShowNewVariation(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          New Variation
+          <Calculator className="h-4 w-4" />
+          New Quotation Variation
         </Button>
       </div>
 
@@ -307,7 +286,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <CardContent className="p-4 text-center">
             <DollarSign className="h-8 w-8 mx-auto text-green-500 mb-2" />
             <div className="text-2xl font-bold">
-              ${variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + v.cost_impact, 0).toLocaleString()}
+              ${variations.filter(v => v.status === 'approved').reduce((sum, v) => sum + (v.total_amount || v.cost_impact), 0).toLocaleString()}
             </div>
             <div className="text-sm text-gray-600">Approved Value</div>
           </CardContent>
@@ -328,190 +307,17 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       {showNewVariation && (
         <Card>
           <CardHeader>
-            <CardTitle>Submit New Variation</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              New Quotation-Style Variation
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmitVariation} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="variationTitle">Variation Title</Label>
-                  <Input
-                    id="variationTitle"
-                    value={newVariation.title}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Brief description of variation"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="requestedBy">Requested By</Label>
-                  <Input
-                    id="requestedBy"
-                    value={newVariation.requested_by}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, requested_by: e.target.value }))}
-                    placeholder="Your name"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  value={newVariation.location}
-                  onChange={(e) => setNewVariation(prev => ({ ...prev, location: e.target.value }))}
-                  placeholder="Specific location within the project (e.g., Unit 3A, Level 2, Kitchen)"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Detailed Description</Label>
-                <Textarea
-                  id="description"
-                  value={newVariation.description}
-                  onChange={(e) => setNewVariation(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Detailed description of the variation including scope and requirements"
-                  rows={3}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="costImpact">Cost Impact ($)</Label>
-                  <Input
-                    id="costImpact"
-                    type="number"
-                    value={newVariation.costImpact}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, costImpact: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timeImpact">Time Impact (days)</Label>
-                  <Input
-                    id="timeImpact"
-                    type="number"
-                    value={newVariation.timeImpact}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, timeImpact: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select value={newVariation.priority} onValueChange={(value) => setNewVariation(prev => ({ ...prev, priority: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select value={newVariation.category} onValueChange={(value) => setNewVariation(prev => ({ ...prev, category: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="electrical">Electrical</SelectItem>
-                      <SelectItem value="plumbing">Plumbing</SelectItem>
-                      <SelectItem value="structural">Structural</SelectItem>
-                      <SelectItem value="fixtures">Fixtures & Fittings</SelectItem>
-                      <SelectItem value="finishes">Finishes</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clientEmail">Client Email</Label>
-                  <Input
-                    id="clientEmail"
-                    type="email"
-                    value={newVariation.clientEmail}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, clientEmail: e.target.value }))}
-                    placeholder="client@example.com"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="justification">Justification / Reason for Variation</Label>
-                <Textarea
-                  id="justification"
-                  value={newVariation.justification}
-                  onChange={(e) => setNewVariation(prev => ({ ...prev, justification: e.target.value }))}
-                  placeholder="Explain why this variation is necessary or requested"
-                  rows={2}
-                />
-              </div>
-
-              {/* File Upload Section */}
-              <div className="space-y-2">
-                <Label htmlFor="attachments">Attachments</Label>
-                <div className="flex items-center gap-4">
-                  <Input
-                    id="attachments"
-                    type="file"
-                    multiple
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('attachments')?.click()}
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload Files
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    PDF, DOC, DOCX, JPG, PNG (Max 10MB each)
-                  </span>
-                </div>
-
-                {/* Display attached files */}
-                {attachedFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <Label>Attached Files:</Label>
-                    {attachedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
-                        <div className="flex items-center gap-2">
-                          <Paperclip className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">{file.name}</span>
-                          <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex gap-4">
-                <Button type="submit">Submit Variation</Button>
-                <Button type="button" variant="outline" onClick={() => setShowNewVariation(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
+            <QuotationVariationForm
+              onSubmit={handleSubmitVariation}
+              onCancel={() => setShowNewVariation(false)}
+              projectName={projectName}
+            />
           </CardContent>
         </Card>
       )}
@@ -524,12 +330,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         <CardContent>
           {variations.length === 0 ? (
             <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Variations Yet</h3>
-              <p className="text-gray-600 mb-4">Create your first variation to get started</p>
+              <p className="text-gray-600 mb-4">Create your first quotation-style variation to get started</p>
               <Button onClick={() => setShowNewVariation(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Variation
+                <Calculator className="h-4 w-4 mr-2" />
+                Create Quotation Variation
               </Button>
             </div>
           ) : (
@@ -539,13 +345,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                   <TableHead>ID</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Submitted By</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Cost Impact</TableHead>
+                  <TableHead>Total Amount</TableHead>
+                  <TableHead>GST</TableHead>
                   <TableHead>Time Impact</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead>Client Email</TableHead>
                   <TableHead>Email Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -563,19 +368,18 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                         <span title={variation.location}>{variation.location}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{variation.requested_by}</TableCell>
                     <TableCell>{variation.request_date}</TableCell>
-                    <TableCell className={variation.cost_impact >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatCurrency(variation.cost_impact)}
+                    <TableCell className="text-green-600 font-medium">
+                      ${(variation.total_amount || variation.cost_impact).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-blue-600">
+                      ${variation.gst_amount?.toLocaleString() || '0'}
                     </TableCell>
                     <TableCell>
                       {variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
                     </TableCell>
                     <TableCell>{getStatusBadge(variation.status)}</TableCell>
                     <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
-                    <TableCell className="max-w-[150px] truncate">
-                      {variation.client_email || 'No email'}
-                    </TableCell>
                     <TableCell>
                       {variation.email_sent ? (
                         <Badge variant="secondary" className="bg-green-100 text-green-800">

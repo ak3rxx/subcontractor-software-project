@@ -3,6 +3,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+export interface CostBreakdownItem {
+  id: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  subtotal: number;
+}
+
+export interface TimeImpactDetails {
+  requiresNoticeOfDelay: boolean;
+  requiresExtensionOfTime: boolean;
+  noticeOfDelayDays?: number;
+  extensionOfTimeDays?: number;
+}
+
 export interface Variation {
   id: string;
   project_id: string;
@@ -26,6 +41,10 @@ export interface Variation {
   email_sent?: boolean;
   email_sent_date?: string;
   email_sent_by?: string;
+  cost_breakdown: CostBreakdownItem[];
+  time_impact_details: TimeImpactDetails;
+  gst_amount: number;
+  total_amount: number;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +99,10 @@ export const useVariations = (projectId: string) => {
         email_sent: item.email_sent || false,
         email_sent_date: item.email_sent_date,
         email_sent_by: item.email_sent_by,
+        cost_breakdown: item.cost_breakdown || [],
+        time_impact_details: item.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
+        gst_amount: item.gst_amount || 0,
+        total_amount: item.total_amount || 0,
         created_at: item.created_at,
         updated_at: item.updated_at
       }));
@@ -118,13 +141,17 @@ export const useVariations = (projectId: string) => {
         description: variationData.description,
         location: variationData.location,
         requested_by: user.id,
-        cost_impact: parseFloat(variationData.costImpact) || 0,
+        cost_impact: parseFloat(variationData.costImpact) || variationData.total_amount || 0,
         time_impact: parseInt(variationData.timeImpact) || 0,
         priority: variationData.priority || 'medium',
         status: 'draft',
         category: variationData.category,
         client_email: variationData.clientEmail,
         justification: variationData.justification,
+        cost_breakdown: variationData.cost_breakdown || [],
+        time_impact_details: variationData.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
+        gst_amount: variationData.gst_amount || 0,
+        total_amount: variationData.total_amount || 0,
       };
 
       const { data, error } = await supabase
@@ -172,6 +199,10 @@ export const useVariations = (projectId: string) => {
         email_sent: data.email_sent || false,
         email_sent_date: data.email_sent_date,
         email_sent_by: data.email_sent_by,
+        cost_breakdown: data.cost_breakdown || [],
+        time_impact_details: data.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
+        gst_amount: data.gst_amount || 0,
+        total_amount: data.total_amount || 0,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -193,7 +224,6 @@ export const useVariations = (projectId: string) => {
     try {
       console.log('Updating variation with:', updates);
       
-      // Direct mapping since interface matches database fields
       const dbUpdates: any = {};
       
       if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -214,6 +244,10 @@ export const useVariations = (projectId: string) => {
       if (updates.email_sent_by !== undefined) dbUpdates.email_sent_by = updates.email_sent_by;
       if (updates.requested_by !== undefined) dbUpdates.requested_by = updates.requested_by;
       if (updates.request_date !== undefined) dbUpdates.request_date = updates.request_date;
+      if (updates.cost_breakdown !== undefined) dbUpdates.cost_breakdown = updates.cost_breakdown;
+      if (updates.time_impact_details !== undefined) dbUpdates.time_impact_details = updates.time_impact_details;
+      if (updates.gst_amount !== undefined) dbUpdates.gst_amount = updates.gst_amount;
+      if (updates.total_amount !== undefined) dbUpdates.total_amount = updates.total_amount;
 
       console.log('Database updates:', dbUpdates);
 
@@ -236,7 +270,6 @@ export const useVariations = (projectId: string) => {
 
       console.log('Updated variation data from DB:', data);
 
-      // Transform the returned data to match our interface
       const transformedData = {
         id: data.id,
         project_id: data.project_id,
@@ -260,6 +293,10 @@ export const useVariations = (projectId: string) => {
         email_sent: data.email_sent || false,
         email_sent_date: data.email_sent_date,
         email_sent_by: data.email_sent_by,
+        cost_breakdown: data.cost_breakdown || [],
+        time_impact_details: data.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
+        gst_amount: data.gst_amount || 0,
+        total_amount: data.total_amount || 0,
         created_at: data.created_at,
         updated_at: data.updated_at
       };

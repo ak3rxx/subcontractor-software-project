@@ -162,6 +162,47 @@ export type Database = {
           },
         ]
       }
+      category_learning_patterns: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          pattern_data: Json
+          success_rate: number | null
+          trade_industry: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          pattern_data: Json
+          success_rate?: number | null
+          trade_industry: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          pattern_data?: Json
+          success_rate?: number | null
+          trade_industry?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_learning_patterns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           approval_date: string | null
@@ -264,6 +305,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      organization_categories: {
+        Row: {
+          category_name: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          organization_id: string
+          trade_industry: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          category_name: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id: string
+          trade_industry: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          category_name?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string
+          trade_industry?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organization_invitations: {
         Row: {
@@ -1141,12 +1223,14 @@ export type Database = {
           approved_by: string | null
           category: string | null
           client_email: string | null
+          cost_breakdown: Json | null
           cost_impact: number | null
           created_at: string | null
           description: string | null
           email_sent: boolean | null
           email_sent_by: string | null
           email_sent_date: string | null
+          gst_amount: number | null
           id: string
           justification: string | null
           location: string | null
@@ -1156,7 +1240,9 @@ export type Database = {
           requested_by: string | null
           status: string | null
           time_impact: number | null
+          time_impact_details: Json | null
           title: string
+          total_amount: number | null
           updated_at: string | null
           variation_number: string
         }
@@ -1166,12 +1252,14 @@ export type Database = {
           approved_by?: string | null
           category?: string | null
           client_email?: string | null
+          cost_breakdown?: Json | null
           cost_impact?: number | null
           created_at?: string | null
           description?: string | null
           email_sent?: boolean | null
           email_sent_by?: string | null
           email_sent_date?: string | null
+          gst_amount?: number | null
           id?: string
           justification?: string | null
           location?: string | null
@@ -1181,7 +1269,9 @@ export type Database = {
           requested_by?: string | null
           status?: string | null
           time_impact?: number | null
+          time_impact_details?: Json | null
           title: string
+          total_amount?: number | null
           updated_at?: string | null
           variation_number: string
         }
@@ -1191,12 +1281,14 @@ export type Database = {
           approved_by?: string | null
           category?: string | null
           client_email?: string | null
+          cost_breakdown?: Json | null
           cost_impact?: number | null
           created_at?: string | null
           description?: string | null
           email_sent?: boolean | null
           email_sent_by?: string | null
           email_sent_date?: string | null
+          gst_amount?: number | null
           id?: string
           justification?: string | null
           location?: string | null
@@ -1206,7 +1298,9 @@ export type Database = {
           requested_by?: string | null
           status?: string | null
           time_impact?: number | null
+          time_impact_details?: Json | null
           title?: string
+          total_amount?: number | null
           updated_at?: string | null
           variation_number?: string
         }
@@ -1262,6 +1356,13 @@ export type Database = {
           item_description: string
         }[]
       }
+      get_smart_categories: {
+        Args: { org_id: string; trade_type?: string }
+        Returns: {
+          category_name: string
+          usage_count: number
+        }[]
+      }
       record_qa_change: {
         Args: {
           p_inspection_id: string
@@ -1274,6 +1375,10 @@ export type Database = {
           p_item_description?: string
         }
         Returns: string
+      }
+      update_category_usage: {
+        Args: { org_id: string; category: string; trade?: string }
+        Returns: undefined
       }
     }
     Enums: {
