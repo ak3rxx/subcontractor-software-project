@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,7 +97,6 @@ const Projects = () => {
           <TabsContent value="dashboard" className="mt-6">
             <ProjectDashboard 
               projectData={selectedProject}
-              onNavigateToModule={(module) => setActiveTab(module)}
             />
           </TabsContent>
 
@@ -174,8 +172,8 @@ const Projects = () => {
           </CardHeader>
           <CardContent>
             <ProjectSetup 
-              onSubmit={handleCreateProject}
-              onCancel={() => setShowNewProject(false)}
+              onClose={() => setShowNewProject(false)}
+              onProjectCreated={handleCreateProject}
             />
           </CardContent>
         </Card>
