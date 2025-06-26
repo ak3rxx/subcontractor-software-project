@@ -39,32 +39,49 @@ export const useVariationIntegration = (projectId: string) => {
     if (!projectId) return;
 
     try {
-      // Fetch milestone links
-      const { data: milestoneData, error: milestoneError } = await supabase
-        .from('variation_milestones')
-        .select('*')
-        .in('variation_id', 
-          supabase.from('variations').select('id').eq('project_id', projectId)
-        );
+      // First get variation IDs for this project
+      const { data: variations, error: variationsError } = await supabase
+        .from('variations')
+        .select('id')
+        .eq('project_id', projectId);
 
-      if (milestoneError) {
-        console.error('Error fetching milestone links:', milestoneError);
-      } else {
-        setMilestoneLinks(milestoneData || []);
+      if (variationsError) {
+        console.error('Error fetching variations:', variationsError);
+        setLoading(false);
+        return;
       }
 
-      // Fetch budget impacts
-      const { data: budgetData, error: budgetError } = await supabase
-        .from('variation_budget_impacts')
-        .select('*')
-        .in('variation_id', 
-          supabase.from('variations').select('id').eq('project_id', projectId)
-        );
+      const variationIds = variations?.map(v => v.id) || [];
 
-      if (budgetError) {
-        console.error('Error fetching budget impacts:', budgetError);
-      } else {
-        setBudgetImpacts(budgetData || []);
+      if (variationIds.length > 0) {
+        // Fetch milestone links
+        const { data: milestoneData, error: milestoneError } = await supabase
+          .from('variation_milestones')
+          .select('*')
+          .in('variation_id', variationIds);
+
+        if (milestoneError) {
+          console.error('Error fetching milestone links:', milestoneError);
+        } else {
+          setMilestoneLinks(milestoneData || []);
+        }
+
+        // Fetch budget impacts
+        const { data: budgetData, error: budgetError } = await supabase
+          .from('variation_budget_impacts')
+          .select('*')
+          .in('variation_id', variationIds);
+
+        if (budgetError) {
+          console.error('Error fetching budget impacts:', budgetError);
+        } else {
+          // Cast to proper type
+          const typedBudgetData = (budgetData || []).map(item => ({
+            ...item,
+            impact_type: item.impact_type as 'increase' | 'decrease'
+          }));
+          setBudgetImpacts(typedBudgetData);
+        }
       }
 
       // Calculate project impact
@@ -173,13 +190,7 @@ export const useVariationIntegration = (projectId: string) => {
           .from('programme_milestones')
           .update({
             variation_time_impact: approvedTimeImpact,
-            affected_by_variations: supabase.sql`
-              CASE 
-                WHEN affected_by_variations ? ${variationId} 
-                THEN affected_by_variations 
-                ELSE affected_by_variations || ${JSON.stringify([variationId])}::jsonb
-              END
-            `
+            affected_by_variations: [variationId]
           })
           .eq('id', link.milestone_id);
 

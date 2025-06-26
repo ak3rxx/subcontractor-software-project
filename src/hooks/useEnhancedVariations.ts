@@ -38,7 +38,7 @@ export interface EnhancedVariation {
   // Enhanced fields
   linked_milestones?: string[];
   budget_impacts?: any[];
-  integration_status?: 'pending' | 'linked' | 'applied';
+  integrationStatus?: 'pending' | 'linked' | 'applied';
 }
 
 export const useEnhancedVariations = (projectId: string) => {
@@ -83,11 +83,11 @@ export const useEnhancedVariations = (projectId: string) => {
 
         return {
           ...variation,
-          cost_breakdown: variation.cost_breakdown || [],
-          time_impact_details: variation.time_impact_details || {},
+          cost_breakdown: Array.isArray(variation.cost_breakdown) ? variation.cost_breakdown : [],
+          time_impact_details: typeof variation.time_impact_details === 'object' ? variation.time_impact_details : {},
           linked_milestones: linkedMilestones,
           budget_impacts: variationBudgetImpacts,
-          integration_status,
+          integrationStatus,
           // Ensure proper typing
           priority: (variation.priority as 'high' | 'medium' | 'low') || 'medium',
           status: variation.status as 'draft' | 'pending_approval' | 'approved' | 'rejected'

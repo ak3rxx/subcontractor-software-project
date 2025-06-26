@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,7 +97,7 @@ const Projects = () => {
 
           <TabsContent value="dashboard" className="mt-6">
             <ProjectDashboard 
-              project={selectedProject}
+              projectData={selectedProject}
               onNavigateToModule={(module) => setActiveTab(module)}
             />
           </TabsContent>
@@ -109,19 +110,17 @@ const Projects = () => {
           </TabsContent>
 
           <TabsContent value="tasks" className="mt-6">
-            <TaskManager projectId={selectedProject.id} />
+            <TaskManager projectName={selectedProject.name} />
           </TabsContent>
 
           <TabsContent value="rfis" className="mt-6">
             <RFIManager 
               projectName={selectedProject.name}
-              projectId={selectedProject.id}
             />
           </TabsContent>
 
           <TabsContent value="qa" className="mt-6">
             <QAITPTracker 
-              projectName={selectedProject.name}
               projectId={selectedProject.id}
             />
           </TabsContent>
@@ -136,21 +135,18 @@ const Projects = () => {
           <TabsContent value="finance" className="mt-6">
             <FinanceManager 
               projectName={selectedProject.name}
-              projectId={selectedProject.id}
             />
           </TabsContent>
 
           <TabsContent value="documents" className="mt-6">
             <DocumentManager 
               projectName={selectedProject.name}
-              projectId={selectedProject.id}
             />
           </TabsContent>
 
           <TabsContent value="notes" className="mt-6">
             <TeamNotes 
               projectName={selectedProject.name}
-              projectId={selectedProject.id}
             />
           </TabsContent>
         </Tabs>
