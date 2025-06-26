@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,6 +50,66 @@ export interface Variation {
   updated_at: string;
 }
 
+// Helper function to safely parse cost breakdown
+const parseCostBreakdown = (data: any): CostBreakdownItem[] => {
+  if (!data) return [];
+  if (Array.isArray(data)) {
+    return data.map((item: any) => ({
+      id: item?.id || '',
+      description: item?.description || '',
+      quantity: Number(item?.quantity) || 0,
+      rate: Number(item?.rate) || 0,
+      subtotal: Number(item?.subtotal) || 0,
+    }));
+  }
+  return [];
+};
+
+// Helper function to safely parse time impact details
+const parseTimeImpactDetails = (data: any): TimeImpactDetails => {
+  if (!data || typeof data !== 'object') {
+    return { requiresNoticeOfDelay: false, requiresExtensionOfTime: false };
+  }
+  return {
+    requiresNoticeOfDelay: Boolean(data.requiresNoticeOfDelay),
+    requiresExtensionOfTime: Boolean(data.requiresExtensionOfTime),
+    noticeOfDelayDays: data.noticeOfDelayDays ? Number(data.noticeOfDelayDays) : undefined,
+    extensionOfTimeDays: data.extensionOfTimeDays ? Number(data.extensionOfTimeDays) : undefined,
+  };
+};
+
+// Helper function to transform database item to Variation interface
+const transformDatabaseItem = (item: any): Variation => ({
+  id: item.id,
+  project_id: item.project_id,
+  variation_number: item.variation_number,
+  title: item.title,
+  description: item.description,
+  location: item.location || '',
+  requested_by: item.requested_by,
+  request_date: item.request_date || item.created_at.split('T')[0],
+  cost_impact: item.cost_impact || 0,
+  time_impact: item.time_impact || 0,
+  status: item.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
+  category: item.category || '',
+  priority: item.priority as 'high' | 'normal' | 'low',
+  client_email: item.client_email || '',
+  justification: item.justification || '',
+  attachments: [],
+  approved_by: item.approved_by,
+  approval_date: item.approval_date,
+  approval_comments: item.approval_comments || '',
+  email_sent: item.email_sent || false,
+  email_sent_date: item.email_sent_date,
+  email_sent_by: item.email_sent_by,
+  cost_breakdown: parseCostBreakdown(item.cost_breakdown),
+  time_impact_details: parseTimeImpactDetails(item.time_impact_details),
+  gst_amount: item.gst_amount || 0,
+  total_amount: item.total_amount || 0,
+  created_at: item.created_at,
+  updated_at: item.updated_at
+});
+
 export const useVariations = (projectId: string) => {
   const [variations, setVariations] = useState<Variation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,36 +137,7 @@ export const useVariations = (projectId: string) => {
       }
 
       // Transform the data to match our interface
-      const transformedData = (data || []).map((item: any) => ({
-        id: item.id,
-        project_id: item.project_id,
-        variation_number: item.variation_number,
-        title: item.title,
-        description: item.description,
-        location: item.location || '',
-        requested_by: item.requested_by,
-        request_date: item.request_date || item.created_at.split('T')[0],
-        cost_impact: item.cost_impact || 0,
-        time_impact: item.time_impact || 0,
-        status: item.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
-        category: item.category || '',
-        priority: item.priority as 'high' | 'normal' | 'low',
-        client_email: item.client_email || '',
-        justification: item.justification || '',
-        attachments: [], // Not in database, default to empty array
-        approved_by: item.approved_by,
-        approval_date: item.approval_date,
-        approval_comments: item.approval_comments || '',
-        email_sent: item.email_sent || false,
-        email_sent_date: item.email_sent_date,
-        email_sent_by: item.email_sent_by,
-        cost_breakdown: item.cost_breakdown || [],
-        time_impact_details: item.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
-        gst_amount: item.gst_amount || 0,
-        total_amount: item.total_amount || 0,
-        created_at: item.created_at,
-        updated_at: item.updated_at
-      }));
+      const transformedData = (data || []).map(transformDatabaseItem);
 
       console.log('Fetched variations:', transformedData);
       setVariations(transformedData);
@@ -176,36 +208,7 @@ export const useVariations = (projectId: string) => {
       });
 
       // Transform the returned data to match our interface exactly
-      const transformedData: Variation = {
-        id: data.id,
-        project_id: data.project_id,
-        variation_number: data.variation_number,
-        title: data.title,
-        description: data.description,
-        location: data.location || '',
-        requested_by: data.requested_by,
-        request_date: data.request_date || data.created_at.split('T')[0],
-        cost_impact: data.cost_impact || 0,
-        time_impact: data.time_impact || 0,
-        status: data.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
-        category: data.category || '',
-        priority: data.priority as 'high' | 'normal' | 'low',
-        client_email: data.client_email || '',
-        justification: data.justification || '',
-        attachments: [],
-        approved_by: data.approved_by,
-        approval_date: data.approval_date,
-        approval_comments: data.approval_comments || '',
-        email_sent: data.email_sent || false,
-        email_sent_date: data.email_sent_date,
-        email_sent_by: data.email_sent_by,
-        cost_breakdown: data.cost_breakdown || [],
-        time_impact_details: data.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
-        gst_amount: data.gst_amount || 0,
-        total_amount: data.total_amount || 0,
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      };
+      const transformedData = transformDatabaseItem(data);
 
       setVariations(prev => [transformedData, ...prev]);
       return transformedData;
@@ -270,36 +273,7 @@ export const useVariations = (projectId: string) => {
 
       console.log('Updated variation data from DB:', data);
 
-      const transformedData = {
-        id: data.id,
-        project_id: data.project_id,
-        variation_number: data.variation_number,
-        title: data.title,
-        description: data.description,
-        location: data.location || '',
-        requested_by: data.requested_by,
-        request_date: data.request_date || data.created_at.split('T')[0],
-        cost_impact: data.cost_impact || 0,
-        time_impact: data.time_impact || 0,
-        status: data.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
-        category: data.category || '',
-        priority: data.priority as 'high' | 'normal' | 'low',
-        client_email: data.client_email || '',
-        justification: data.justification || '',
-        attachments: [],
-        approved_by: data.approved_by,
-        approval_date: data.approval_date,
-        approval_comments: data.approval_comments || '',
-        email_sent: data.email_sent || false,
-        email_sent_date: data.email_sent_date,
-        email_sent_by: data.email_sent_by,
-        cost_breakdown: data.cost_breakdown || [],
-        time_impact_details: data.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
-        gst_amount: data.gst_amount || 0,
-        total_amount: data.total_amount || 0,
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      };
+      const transformedData = transformDatabaseItem(data);
 
       console.log('Transformed updated variation:', transformedData);
 
