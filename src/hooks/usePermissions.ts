@@ -76,6 +76,7 @@ export const usePermissions = () => {
         return;
       }
 
+      console.log('User profile fetched:', data);
       setUserProfile(data as UserProfile);
     } catch (error) {
       console.error('Error:', error);
@@ -107,32 +108,60 @@ export const usePermissions = () => {
   };
 
   const isDeveloper = (): boolean => {
-    return userProfile?.is_developer === true;
+    const result = userProfile?.is_developer === true;
+    console.log('isDeveloper check:', { 
+      userProfile: userProfile, 
+      is_developer: userProfile?.is_developer, 
+      result 
+    });
+    return result;
   };
 
   const hasPermission = (module: Module, requiredLevel: PermissionLevel = 'read'): boolean => {
-    if (!userProfile) return false;
+    if (!userProfile) {
+      console.log('No user profile, denying permission');
+      return false;
+    }
 
-    // Developers have full access to everything
-    if (isDeveloper()) return true;
+    // Developers have FULL access to everything
+    if (isDeveloper()) {
+      console.log('Developer access granted for module:', module);
+      return true;
+    }
 
     const userRole = getUserRole();
+    console.log('Checking permission for:', { userRole, module, requiredLevel });
     
     // org_admin should have admin access to most modules
     if (userRole === 'org_admin') {
       const adminModules: Module[] = ['projects', 'variations', 'tasks', 'rfis', 'qa_itp', 'finance', 'documents', 'programme', 'deliveries', 'handovers', 'notes'];
-      if (adminModules.includes(module)) return true;
+      if (adminModules.includes(module)) {
+        console.log('Org admin access granted for module:', module);
+        return true;
+      }
     }
 
     const permission = permissions.find(p => p.role === userRole && p.module === module);
     
-    if (!permission) return false;
+    if (!permission) {
+      console.log('No permission found for:', { userRole, module });
+      return false;
+    }
 
     const levelHierarchy = ['none', 'read', 'write', 'admin'];
     const userLevelIndex = levelHierarchy.indexOf(permission.permission_level);
     const requiredLevelIndex = levelHierarchy.indexOf(requiredLevel);
 
-    return userLevelIndex >= requiredLevelIndex;
+    const hasAccess = userLevelIndex >= requiredLevelIndex;
+    console.log('Permission check result:', { 
+      userRole, 
+      module, 
+      userLevel: permission.permission_level, 
+      requiredLevel, 
+      hasAccess 
+    });
+
+    return hasAccess;
   };
 
   const canAccess = (module: Module): boolean => {

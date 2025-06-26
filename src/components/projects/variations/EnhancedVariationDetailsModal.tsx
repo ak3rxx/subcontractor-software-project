@@ -4,15 +4,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { 
-  MapPin, Calendar, DollarSign, Clock, User, Mail, FileText, Edit, 
-  Check, X, Download, Paperclip, Save, AlertTriangle, CheckCircle, XCircle
+  MapPin, Calendar, DollarSign, Clock, User, Mail, FileText, 
+  Download, Paperclip, AlertTriangle, CheckCircle, XCircle, Trash2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -79,69 +76,38 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin } = usePermissions();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<any>({});
   const [isApproving, setIsApproving] = useState(false);
+  const [approvalComments, setApprovalComments] = useState('');
 
-  // Get attachments for this variation
+  // Always call the hooks, but handle null variation
   const { 
     attachments, 
     loading: attachmentsLoading, 
     fetchAttachments, 
     downloadAttachment,
     deleteAttachment 
-  } = variation ? useVariationAttachments(variation.id) : {
-    attachments: [],
-    loading: false,
-    fetchAttachments: async () => {},
-    downloadAttachment: async () => {},
-    deleteAttachment: async () => {}
-  };
+  } = useVariationAttachments(variation?.id);
 
   useEffect(() => {
-    if (variation && fetchAttachments) {
+    if (variation?.id && fetchAttachments) {
+      console.log('Fetching attachments for variation:', variation.id);
       fetchAttachments();
     }
-  }, [variation, fetchAttachments]);
+  }, [variation?.id, fetchAttachments]);
 
   if (!variation) return null;
 
   // Permission checks - developers and admins can edit/approve
   const canEditVariation = isDeveloper() || canEdit('variations') || canAdmin('variations');
-  const canApproveVariation = isDeveloper() || canAdmin('variations') || user?.role === 'project_manager';
+  const canApproveVariation = isDeveloper() || canAdmin('variations');
 
-  const handleEdit = () => {
-    setEditData({
-      title: variation.title,
-      description: variation.description || '',
-      location: variation.location || '',
-      category: variation.category || '',
-      trade: variation.trade || '',
-      priority: variation.priority,
-      client_email: variation.client_email || '',
-      justification: variation.justification || ''
-    });
-    setIsEditing(true);
-  };
-
-  const handleSave = async () => {
-    if (!onUpdate) return;
-    
-    try {
-      await onUpdate(variation.id, editData);
-      setIsEditing(false);
-      toast({
-        title: "Success",
-        description: "Variation updated successfully"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update variation",
-        variant: "destructive"
-      });
-    }
-  };
+  console.log('Modal permission checks:', {
+    isDeveloper: isDeveloper(),
+    canEdit: canEdit('variations'),
+    canAdmin: canAdmin('variations'),
+    canEditVariation,
+    canApproveVariation
+  });
 
   const handleStatusChange = async (newStatus: string, comments?: string) => {
     if (!onUpdate) return;
@@ -150,7 +116,7 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
     try {
       const updates: any = {
         status: newStatus,
-        approval_comments: comments || ''
+        approval_comments: comments || approvalComments
       };
 
       if (newStatus === 'approved' || newStatus === 'rejected') {
@@ -158,12 +124,17 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
         updates.approval_date = new Date().toISOString().split('T')[0];
       }
 
+      console.log('Updating variation status:', updates);
       await onUpdate(variation.id, updates);
+      
       toast({
         title: "Success",
         description: `Variation ${newStatus} successfully`
       });
+      
+      setApprovalComments('');
     } catch (error) {
+      console.error('Error updating status:', error);
       toast({
         title: "Error",
         description: `Failed to ${newStatus} variation`,
@@ -178,6 +149,7 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
     try {
       await downloadAttachment(attachment);
     } catch (error) {
+      console.error('Error downloading attachment:', error);
       toast({
         title: "Error",
         description: "Failed to download attachment",
@@ -187,19 +159,20 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
   };
 
   const handleAttachmentDelete = async (attachmentId: string) => {
+    if (!canEditVariation) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to delete attachments",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this attachment?')) {
       try {
         await deleteAttachment(attachmentId);
-        toast({
-          title: "Success",
-          description: "Attachment deleted successfully"
-        });
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete attachment",
-          variant: "destructive"
-        });
+        console.error('Error deleting attachment:', error);
       }
     }
   };
@@ -258,14 +231,6 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                 Complete details and approval workflow for this variation
               </DialogDescription>
             </div>
-            <div className="flex gap-2">
-              {canEditVariation && !isEditing && (
-                <Button variant="outline" size="sm" onClick={handleEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-            </div>
           </div>
         </DialogHeader>
 
@@ -276,34 +241,10 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
             <Card>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
-                  {isEditing ? (
-                    <Input
-                      value={editData.title}
-                      onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-                      className="text-lg font-semibold"
-                    />
-                  ) : (
-                    <span>{variation.title}</span>
-                  )}
+                  <span>{variation.title}</span>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(variation.status)}
-                    {isEditing ? (
-                      <Select 
-                        value={editData.priority} 
-                        onValueChange={(value) => setEditData(prev => ({ ...prev, priority: value }))}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      getPriorityBadge(variation.priority)
-                    )}
+                    {getPriorityBadge(variation.priority)}
                   </div>
                 </CardTitle>
               </CardHeader>
@@ -319,45 +260,21 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">Location:</span>
-                      {isEditing ? (
-                        <Input
-                          value={editData.location}
-                          onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
-                          className="flex-1"
-                        />
-                      ) : (
-                        <span>{variation.location || 'Not specified'}</span>
-                      )}
+                      <span>{variation.location || 'Not specified'}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Category:</span>
-                      {isEditing ? (
-                        <Input
-                          value={editData.category}
-                          onChange={(e) => setEditData(prev => ({ ...prev, category: e.target.value }))}
-                          className="flex-1"
-                        />
-                      ) : (
-                        <Badge variant="outline" className="capitalize">
-                          {variation.category || 'Not specified'}
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className="capitalize">
+                        {variation.category || 'Not specified'}
+                      </Badge>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Trade:</span>
-                      {isEditing ? (
-                        <Input
-                          value={editData.trade}
-                          onChange={(e) => setEditData(prev => ({ ...prev, trade: e.target.value }))}
-                          className="flex-1"
-                        />
-                      ) : (
-                        <Badge variant="outline" className="capitalize">
-                          {variation.trade || 'Not specified'}
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className="capitalize">
+                        {variation.trade || 'Not specified'}
+                      </Badge>
                     </div>
                   </div>
 
@@ -382,22 +299,15 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">Client Email:</span>
-                      {isEditing ? (
-                        <Input
-                          type="email"
-                          value={editData.client_email}
-                          onChange={(e) => setEditData(prev => ({ ...prev, client_email: e.target.value }))}
-                          className="flex-1"
-                        />
-                      ) : (
-                        <span className="text-sm">{variation.client_email || 'Not provided'}</span>
-                      )}
+                      <span className="text-sm">{variation.client_email || 'Not provided'}</span>
                     </div>
 
                     {variation.email_sent && (
                       <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-sm text-green-600">Email sent on {variation.email_sent_date}</span>
+                        <span className="font-medium">Email Sent:</span>
+                        <Badge variant="outline" className="text-green-600">
+                          {variation.email_sent_date || 'Yes'}
+                        </Badge>
                       </div>
                     )}
                   </div>
@@ -405,43 +315,15 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
               </CardContent>
             </Card>
 
-            {/* Description & Justification */}
+            {/* Description */}
             <Card>
               <CardHeader>
-                <CardTitle>Description & Justification</CardTitle>
+                <CardTitle>Description</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="font-medium">Description</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editData.description}
-                      onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-gray-700 bg-gray-50 p-3 rounded-md mt-1">
-                      {variation.description || 'No description provided'}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label className="font-medium">Justification</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editData.justification}
-                      onChange={(e) => setEditData(prev => ({ ...prev, justification: e.target.value }))}
-                      rows={2}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-gray-700 bg-gray-50 p-3 rounded-md mt-1">
-                      {variation.justification || 'No justification provided'}
-                    </p>
-                  )}
-                </div>
+              <CardContent>
+                <p className="text-gray-700 bg-gray-50 p-3 rounded-md">
+                  {variation.description || 'No description provided'}
+                </p>
               </CardContent>
             </Card>
 
@@ -463,7 +345,7 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                     </TableHeader>
                     <TableBody>
                       {costBreakdown.map((item, index) => (
-                        <TableRow key={index}>
+                        <TableRow key={item.id || index}>
                           <TableCell>{item.description}</TableCell>
                           <TableCell className="text-right">{item.quantity}</TableCell>
                           <TableCell className="text-right">${item.rate.toFixed(2)}</TableCell>
@@ -475,18 +357,18 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                   
                   <Separator className="my-4" />
                   
-                  <div className="grid grid-cols-3 gap-4 text-right">
-                    <div>
-                      <Label>Subtotal</Label>
-                      <div className="text-lg font-semibold">${subtotal.toFixed(2)}</div>
+                  <div className="space-y-2 text-right">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>${subtotal.toFixed(2)}</span>
                     </div>
-                    <div>
-                      <Label>GST</Label>
-                      <div className="text-lg font-semibold">${gstAmount.toFixed(2)}</div>
+                    <div className="flex justify-between">
+                      <span>GST:</span>
+                      <span>${gstAmount.toFixed(2)}</span>
                     </div>
-                    <div>
-                      <Label>Total Amount</Label>
-                      <div className="text-2xl font-bold text-green-600">${totalAmount.toFixed(2)}</div>
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Total:</span>
+                      <span>${totalAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -504,13 +386,13 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                     {variation.requires_eot && (
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span>Extension of Time (EOT): {variation.eot_days} days</span>
+                        <span>Extension of Time Required: {variation.eot_days} days</span>
                       </div>
                     )}
                     {variation.requires_nod && (
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                        <span>Notice of Delay (NOD): {variation.nod_days} days</span>
+                        <span>Notice of Delay Required: {variation.nod_days} days</span>
                       </div>
                     )}
                   </div>
@@ -518,17 +400,31 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
               </Card>
             )}
 
-            {/* File Attachments */}
+            {/* Justification */}
+            {variation.justification && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Justification</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded-md">
+                    {variation.justification}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Attachments */}
             <Card>
               <CardHeader>
-                <CardTitle>File Attachments ({attachments.length})</CardTitle>
+                <CardTitle>Attachments ({attachments.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 {attachmentsLoading ? (
-                  <div className="text-center py-4">Loading attachments...</div>
-                ) : attachments.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">No attachments</div>
-                ) : (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : attachments.length > 0 ? (
                   <div className="space-y-2">
                     {attachments.map((attachment) => (
                       <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
@@ -553,36 +449,21 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
                               size="sm"
                               onClick={() => handleAttachmentDelete(attachment.id)}
                             >
-                              <X className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">No attachments</p>
                 )}
               </CardContent>
             </Card>
-
-            {/* Edit Actions */}
-            {isEditing && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSave}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* Approval Workflow - Right Side (1 column) */}
+          {/* Approval Workflow - Right Side */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
@@ -590,67 +471,76 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-center">
-                  <div className="text-lg font-semibold">Current Status</div>
-                  <div className="mt-2">{getStatusBadge(variation.status)}</div>
+                  <div className="text-sm text-gray-600 mb-2">Current Status</div>
+                  {getStatusBadge(variation.status)}
                 </div>
 
-                {canApproveVariation && variation.status === 'pending_approval' && (
-                  <div className="space-y-2">
-                    <Button 
-                      className="w-full" 
-                      onClick={() => handleStatusChange('approved')}
-                      disabled={isApproving}
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      className="w-full"
-                      onClick={() => handleStatusChange('rejected')}
-                      disabled={isApproving}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
+                {variation.status === 'pending_approval' && canApproveVariation && (
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Add approval comments..."
+                      value={approvalComments}
+                      onChange={(e) => setApprovalComments(e.target.value)}
+                      rows={3}
+                    />
+                    
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        onClick={() => handleStatusChange('approved')}
+                        disabled={isApproving}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Approve
+                      </Button>
+                      
+                      <Button
+                        onClick={() => handleStatusChange('rejected')}
+                        disabled={isApproving}
+                        variant="destructive"
+                        className="w-full"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Reject
+                      </Button>
+                    </div>
                   </div>
                 )}
 
-                {canApproveVariation && variation.status === 'draft' && (
-                  <Button 
-                    className="w-full" 
+                {variation.status === 'draft' && canApproveVariation && (
+                  <Button
                     onClick={() => handleStatusChange('pending_approval')}
                     disabled={isApproving}
+                    className="w-full"
                   >
                     Submit for Approval
                   </Button>
                 )}
 
-                {canApproveVariation && (variation.status === 'approved' || variation.status === 'rejected') && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
+                {(variation.status === 'approved' || variation.status === 'rejected') && canApproveVariation && (
+                  <Button
                     onClick={() => handleStatusChange('pending_approval')}
                     disabled={isApproving}
+                    variant="outline"
+                    className="w-full"
                   >
                     Revert to Pending
                   </Button>
                 )}
 
-                {variation.approval_date && (
-                  <div className="text-sm">
-                    <div className="font-medium">Approved/Rejected:</div>
-                    <div>{variation.approval_date}</div>
-                    {variation.approved_by && (
-                      <div className="text-gray-600">By: {variation.approved_by}</div>
+                {variation.approved_by && (
+                  <div className="text-sm text-gray-600">
+                    <div>Approved by: {variation.approved_by}</div>
+                    {variation.approval_date && (
+                      <div>Date: {variation.approval_date}</div>
                     )}
                   </div>
                 )}
 
                 {variation.approval_comments && (
                   <div className="text-sm">
-                    <div className="font-medium">Comments:</div>
-                    <div className="bg-gray-50 p-2 rounded text-gray-700">
+                    <div className="font-medium mb-1">Comments:</div>
+                    <div className="text-gray-600 bg-gray-50 p-2 rounded">
                       {variation.approval_comments}
                     </div>
                   </div>

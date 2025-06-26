@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +38,15 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const canEditVariations = isDeveloper() || canEdit('variations') || canAdmin('variations');
   const canSendEmails = isDeveloper() || canAdmin('variations');
 
+  console.log('Permission checks:', {
+    isDeveloper: isDeveloper(),
+    canEdit: canEdit('variations'),
+    canAdmin: canAdmin('variations'),
+    canCreateVariations,
+    canEditVariations,
+    canSendEmails
+  });
+
   const filteredVariations = variations.filter(variation => {
     const matchesSearch = variation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          variation.variation_number.toLowerCase().includes(searchTerm.toLowerCase());
@@ -50,6 +58,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
 
   const handleCreateVariation = async (data: any) => {
     try {
+      console.log('Creating variation with data:', data);
       await createVariation(data);
       toast({
         title: "Success",
@@ -58,6 +67,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       setShowForm(false);
       setEditingVariation(null);
     } catch (error) {
+      console.error('Error creating variation:', error);
       toast({
         title: "Error",
         description: "Failed to create variation",
@@ -70,6 +80,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     if (!editingVariation) return;
     
     try {
+      console.log('Updating variation with data:', data);
       await updateVariation(editingVariation.id, data);
       toast({
         title: "Success",
@@ -78,6 +89,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       setShowForm(false);
       setEditingVariation(null);
     } catch (error) {
+      console.error('Error updating variation:', error);
       toast({
         title: "Error",
         description: "Failed to update variation",
@@ -103,11 +115,13 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       });
       return;
     }
+    console.log('Editing variation:', variation);
     setEditingVariation(variation);
     setShowForm(true);
   };
 
   const handleViewDetails = (variation: any) => {
+    console.log('Viewing details for variation:', variation);
     setSelectedVariation(variation);
     setShowDetailsModal(true);
   };
@@ -131,6 +145,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         });
       }
     } catch (error) {
+      console.error('Error sending email:', error);
       toast({
         title: "Error",
         description: "Failed to send variation email",
@@ -141,6 +156,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
 
   const handleUpdateFromModal = async (id: string, updates: any): Promise<void> => {
     try {
+      console.log('Updating variation from modal:', id, updates);
       const result = await updateVariation(id, updates);
       if (result) {
         toast({
@@ -151,6 +167,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         setSelectedVariation(result);
       }
     } catch (error) {
+      console.error('Error updating variation from modal:', error);
       toast({
         title: "Error",
         description: "Failed to update variation",

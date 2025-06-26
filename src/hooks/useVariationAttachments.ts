@@ -15,23 +15,32 @@ export interface VariationAttachment {
   created_at: string;
 }
 
-export const useVariationAttachments = (variationId: string) => {
+export const useVariationAttachments = (variationId?: string) => {
   const [attachments, setAttachments] = useState<VariationAttachment[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchAttachments = async () => {
-    if (!variationId) return;
+    if (!variationId) {
+      setAttachments([]);
+      return;
+    }
 
     setLoading(true);
     try {
+      console.log('Fetching attachments for variation:', variationId);
       const { data, error } = await supabase
         .from('variation_attachments')
         .select('*')
         .eq('variation_id', variationId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching attachments:', error);
+        throw error;
+      }
+
+      console.log('Attachments fetched:', data);
       setAttachments(data || []);
     } catch (error) {
       console.error('Error fetching attachments:', error);
@@ -45,19 +54,27 @@ export const useVariationAttachments = (variationId: string) => {
     }
   };
 
-  const uploadAttachment = async (file: File) => {
-    if (!variationId) return null;
+  const uploadAttachment = async (file: File): Promise<VariationAttachment | null> => {
+    if (!variationId) {
+      console.error('Cannot upload attachment: no variation ID');
+      return null;
+    }
 
     setLoading(true);
     try {
+      console.log('Uploading file:', file.name, 'for variation:', variationId);
+      
       const fileExt = file.name.split('.').pop();
-      const fileName = `${variationId}/${Date.now()}.${fileExt}`;
+      const fileName = `${variationId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('variation-attachments')
         .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
 
       const { data, error } = await supabase
         .from('variation_attachments')
@@ -71,9 +88,14 @@ export const useVariationAttachments = (variationId: string) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
 
+      console.log('File uploaded successfully:', data);
       setAttachments(prev => [data, ...prev]);
+      
       toast({
         title: "Success",
         description: "File uploaded successfully"
@@ -95,11 +117,16 @@ export const useVariationAttachments = (variationId: string) => {
 
   const downloadAttachment = async (attachment: VariationAttachment) => {
     try {
+      console.log('Downloading attachment:', attachment.file_name);
+      
       const { data, error } = await supabase.storage
         .from('variation-attachments')
         .download(attachment.file_path);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Download error:', error);
+        throw error;
+      }
 
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
@@ -126,23 +153,37 @@ export const useVariationAttachments = (variationId: string) => {
 
   const deleteAttachment = async (attachmentId: string) => {
     try {
+      console.log('Deleting attachment:', attachmentId);
+      
       const attachment = attachments.find(a => a.id === attachmentId);
-      if (!attachment) return;
+      if (!attachment) {
+        console.error('Attachment not found:', attachmentId);
+        return;
+      }
 
+      // Delete from storage first
       const { error: storageError } = await supabase.storage
         .from('variation-attachments')
         .remove([attachment.file_path]);
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        console.error('Storage delete error:', storageError);
+        // Continue with database deletion even if storage fails
+      }
 
+      // Delete from database
       const { error } = await supabase
         .from('variation_attachments')
         .delete()
         .eq('id', attachmentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database delete error:', error);
+        throw error;
+      }
 
       setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+      
       toast({
         title: "Success",
         description: "File deleted successfully"
