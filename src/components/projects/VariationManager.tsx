@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, MapPin, MessageSquare, Calculator } from 'lucide-react';
+import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, MapPin, MessageSquare, Calculator, Wrench } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
 import VariationDetailsModal from './VariationDetailsModal';
 import QuotationVariationForm from './variations/QuotationVariationForm';
@@ -51,7 +50,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       abn: "98 765 432 109"
     };
 
-    // Generate detailed cost breakdown
     const costBreakdownHtml = variation.cost_breakdown && variation.cost_breakdown.length > 0 
       ? `
         <h3>Cost Breakdown</h3>
@@ -125,6 +123,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <div class="field"><span class="label">Project:</span> ${projectName}</div>
           <div class="field"><span class="label">Date:</span> ${variation.request_date}</div>
           <div class="field"><span class="label">Location:</span> ${variation.location}</div>
+          <div class="field"><span class="label">Trade:</span> ${variation.trade || 'Not specified'}</div>
           
           <div class="field"><span class="label">Title:</span> ${variation.title}</div>
           <div class="field"><span class="label">Description:</span><br/>${variation.description}</div>
@@ -206,6 +205,30 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     }
   };
 
+  const getTradeBadge = (trade: string) => {
+    if (!trade) return <Badge variant="outline">Not specified</Badge>;
+    
+    const tradeColors: { [key: string]: string } = {
+      'carpentry': 'bg-orange-100 text-orange-800',
+      'tiling': 'bg-blue-100 text-blue-800',
+      'painting': 'bg-purple-100 text-purple-800',
+      'rendering': 'bg-green-100 text-green-800',
+      'builder': 'bg-yellow-100 text-yellow-800',
+      'electrical': 'bg-red-100 text-red-800',
+      'plumbing': 'bg-cyan-100 text-cyan-800',
+      'hvac': 'bg-indigo-100 text-indigo-800',
+    };
+
+    const colorClass = tradeColors[trade.toLowerCase()] || 'bg-gray-100 text-gray-800';
+    
+    return (
+      <Badge className={colorClass}>
+        <Wrench className="h-3 w-3 mr-1" />
+        {trade.charAt(0).toUpperCase() + trade.slice(1)}
+      </Badge>
+    );
+  };
+
   const formatCurrency = (amount: number) => {
     if (amount >= 0) {
       return `+$${amount.toLocaleString()}`;
@@ -221,7 +244,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       
       toast({
         title: "Success",
-        description: "Quotation-style variation created successfully!"
+        description: "Variation created successfully!"
       });
     }
   };
@@ -243,12 +266,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Variation Manager - Quotation Style</h3>
-          <p className="text-gray-600">Create professional quotation-style variations with detailed cost breakdowns</p>
+          <h3 className="text-lg font-semibold">Variation Manager</h3>
+          <p className="text-gray-600">Create professional variations with detailed cost breakdowns and trade classification</p>
         </div>
         <Button onClick={() => setShowNewVariation(true)} className="flex items-center gap-2">
           <Calculator className="h-4 w-4" />
-          New Quotation Variation
+          New Variation
         </Button>
       </div>
 
@@ -309,7 +332,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calculator className="h-5 w-5" />
-              New Quotation-Style Variation
+              New Variation
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -332,10 +355,10 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
             <div className="text-center py-8">
               <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Variations Yet</h3>
-              <p className="text-gray-600 mb-4">Create your first quotation-style variation to get started</p>
+              <p className="text-gray-600 mb-4">Create your first variation to get started</p>
               <Button onClick={() => setShowNewVariation(true)}>
                 <Calculator className="h-4 w-4 mr-2" />
-                Create Quotation Variation
+                Create Variation
               </Button>
             </div>
           ) : (
@@ -344,6 +367,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Title</TableHead>
+                  <TableHead>Trade</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Total Amount</TableHead>
@@ -361,6 +385,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                     <TableCell className="font-mono text-sm">{variation.variation_number}</TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">
                       {variation.title}
+                    </TableCell>
+                    <TableCell>
+                      {getTradeBadge(variation.trade)}
                     </TableCell>
                     <TableCell className="max-w-[150px] truncate">
                       <div className="flex items-center gap-1">

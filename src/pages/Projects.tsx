@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Plus, Building2, Calendar, Users, Settings, Calculator } from 'lucide-r
 import { useProjects } from '@/hooks/useProjects';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import ProjectDashboard from '@/components/projects/ProjectDashboard';
-import EnhancedVariationManager from '@/components/projects/EnhancedVariationManager';
+import VariationManager from '@/components/projects/VariationManager';
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
 import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
@@ -32,9 +33,7 @@ const Projects = () => {
   };
 
   const handleNewInspection = () => {
-    // Navigate to create new inspection - this could open a modal or form
     console.log('Creating new QA inspection for project:', selectedProject?.id);
-    // For now, we'll just log this - the actual implementation would depend on how QA inspections are created
   };
 
   const getStatusBadge = (status: string) => {
@@ -107,7 +106,7 @@ const Projects = () => {
           </TabsContent>
 
           <TabsContent value="variations" className="mt-6">
-            <EnhancedVariationManager
+            <VariationManager
               projectName={selectedProject.name}
               projectId={selectedProject.id}
             />

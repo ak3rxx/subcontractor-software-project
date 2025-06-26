@@ -8,9 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Calculator, Upload, Paperclip, Wrench } from 'lucide-react';
-import { useSmartCategories } from '@/hooks/useSmartCategories';
-import { useAITradeSuggestions } from '@/hooks/useAITradeSuggestions';
+import { Plus, Trash2, Calculator, Upload, Paperclip } from 'lucide-react';
+import SmartTradeSelector from './SmartTradeSelector';
+import CategorySelector from './CategorySelector';
 
 interface CostBreakdownItem {
   id: string;
@@ -38,10 +38,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   onCancel,
   projectName
 }) => {
-  const { categories } = useSmartCategories();
-  const { getAllTrades, getTradeCategories, suggestTrade, loading: aiLoading } = useAITradeSuggestions();
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -66,34 +63,6 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
     requiresNoticeOfDelay: false,
     requiresExtensionOfTime: false
   });
-
-  // Update available categories when trade changes
-  useEffect(() => {
-    if (formData.trade) {
-      const tradeCategories = getTradeCategories(formData.trade);
-      setAvailableCategories(tradeCategories);
-      // Reset category if it's not valid for the new trade
-      if (formData.category && !tradeCategories.includes(formData.category)) {
-        setFormData(prev => ({ ...prev, category: '' }));
-      }
-    } else {
-      setAvailableCategories([]);
-    }
-  }, [formData.trade, getTradeCategories]);
-
-  // AI suggestion when description changes
-  useEffect(() => {
-    const suggestTradeFromDescription = async () => {
-      if (formData.description && formData.description.length > 10 && !formData.trade) {
-        // We need organization ID for AI suggestions - this would come from context in real app
-        // For now, we'll skip the AI suggestion if no organization context is available
-        console.log('Would suggest trade for:', formData.description);
-      }
-    };
-
-    const timeoutId = setTimeout(suggestTradeFromDescription, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [formData.description, formData.trade]);
 
   const addCostRow = () => {
     const newId = Date.now().toString();
@@ -167,7 +136,6 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   };
 
   const { subtotal, gstAmount, totalAmount } = calculateTotals();
-  const allTrades = getAllTrades();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -175,7 +143,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5" />
-            AI-Powered Variation Request
+            Variation Request
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -224,65 +192,22 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
               rows={3}
               required
             />
-            {aiLoading && (
-              <p className="text-sm text-blue-600">🤖 AI analyzing description for trade suggestion...</p>
-            )}
           </div>
 
           {/* Trade and Category Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="trade" className="flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                Trade *
-              </Label>
-              <Select 
-                value={formData.trade} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, trade: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trade type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allTrades.map((trade) => (
-                    <SelectItem key={trade} value={trade}>
-                      {trade.charAt(0).toUpperCase() + trade.slice(1).replace(/_/g, ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!formData.trade && (
-                <p className="text-sm text-gray-500">💡 Tip: Add description above for AI trade suggestion</p>
-              )}
-            </div>
+            <SmartTradeSelector
+              value={formData.trade}
+              onChange={(value) => setFormData(prev => ({ ...prev, trade: value }))}
+              description={formData.description}
+              showAISuggestion={true}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                disabled={!formData.trade}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={formData.trade ? "Select category" : "Select trade first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ')}
-                    </SelectItem>
-                  ))}
-                  {/* Also include organization categories */}
-                  {categories
-                    .filter(cat => !availableCategories.includes(cat.category_name))
-                    .map((cat) => (
-                      <SelectItem key={cat.category_name} value={cat.category_name}>
-                        {cat.category_name} ({cat.usage_count} uses)
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <CategorySelector
+              value={formData.category}
+              onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+              selectedTrade={formData.trade}
+            />
           </div>
 
           <div className="space-y-2">
@@ -439,11 +364,6 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   placeholder="Number of days"
                   min="0"
                 />
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-sm text-yellow-800">
-                    📋 Notice of Delay form template will be auto-generated (Template to be configured)
-                  </p>
-                </div>
               </div>
             )}
 
@@ -475,11 +395,6 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   placeholder="Number of days"
                   min="0"
                 />
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    📋 Extension of Time form template will be auto-generated (Template to be configured)
-                  </p>
-                </div>
               </div>
             )}
           </div>
@@ -571,7 +486,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
           Cancel
         </Button>
         <Button type="submit">
-          Submit AI-Enhanced Variation
+          Submit Variation
         </Button>
       </div>
     </form>
