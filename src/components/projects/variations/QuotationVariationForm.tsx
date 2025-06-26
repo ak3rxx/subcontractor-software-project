@@ -63,9 +63,9 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   // Initialize variation attachments hook only when editing
   const variationAttachments = editingVariation ? 
     useVariationAttachments(editingVariation.id) : 
-    { attachments: [], uploadAttachment: null, deleteAttachment: null, loading: false };
+    { attachments: [], uploadAttachment: null, deleteAttachment: null, loading: false, fetchAttachments: async () => {} };
 
-  const { attachments, uploadAttachment, deleteAttachment, loading: attachmentsLoading } = variationAttachments;
+  const { attachments, uploadAttachment, deleteAttachment, loading: attachmentsLoading, fetchAttachments } = variationAttachments;
 
   useEffect(() => {
     if (editingVariation) {
@@ -89,11 +89,11 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
       }
 
       // Fetch attachments for editing variation
-      if (editingVariation.id && variationAttachments.fetchAttachments) {
-        variationAttachments.fetchAttachments();
+      if (editingVariation.id && fetchAttachments) {
+        fetchAttachments();
       }
     }
-  }, [editingVariation]);
+  }, [editingVariation, fetchAttachments]);
 
   useEffect(() => {
     setHasUnsavedChanges(true);
@@ -272,7 +272,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   <CategorySelector
                     value={formData.category}
                     onChange={(value) => handleInputChange('category', value)}
-                    trade={formData.trade}
+                    selectedTrade={formData.trade}
                   />
                 </div>
                 <div>

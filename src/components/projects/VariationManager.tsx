@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -110,6 +109,24 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       toast({
         title: "Error",
         description: "Failed to send variation email",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateFromModal = async (id: string, updates: any) => {
+    try {
+      const result = await updateVariation(id, updates);
+      if (result) {
+        toast({
+          title: "Success",
+          description: "Variation updated successfully"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update variation",
         variant: "destructive"
       });
     }
@@ -393,7 +410,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           setShowDetailsModal(false);
           setSelectedVariation(null);
         }}
-        onUpdate={updateVariation}
+        onUpdate={handleUpdateFromModal}
       />
     </div>
   );
