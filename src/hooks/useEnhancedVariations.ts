@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -77,7 +76,7 @@ export const useEnhancedVariations = (projectId: string) => {
         const variationBudgetImpacts = budgetImpacts
           .filter(impact => impact.variation_id === variation.id);
 
-        const integrationStatus = linkedMilestones.length > 0 || variationBudgetImpacts.length > 0 
+        const integrationStatus: 'pending' | 'linked' | 'applied' = linkedMilestones.length > 0 || variationBudgetImpacts.length > 0 
           ? 'linked' 
           : 'pending';
 
@@ -91,7 +90,7 @@ export const useEnhancedVariations = (projectId: string) => {
           // Ensure proper typing
           priority: (variation.priority as 'high' | 'medium' | 'low') || 'medium',
           status: variation.status as 'draft' | 'pending_approval' | 'approved' | 'rejected'
-        };
+        } as EnhancedVariation;
       });
 
       setVariations(enhancedVariations);

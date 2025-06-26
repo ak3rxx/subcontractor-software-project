@@ -147,7 +147,7 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
           <CardContent className="p-4 text-center">
             <Link2 className="h-8 w-8 mx-auto text-blue-500 mb-2" />
             <div className="text-2xl font-bold">
-              {variations.filter(v => v.integration_status === 'linked').length}
+              {variations.filter(v => v.integrationStatus === 'linked').length}
             </div>
             <div className="text-sm text-gray-600">Integrated</div>
           </CardContent>
@@ -259,7 +259,7 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
                         </TableCell>
                         <TableCell>{getStatusBadge(variation.status)}</TableCell>
                         <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
-                        <TableCell>{getIntegrationBadge(variation.integration_status || 'pending')}</TableCell>
+                        <TableCell>{getIntegrationBadge(variation.integrationStatus || 'pending')}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button 
@@ -322,20 +322,20 @@ const EnhancedVariationManager: React.FC<EnhancedVariationManagerProps> = ({
                   <div className="flex justify-between">
                     <span>Integrated Variations:</span>
                     <span className="font-bold text-blue-600">
-                      {variations.filter(v => v.integration_status === 'linked').length}
+                      {variations.filter(v => v.integrationStatus === 'linked').length}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Pending Integration:</span>
                     <span className="font-bold text-yellow-600">
-                      {variations.filter(v => v.integration_status === 'pending').length}
+                      {variations.filter(v => v.integrationStatus === 'pending').length}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Integration Rate:</span>
                     <span className="font-bold text-green-600">
                       {variations.length > 0 
-                        ? Math.round((variations.filter(v => v.integration_status === 'linked').length / variations.length) * 100)
+                        ? Math.round((variations.filter(v => v.integrationStatus === 'linked').length / variations.length) * 100)
                         : 0}%
                     </span>
                   </div>
