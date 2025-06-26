@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { UserPlus, Mail, Trash2, Edit } from 'lucide-react';
+import { UserPlus, Mail, Trash2, Edit, AlertTriangle } from 'lucide-react';
 import { UserRole } from '@/hooks/usePermissions';
+import RoleAssignmentAlerts from './RoleAssignmentAlerts';
+import { useRoleAssignmentRequests } from '@/hooks/useRoleAssignmentRequests';
 
 interface TeamMember {
   id: string;
@@ -23,6 +25,7 @@ const TeamManagement: React.FC = () => {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('project_manager');
+  const { pendingCount } = useRoleAssignmentRequests();
 
   // Mock data - in real implementation, this would come from the database
   const [teamMembers] = useState<TeamMember[]>([
@@ -94,11 +97,24 @@ const TeamManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Role Assignment Alerts - Priority Section */}
+      {pendingCount > 0 && (
+        <RoleAssignmentAlerts />
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Team Management</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Team Management
+                {pendingCount > 0 && (
+                  <Badge variant="destructive" className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {pendingCount} pending
+                  </Badge>
+                )}
+              </CardTitle>
               <CardDescription>
                 Manage team members, assign roles, and control access
               </CardDescription>

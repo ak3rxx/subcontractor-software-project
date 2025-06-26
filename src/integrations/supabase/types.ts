@@ -1017,6 +1017,56 @@ export type Database = {
           },
         ]
       }
+      role_assignment_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          existing_role: string | null
+          id: string
+          organization_id: string
+          reason: string | null
+          requested_by: string | null
+          requested_role: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          existing_role?: string | null
+          id?: string
+          organization_id: string
+          reason?: string | null
+          requested_by?: string | null
+          requested_role?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          existing_role?: string | null
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          requested_by?: string | null
+          requested_role?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_assignment_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string
@@ -1215,6 +1265,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_role_validation: {
+        Row: {
+          created_at: string
+          id: string
+          last_validated_at: string | null
+          notification_sent: boolean | null
+          organization_id: string | null
+          updated_at: string
+          user_id: string
+          validation_status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_validated_at?: string | null
+          notification_sent?: boolean | null
+          organization_id?: string | null
+          updated_at?: string
+          user_id: string
+          validation_status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_validated_at?: string | null
+          notification_sent?: boolean | null
+          organization_id?: string | null
+          updated_at?: string
+          user_id?: string
+          validation_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_role_validation_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       variations: {
         Row: {
