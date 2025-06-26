@@ -60,10 +60,17 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Initialize variation attachments hook only when editing
+  // Initialize variation attachments hook with proper fallback
   const variationAttachments = editingVariation ? 
     useVariationAttachments(editingVariation.id) : 
-    { attachments: [], uploadAttachment: null, deleteAttachment: null, loading: false, fetchAttachments: async () => {} };
+    { 
+      attachments: [], 
+      uploadAttachment: null, 
+      deleteAttachment: null, 
+      loading: false, 
+      fetchAttachments: async () => {},
+      downloadAttachment: async () => {}
+    };
 
   const { attachments, uploadAttachment, deleteAttachment, loading: attachmentsLoading, fetchAttachments } = variationAttachments;
 

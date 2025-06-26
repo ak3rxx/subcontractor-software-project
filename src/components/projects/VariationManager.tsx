@@ -114,7 +114,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     }
   };
 
-  const handleUpdateFromModal = async (id: string, updates: any) => {
+  const handleUpdateFromModal = async (id: string, updates: any): Promise<void> => {
     try {
       const result = await updateVariation(id, updates);
       if (result) {
