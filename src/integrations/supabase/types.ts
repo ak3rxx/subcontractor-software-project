@@ -1372,6 +1372,50 @@ export type Database = {
           },
         ]
       }
+      variation_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variation_attachments_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       variation_budget_impacts: {
         Row: {
           budget_item_id: string | null
@@ -1407,6 +1451,47 @@ export type Database = {
           },
           {
             foreignKeyName: "variation_budget_impacts_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      variation_edit_history: {
+        Row: {
+          created_at: string | null
+          edit_reason: string | null
+          edited_by: string | null
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          edit_reason?: string | null
+          edited_by?: string | null
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          edit_reason?: string | null
+          edited_by?: string | null
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variation_edit_history_variation_id_fkey"
             columns: ["variation_id"]
             isOneToOne: false
             referencedRelation: "variations"
@@ -1467,14 +1552,23 @@ export type Database = {
           email_sent: boolean | null
           email_sent_by: string | null
           email_sent_date: string | null
+          eot_days: number | null
           gst_amount: number | null
           id: string
           justification: string | null
+          linked_milestones: Json | null
+          linked_qa_items: Json | null
+          linked_tasks: Json | null
           location: string | null
+          nod_days: number | null
+          pdf_generated_at: string | null
+          pdf_generated_by: string | null
           priority: string | null
           project_id: string | null
           request_date: string | null
           requested_by: string | null
+          requires_eot: boolean | null
+          requires_nod: boolean | null
           status: string | null
           submitted_by: string | null
           submitted_date: string | null
@@ -1499,14 +1593,23 @@ export type Database = {
           email_sent?: boolean | null
           email_sent_by?: string | null
           email_sent_date?: string | null
+          eot_days?: number | null
           gst_amount?: number | null
           id?: string
           justification?: string | null
+          linked_milestones?: Json | null
+          linked_qa_items?: Json | null
+          linked_tasks?: Json | null
           location?: string | null
+          nod_days?: number | null
+          pdf_generated_at?: string | null
+          pdf_generated_by?: string | null
           priority?: string | null
           project_id?: string | null
           request_date?: string | null
           requested_by?: string | null
+          requires_eot?: boolean | null
+          requires_nod?: boolean | null
           status?: string | null
           submitted_by?: string | null
           submitted_date?: string | null
@@ -1531,14 +1634,23 @@ export type Database = {
           email_sent?: boolean | null
           email_sent_by?: string | null
           email_sent_date?: string | null
+          eot_days?: number | null
           gst_amount?: number | null
           id?: string
           justification?: string | null
+          linked_milestones?: Json | null
+          linked_qa_items?: Json | null
+          linked_tasks?: Json | null
           location?: string | null
+          nod_days?: number | null
+          pdf_generated_at?: string | null
+          pdf_generated_by?: string | null
           priority?: string | null
           project_id?: string | null
           request_date?: string | null
           requested_by?: string | null
+          requires_eot?: boolean | null
+          requires_nod?: boolean | null
           status?: string | null
           submitted_by?: string | null
           submitted_date?: string | null
@@ -1631,6 +1743,16 @@ export type Database = {
           p_change_type?: string
           p_item_id?: string
           p_item_description?: string
+        }
+        Returns: string
+      }
+      record_variation_edit: {
+        Args: {
+          p_variation_id: string
+          p_field_name: string
+          p_old_value?: string
+          p_new_value?: string
+          p_edit_reason?: string
         }
         Returns: string
       }

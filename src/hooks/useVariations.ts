@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,6 +48,13 @@ export interface Variation {
   total_amount: number;
   created_at: string;
   updated_at: string;
+  requires_eot: boolean;
+  requires_nod: boolean;
+  eot_days: number;
+  nod_days: number;
+  linked_milestones: string[];
+  linked_tasks: string[];
+  linked_qa_items: string[];
 }
 
 // Helper function to safely parse cost breakdown
@@ -108,6 +114,13 @@ const transformDatabaseItem = (item: any): Variation => ({
   time_impact_details: parseTimeImpactDetails(item.time_impact_details),
   gst_amount: item.gst_amount || 0,
   total_amount: item.total_amount || 0,
+  requires_eot: item.requires_eot || false,
+  requires_nod: item.requires_nod || false,
+  eot_days: item.eot_days || 0,
+  nod_days: item.nod_days || 0,
+  linked_milestones: item.linked_milestones || [],
+  linked_tasks: item.linked_tasks || [],
+  linked_qa_items: item.linked_qa_items || [],
   created_at: item.created_at,
   updated_at: item.updated_at
 });
@@ -183,6 +196,13 @@ export const useVariations = (projectId: string) => {
         time_impact_details: variationData.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
         gst_amount: variationData.gst_amount || 0,
         total_amount: variationData.total_amount || 0,
+        requires_eot: variationData.requires_eot || false,
+        requires_nod: variationData.requires_nod || false,
+        eot_days: variationData.eot_days || 0,
+        nod_days: variationData.nod_days || 0,
+        linked_milestones: variationData.linked_milestones || [],
+        linked_tasks: variationData.linked_tasks || [],
+        linked_qa_items: variationData.linked_qa_items || []
       };
 
       const { data, error } = await supabase
@@ -247,6 +267,13 @@ export const useVariations = (projectId: string) => {
       if (updates.time_impact_details !== undefined) dbUpdates.time_impact_details = updates.time_impact_details;
       if (updates.gst_amount !== undefined) dbUpdates.gst_amount = updates.gst_amount;
       if (updates.total_amount !== undefined) dbUpdates.total_amount = updates.total_amount;
+      if (updates.requires_eot !== undefined) dbUpdates.requires_eot = updates.requires_eot;
+      if (updates.requires_nod !== undefined) dbUpdates.requires_nod = updates.requires_nod;
+      if (updates.eot_days !== undefined) dbUpdates.eot_days = updates.eot_days;
+      if (updates.nod_days !== undefined) dbUpdates.nod_days = updates.nod_days;
+      if (updates.linked_milestones !== undefined) dbUpdates.linked_milestones = updates.linked_milestones;
+      if (updates.linked_tasks !== undefined) dbUpdates.linked_tasks = updates.linked_tasks;
+      if (updates.linked_qa_items !== undefined) dbUpdates.linked_qa_items = updates.linked_qa_items;
 
       const { data, error } = await supabase
         .from('variations')

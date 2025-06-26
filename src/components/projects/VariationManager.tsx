@@ -1,13 +1,16 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, MapPin, MessageSquare, Calculator, Wrench } from 'lucide-react';
+import { Plus, DollarSign, Clock, AlertTriangle, FileText, Download, MapPin, MessageSquare, Calculator, Wrench, Edit } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
-import VariationDetailsModal from './VariationDetailsModal';
+import { useVariationAttachments } from '@/hooks/useVariationAttachments';
+import EnhancedVariationDetailsModal from './variations/EnhancedVariationDetailsModal';
 import QuotationVariationForm from './variations/QuotationVariationForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VariationManagerProps {
   projectName: string;
@@ -16,165 +19,40 @@ interface VariationManagerProps {
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
   const [showNewVariation, setShowNewVariation] = useState(false);
+  const [editingVariation, setEditingVariation] = useState<any>(null);
   const [emailingSending, setEmailSending] = useState<string | null>(null);
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // Permission checks
+  const userRole = user?.role || 'user';
+  const userEmail = user?.email || '';
+  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
+  const canEdit = [
+    'project_manager', 
+    'contract_administrator', 
+    'project_engineer',
+    'admin',
+    'manager'
+  ].includes(userRole) || isFullAccessUser || !userRole;
 
   const handleViewDetails = (variation: any) => {
     setSelectedVariation(variation);
     setShowDetailsModal(true);
   };
 
+  const handleEditVariation = (variation: any) => {
+    setEditingVariation(variation);
+    setShowDetailsModal(false);
+  };
+
   const handleSendEmail = async (variationId: string) => {
     setEmailSending(variationId);
     const success = await sendVariationEmail(variationId);
     setEmailSending(null);
-  };
-
-  const exportToPDF = (variation: any) => {
-    const senderCompany = {
-      name: "DC Squared Construction",
-      address: "123 Builder Street, Brisbane QLD 4000",
-      phone: "+61 7 1234 5678",
-      email: "admin@dcsquared.com.au",
-      abn: "12 345 678 901"
-    };
-
-    const recipientCompany = {
-      name: "Client Construction Pty Ltd",
-      address: "456 Client Avenue, Brisbane QLD 4001",
-      phone: "+61 7 9876 5432",
-      email: "contact@clientconstruction.com.au",
-      abn: "98 765 432 109"
-    };
-
-    const costBreakdownHtml = variation.cost_breakdown && variation.cost_breakdown.length > 0 
-      ? `
-        <h3>Cost Breakdown</h3>
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-          <thead>
-            <tr style="border-bottom: 2px solid #333;">
-              <th style="text-align: left; padding: 8px;">Description</th>
-              <th style="text-align: center; padding: 8px;">Quantity</th>
-              <th style="text-align: right; padding: 8px;">Rate</th>
-              <th style="text-align: right; padding: 8px;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${variation.cost_breakdown.map((item: any) => `
-              <tr style="border-bottom: 1px solid #ccc;">
-                <td style="padding: 8px;">${item.description}</td>
-                <td style="text-align: center; padding: 8px;">${item.quantity}</td>
-                <td style="text-align: right; padding: 8px;">$${item.rate.toFixed(2)}</td>
-                <td style="text-align: right; padding: 8px;">$${item.subtotal.toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div style="text-align: right; margin-top: 20px;">
-          <p><strong>Subtotal: $${(variation.total_amount - variation.gst_amount).toFixed(2)}</strong></p>
-          <p><strong>GST: $${variation.gst_amount.toFixed(2)}</strong></p>
-          <p style="font-size: 18px;"><strong>Total: $${variation.total_amount.toFixed(2)}</strong></p>
-        </div>
-      `
-      : `<div class="field"><span class="label">Cost Impact:</span> ${formatCurrency(variation.cost_impact)}</div>`;
-
-    const pdfContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; }
-          .company-details { width: 45%; }
-          .variation-details { margin-top: 30px; }
-          .field { margin: 10px 0; }
-          .label { font-weight: bold; }
-          .signature-section { margin-top: 50px; border-top: 1px solid #ccc; padding-top: 20px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-details">
-            <h3>From: ${senderCompany.name}</h3>
-            <p>${senderCompany.address}</p>
-            <p>Phone: ${senderCompany.phone}</p>
-            <p>Email: ${senderCompany.email}</p>
-            <p>ABN: ${senderCompany.abn}</p>
-          </div>
-          <div class="company-details">
-            <h3>To: ${recipientCompany.name}</h3>
-            <p>${recipientCompany.address}</p>
-            <p>Phone: ${recipientCompany.phone}</p>
-            <p>Email: ${recipientCompany.email}</p>
-            <p>ABN: ${recipientCompany.abn}</p>
-          </div>
-        </div>
-        
-        <h2 style="text-align: center; margin: 30px 0;">VARIATION ORDER - QUOTATION</h2>
-        
-        <div class="variation-details">
-          <div class="field"><span class="label">Variation Number:</span> ${variation.variation_number}</div>
-          <div class="field"><span class="label">Project:</span> ${projectName}</div>
-          <div class="field"><span class="label">Date:</span> ${variation.request_date}</div>
-          <div class="field"><span class="label">Location:</span> ${variation.location}</div>
-          <div class="field"><span class="label">Trade:</span> ${variation.trade || 'Not specified'}</div>
-          
-          <div class="field"><span class="label">Title:</span> ${variation.title}</div>
-          <div class="field"><span class="label">Description:</span><br/>${variation.description}</div>
-          
-          ${costBreakdownHtml}
-          
-          <div class="field"><span class="label">Time Impact:</span> ${variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}</div>
-          <div class="field"><span class="label">Priority:</span> ${variation.priority}</div>
-          <div class="field"><span class="label">Category:</span> ${variation.category}</div>
-          <div class="field"><span class="label">Status:</span> ${variation.status}</div>
-          
-          ${variation.attachments && variation.attachments.length > 0 ? `
-            <div class="field">
-              <span class="label">Attachments:</span><br/>
-              ${variation.attachments.map((file: string) => `• ${file}`).join('<br/>')}
-            </div>
-          ` : ''}
-        </div>
-        
-        <div class="signature-section">
-          <div style="display: flex; justify-content: space-between;">
-            <div>
-              <p><strong>Submitted by:</strong> ${variation.requested_by}</p>
-              <p>Signature: _________________________</p>
-              <p>Date: _____________________</p>
-            </div>
-            <div>
-              <p><strong>Approved by:</strong> _________________________</p>
-              <p>Signature: _________________________</p>
-              <p>Date: _____________________</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([pdfContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${variation.variation_number}_Variation_Quotation.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "PDF Export",
-      description: `Variation ${variation.variation_number} has been exported as PDF`,
-    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -237,14 +115,64 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   };
 
   const handleSubmitVariation = async (variationData: any) => {
-    const result = await createVariation(variationData);
-    
-    if (result) {
-      setShowNewVariation(false);
+    try {
+      const result = await createVariation(variationData);
       
+      if (result && variationData.attachedFiles && variationData.attachedFiles.length > 0) {
+        // Handle file uploads
+        const { uploadAttachment } = useVariationAttachments(result.id);
+        
+        for (const file of variationData.attachedFiles) {
+          await uploadAttachment(file);
+        }
+      }
+      
+      if (result) {
+        setShowNewVariation(false);
+        setEditingVariation(null);
+        
+        toast({
+          title: "Success",
+          description: "Variation created successfully!"
+        });
+      }
+    } catch (error) {
+      console.error('Error creating variation:', error);
       toast({
-        title: "Success",
-        description: "Variation created successfully!"
+        title: "Error",
+        description: "Failed to create variation",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateVariation = async (variationData: any) => {
+    try {
+      const result = await updateVariation(editingVariation.id, variationData);
+      
+      if (result && variationData.attachedFiles && variationData.attachedFiles.length > 0) {
+        // Handle file uploads for updated variation
+        const { uploadAttachment } = useVariationAttachments(editingVariation.id);
+        
+        for (const file of variationData.attachedFiles) {
+          await uploadAttachment(file);
+        }
+      }
+      
+      if (result) {
+        setEditingVariation(null);
+        
+        toast({
+          title: "Success",
+          description: "Variation updated successfully!"
+        });
+      }
+    } catch (error) {
+      console.error('Error updating variation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update variation",
+        variant: "destructive"
       });
     }
   };
@@ -326,20 +254,19 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         </Card>
       </div>
 
-      {/* New Variation Form */}
-      {showNewVariation && (
+      {/* New/Edit Variation Form */}
+      {(showNewVariation || editingVariation) && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5" />
-              New Variation
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <QuotationVariationForm
-              onSubmit={handleSubmitVariation}
-              onCancel={() => setShowNewVariation(false)}
+              onSubmit={editingVariation ? handleUpdateVariation : handleSubmitVariation}
+              onCancel={() => {
+                setShowNewVariation(false);
+                setEditingVariation(null);
+              }}
               projectName={projectName}
+              isEdit={!!editingVariation}
+              initialData={editingVariation}
             />
           </CardContent>
         </Card>
@@ -373,6 +300,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                   <TableHead>Total Amount</TableHead>
                   <TableHead>GST</TableHead>
                   <TableHead>Time Impact</TableHead>
+                  <TableHead>EOT/NOD</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Email Status</TableHead>
@@ -405,6 +333,20 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                     <TableCell>
                       {variation.time_impact > 0 ? `+${variation.time_impact}d` : variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
                     </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {variation.requires_eot && (
+                          <Badge variant="outline" className="text-xs">
+                            EOT: {variation.eot_days}d
+                          </Badge>
+                        )}
+                        {variation.requires_nod && (
+                          <Badge variant="outline" className="text-xs">
+                            NOD: {variation.nod_days}d
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{getStatusBadge(variation.status)}</TableCell>
                     <TableCell>{getPriorityBadge(variation.priority)}</TableCell>
                     <TableCell>
@@ -426,14 +368,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
                         >
                           <FileText className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          title="Export PDF"
-                          onClick={() => exportToPDF(variation)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Edit Variation"
+                            onClick={() => handleEditVariation(variation)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
                         {variation.client_email && !variation.email_sent && (
                           <Button
                             variant="ghost"
@@ -459,12 +403,14 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         </CardContent>
       </Card>
 
-      {/* Variation Details Modal */}
-      <VariationDetailsModal
+      {/* Enhanced Variation Details Modal */}
+      <EnhancedVariationDetailsModal
         variation={selectedVariation}
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         onUpdate={handleVariationUpdate}
+        onEdit={canEdit ? handleEditVariation : undefined}
+        projectName={projectName}
       />
     </div>
   );

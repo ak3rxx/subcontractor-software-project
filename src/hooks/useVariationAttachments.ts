@@ -1,0 +1,165 @@
+
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+export interface VariationAttachment {
+  id: string;
+  variation_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  file_type: string;
+  uploaded_by: string;
+  uploaded_at: string;
+  created_at: string;
+}
+
+export const useVariationAttachments = (variationId: string) => {
+  const [attachments, setAttachments] = useState<VariationAttachment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const fetchAttachments = async () => {
+    if (!variationId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('variation_attachments')
+        .select('*')
+        .eq('variation_id', variationId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAttachments(data || []);
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch attachments",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const uploadAttachment = async (file: File) => {
+    if (!variationId) return null;
+
+    setLoading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${variationId}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('variation-attachments')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data, error } = await supabase
+        .from('variation_attachments')
+        .insert({
+          variation_id: variationId,
+          file_name: file.name,
+          file_path: fileName,
+          file_size: file.size,
+          file_type: file.type
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAttachments(prev => [data, ...prev]);
+      toast({
+        title: "Success",
+        description: "File uploaded successfully"
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload file",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadAttachment = async (attachment: VariationAttachment) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('variation-attachments')
+        .download(attachment.file_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "File downloaded successfully"
+      });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteAttachment = async (attachmentId: string) => {
+    try {
+      const attachment = attachments.find(a => a.id === attachmentId);
+      if (!attachment) return;
+
+      const { error: storageError } = await supabase.storage
+        .from('variation-attachments')
+        .remove([attachment.file_path]);
+
+      if (storageError) throw storageError;
+
+      const { error } = await supabase
+        .from('variation_attachments')
+        .delete()
+        .eq('id', attachmentId);
+
+      if (error) throw error;
+
+      setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+      toast({
+        title: "Success",
+        description: "File deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return {
+    attachments,
+    loading,
+    fetchAttachments,
+    uploadAttachment,
+    downloadAttachment,
+    deleteAttachment
+  };
+};
