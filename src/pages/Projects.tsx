@@ -31,6 +31,12 @@ const Projects = () => {
     }
   };
 
+  const handleNewInspection = () => {
+    // Navigate to create new inspection - this could open a modal or form
+    console.log('Creating new QA inspection for project:', selectedProject?.id);
+    // For now, we'll just log this - the actual implementation would depend on how QA inspections are created
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'planning':
@@ -120,6 +126,7 @@ const Projects = () => {
           <TabsContent value="qa" className="mt-6">
             <QAITPTracker 
               projectId={selectedProject.id}
+              onNewInspection={handleNewInspection}
             />
           </TabsContent>
 
