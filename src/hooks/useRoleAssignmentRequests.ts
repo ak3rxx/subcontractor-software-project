@@ -50,13 +50,7 @@ export const useRoleAssignmentRequests = () => {
       // Get role assignment requests for this organization
       const { data: requestsData, error } = await supabase
         .from('role_assignment_requests')
-        .select(`
-          *,
-          profiles!role_assignment_requests_user_id_fkey (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('organization_id', orgUser.organization_id)
         .order('created_at', { ascending: false });
 
@@ -65,16 +59,27 @@ export const useRoleAssignmentRequests = () => {
         return;
       }
 
-      const transformedRequests = (requestsData || []).map(request => ({
-        ...request,
-        status: request.status as 'pending' | 'approved' | 'rejected',
-        user_profile: request.profiles ? {
-          full_name: request.profiles.full_name,
-          email: request.profiles.email
-        } : undefined
-      }));
+      // Separately fetch user profiles for each request
+      const requestsWithProfiles = await Promise.all(
+        (requestsData || []).map(async (request) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', request.user_id)
+            .single();
 
-      setRequests(transformedRequests);
+          return {
+            ...request,
+            status: request.status as 'pending' | 'approved' | 'rejected',
+            user_profile: profile ? {
+              full_name: profile.full_name,
+              email: profile.email
+            } : undefined
+          };
+        })
+      );
+
+      setRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Error:', error);
     } finally {
