@@ -23,6 +23,7 @@ export const useVariationAttachments = (variationId: string) => {
   const fetchAttachments = async () => {
     if (!variationId) return;
 
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('variation_attachments')
@@ -39,6 +40,8 @@ export const useVariationAttachments = (variationId: string) => {
         description: "Failed to fetch attachments",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 import EnhancedVariationDetailsModal from './variations/EnhancedVariationDetailsModal';
 import QuotationVariationForm from './variations/QuotationVariationForm';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VariationManagerProps {
   projectName: string;
@@ -119,17 +119,31 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       const result = await createVariation(variationData);
       
       if (result && variationData.attachedFiles && variationData.attachedFiles.length > 0) {
-        // Handle file uploads
-        const { uploadAttachment } = useVariationAttachments(result.id);
-        
+        // Upload files after variation is created
         for (const file of variationData.attachedFiles) {
-          await uploadAttachment(file);
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${result.id}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('variation-attachments')
+            .upload(fileName, file);
+
+          if (!uploadError) {
+            await supabase
+              .from('variation_attachments')
+              .insert({
+                variation_id: result.id,
+                file_name: file.name,
+                file_path: fileName,
+                file_size: file.size,
+                file_type: file.type
+              });
+          }
         }
       }
       
       if (result) {
         setShowNewVariation(false);
-        setEditingVariation(null);
         
         toast({
           title: "Success",
@@ -151,16 +165,31 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       const result = await updateVariation(editingVariation.id, variationData);
       
       if (result && variationData.attachedFiles && variationData.attachedFiles.length > 0) {
-        // Handle file uploads for updated variation
-        const { uploadAttachment } = useVariationAttachments(editingVariation.id);
-        
+        // Upload new files for updated variation
         for (const file of variationData.attachedFiles) {
-          await uploadAttachment(file);
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${editingVariation.id}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('variation-attachments')
+            .upload(fileName, file);
+
+          if (!uploadError) {
+            await supabase
+              .from('variation_attachments')
+              .insert({
+                variation_id: editingVariation.id,
+                file_name: file.name,
+                file_path: fileName,
+                file_size: file.size,
+                file_type: file.type
+              });
+          }
         }
       }
       
       if (result) {
-        setEditingVariation(null);
+        setEditingVariation(null); // Close the form
         
         toast({
           title: "Success",
