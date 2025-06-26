@@ -10,7 +10,7 @@ import ProjectDashboard from '@/components/projects/ProjectDashboard';
 import EnhancedVariationManager from '@/components/projects/EnhancedVariationManager';
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
-import QAITPTracker from '@/components/projects/QAITPTracker';
+import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
 import ProgrammeTracker from '@/components/projects/ProgrammeTracker';
 import FinanceManager from '@/components/projects/finance/FinanceManager';
 import DocumentManager from '@/components/projects/DocumentManager';
