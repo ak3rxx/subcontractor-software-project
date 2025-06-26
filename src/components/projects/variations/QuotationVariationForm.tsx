@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -61,22 +60,19 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Initialize variation attachments hook with proper fallback
-  const variationAttachments = editingVariation ? 
-    useVariationAttachments(editingVariation.id) : 
-    { 
-      attachments: [], 
-      uploadAttachment: null, 
-      deleteAttachment: null, 
-      loading: false, 
-      fetchAttachments: async () => {},
-      downloadAttachment: async () => {}
-    };
-
-  const { attachments, uploadAttachment, deleteAttachment, loading: attachmentsLoading, fetchAttachments } = variationAttachments;
+  // Initialize attachments hook - always call it to avoid React Hook violations
+  const {
+    attachments,
+    uploadAttachment,
+    deleteAttachment,
+    loading: attachmentsLoading,
+    fetchAttachments,
+    downloadAttachment
+  } = useVariationAttachments(editingVariation?.id || null);
 
   useEffect(() => {
     if (editingVariation) {
+      console.log('Loading editing variation:', editingVariation);
       setFormData({
         title: editingVariation.title || '',
         description: editingVariation.description || '',
@@ -127,18 +123,27 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   }, [formData, costBreakdown, uploadedFiles]);
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log('Input change:', field, value);
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      console.log('Updated form data:', updated);
+      return updated;
+    });
   };
 
   const updateCostBreakdown = (index: number, field: keyof CostBreakdownItem, value: any) => {
-    const updated = [...costBreakdown];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    if (field === 'quantity' || field === 'rate') {
-      updated[index].subtotal = updated[index].quantity * updated[index].rate;
-    }
-    
-    setCostBreakdown(updated);
+    console.log('Updating cost breakdown:', index, field, value);
+    setCostBreakdown(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      
+      if (field === 'quantity' || field === 'rate') {
+        updated[index].subtotal = updated[index].quantity * updated[index].rate;
+      }
+      
+      console.log('Updated cost breakdown:', updated);
+      return updated;
+    });
   };
 
   const addCostItem = () => {
@@ -185,6 +190,20 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
         toast({
           title: "Error",
           description: "Failed to delete attachment",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleDownloadAttachment = async (attachment: any) => {
+    if (downloadAttachment) {
+      try {
+        await downloadAttachment(attachment);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to download attachment",
           variant: "destructive"
         });
       }
@@ -291,6 +310,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                     required
+                    placeholder="Enter variation title"
                   />
                 </div>
                 <div>
@@ -299,6 +319,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                     id="location"
                     value={formData.location}
                     onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder="Enter location"
                   />
                 </div>
               </div>
@@ -311,6 +332,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={3}
                   required
+                  placeholder="Describe the variation work"
                 />
               </div>
 
@@ -506,7 +528,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Existing attachments (when editing) */}
-              {editingVariation && attachments.length > 0 && (
+              {editingVariation && attachments && attachments.length > 0 && (
                 <div>
                   <Label>Existing Attachments</Label>
                   <div className="space-y-2">
@@ -518,6 +540,14 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                           <Badge variant="outline">{(attachment.file_size / 1024 / 1024).toFixed(2)} MB</Badge>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadAttachment(attachment)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
@@ -585,6 +615,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   value={formData.justification}
                   onChange={(e) => handleInputChange('justification', e.target.value)}
                   rows={3}
+                  placeholder="Provide justification for this variation"
                 />
               </div>
               <div>
@@ -594,6 +625,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
                   type="email"
                   value={formData.clientEmail}
                   onChange={(e) => handleInputChange('clientEmail', e.target.value)}
+                  placeholder="client@example.com"
                 />
               </div>
             </CardContent>
