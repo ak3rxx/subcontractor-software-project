@@ -159,15 +159,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({ projectName, crossModul
         </TabsList>
 
         <TabsContent value="budget" className="mt-6">
-          <BudgetPlanningTable />
+          <BudgetPlanningTable projectName={projectName} />
         </TabsContent>
 
         <TabsContent value="actuals" className="mt-6">
-          <ActualCostTracker />
+          <ActualCostTracker projectName={projectName} />
         </TabsContent>
 
         <TabsContent value="dashboard" className="mt-6">
-          <CostSummaryDashboard budgetSummary={budgetSummary} />
+          <CostSummaryDashboard projectName={projectName} />
         </TabsContent>
       </Tabs>
 
