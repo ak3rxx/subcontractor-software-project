@@ -31,7 +31,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const { toast } = useToast();
   const { user } = useAuth();
   const { isDeveloper, canEdit, canAdmin, userProfile } = usePermissions();
-  const { auditTrail, loading: auditLoading, refetch: refetchAudit } = useVariationAuditTrail(variation?.id);
+  const { auditTrail, loading: auditLoading, refetch: refetchAudit, logAuditEntry } = useVariationAuditTrail(variation?.id);
   
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -47,6 +47,13 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const canSubmitForApproval = variation.status === 'draft' && (isDeveloper() || canEdit('variations') || isProjectManager);
   const showApprovalActions = canApprove && variation.status === 'pending_approval';
   const showUnlockActions = canUnlock && ['approved', 'rejected'].includes(variation.status);
+
+  // Filter audit trail to show only approval-related events
+  const approvalHistory = useMemo(() => {
+    return auditTrail.filter(entry => 
+      ['create', 'submit', 'approve', 'reject', 'unlock', 'email_sent'].includes(entry.action_type)
+    );
+  }, [auditTrail]);
 
   // Refresh audit trail when variation changes
   useEffect(() => {
@@ -79,6 +86,15 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       
       // Call the update function and wait for completion
       await onUpdate(variation.id, updateData);
+      
+      // Log the submission manually to ensure it's captured
+      if (user) {
+        await logAuditEntry('submit', {
+          statusFrom: 'draft',
+          statusTo: 'pending_approval',
+          comments: `Variation submitted for approval by ${userProfile?.full_name || user?.email}`
+        });
+      }
       
       console.log('Update completed successfully, variation should now be pending approval');
       
@@ -133,6 +149,15 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
       console.log('Processing approval decision:', updateData);
       await onUpdate(variation.id, updateData);
+      
+      // Log the approval/rejection manually to ensure it's captured
+      if (user) {
+        await logAuditEntry(approved ? 'approve' : 'reject', {
+          statusFrom: 'pending_approval',
+          statusTo: approved ? 'approved' : 'rejected',
+          comments: approved ? approvalComments : rejectionReason
+        });
+      }
       
       // Refresh audit trail to show the new entry
       setTimeout(() => refetchAudit(), 1000);
@@ -190,6 +215,15 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       };
 
       await onUpdate(variation.id, updateData);
+      
+      // Log the unlock manually to ensure it's captured
+      if (user) {
+        await logAuditEntry('unlock', {
+          statusFrom: variation.status,
+          statusTo: unlockTargetStatus,
+          comments: unlockComment
+        });
+      }
       
       // Refresh audit trail to show the new entry
       setTimeout(() => refetchAudit(), 1000);
@@ -251,8 +285,6 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     switch (actionType) {
       case 'create':
         return <FileText className="h-4 w-4 text-blue-600" />;
-      case 'edit':
-        return <Edit className="h-4 w-4 text-orange-600" />;
       case 'submit':
         return <Send className="h-4 w-4 text-blue-600" />;
       case 'approve':
@@ -271,7 +303,6 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const formatActionType = (actionType: string) => {
     switch (actionType) {
       case 'create': return 'Created';
-      case 'edit': return 'Edited';
       case 'submit': return 'Submitted for Approval';
       case 'approve': return 'Approved';
       case 'reject': return 'Rejected';
@@ -351,14 +382,14 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
           </CardContent>
         </Card>
 
-        {/* Complete Audit History */}
+        {/* Approval History */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
-              Complete Audit Trail
-              {auditTrail.length > 0 && (
-                <Badge variant="outline">{auditTrail.length}</Badge>
+              Approval History
+              {approvalHistory.length > 0 && (
+                <Badge variant="outline">{approvalHistory.length}</Badge>
               )}
             </CardTitle>
           </CardHeader>
@@ -366,12 +397,12 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
             {auditLoading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-600">Loading audit history...</span>
+                <span className="ml-2 text-gray-600">Loading approval history...</span>
               </div>
-            ) : auditTrail.length > 0 ? (
+            ) : approvalHistory.length > 0 ? (
               <ScrollArea className="h-80">
                 <div className="space-y-4 pr-4">
-                  {auditTrail.map((entry, index) => (
+                  {approvalHistory.map((entry, index) => (
                     <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                       <div className="mt-0.5">
                         {getActionIcon(entry.action_type)}
@@ -385,19 +416,6 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                           by {entry.user_name} on {new Date(entry.action_timestamp).toLocaleString()}
                         </div>
                         
-                        {/* Field-level changes */}
-                        {entry.field_name && (
-                          <div className="text-sm mb-2">
-                            <span className="font-medium">Field:</span> {entry.field_name}
-                            {entry.old_value && entry.new_value && (
-                              <div className="mt-1 text-xs">
-                                <span className="text-red-600">From: {entry.old_value}</span> → 
-                                <span className="text-green-600 ml-1">To: {entry.new_value}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
                         {/* Status changes */}
                         {entry.status_from && entry.status_to && (
                           <div className="text-sm mb-2">
@@ -420,8 +438,8 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
             ) : (
               <div className="text-center p-8 text-gray-500">
                 <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No audit history available</p>
-                <p className="text-sm">Actions will appear here as the variation progresses</p>
+                <p>No approval history available</p>
+                <p className="text-sm">Actions will appear here as the variation progresses through approval</p>
               </div>
             )}
           </CardContent>

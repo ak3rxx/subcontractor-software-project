@@ -69,6 +69,8 @@ export const useVariationAuditTrail = (variationId?: string) => {
 
     setLoading(true);
     try {
+      console.log('Fetching audit trail for variation:', variationId);
+      
       const { data, error } = await supabase
         .rpc('get_variation_audit_history', { p_variation_id: variationId });
 
@@ -76,20 +78,28 @@ export const useVariationAuditTrail = (variationId?: string) => {
         console.error('Error fetching audit trail:', error);
         toast({
           title: "Error",
-          description: "Failed to load audit history",
+          description: "Failed to load approval history",
           variant: "destructive"
         });
         return;
       }
+
+      console.log('Raw audit trail data:', data);
 
       // Transform the database response to match our TypeScript interface
       const transformedData = (data || []).map((entry: DatabaseAuditEntry) => 
         transformAuditEntry(entry)
       );
       
+      console.log('Transformed audit trail data:', transformedData);
       setAuditTrail(transformedData);
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load approval history",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -107,10 +117,20 @@ export const useVariationAuditTrail = (variationId?: string) => {
       metadata?: any;
     } = {}
   ) => {
-    if (!variationId || !user) return;
+    if (!variationId || !user) {
+      console.warn('Cannot log audit entry: missing variationId or user');
+      return;
+    }
 
     try {
-      const { error } = await supabase
+      console.log('Logging audit entry:', {
+        variationId,
+        userId: user.id,
+        actionType,
+        options
+      });
+
+      const { data, error } = await supabase
         .rpc('log_variation_change', {
           p_variation_id: variationId,
           p_user_id: user.id,
@@ -126,6 +146,15 @@ export const useVariationAuditTrail = (variationId?: string) => {
 
       if (error) {
         console.error('Error logging audit entry:', error);
+        toast({
+          title: "Warning",
+          description: "Failed to log approval history entry",
+          variant: "destructive"
+        });
+      } else {
+        console.log('Audit entry logged successfully:', data);
+        // Refresh the audit trail to show the new entry
+        setTimeout(() => fetchAuditTrail(), 500);
       }
     } catch (error) {
       console.error('Error logging audit entry:', error);
