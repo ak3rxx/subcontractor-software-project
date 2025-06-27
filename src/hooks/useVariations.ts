@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -244,8 +245,11 @@ export const useVariations = (projectId: string) => {
 
   const updateVariation = async (id: string, updates: Partial<Variation>) => {
     try {
+      console.log('Starting variation update:', { id, updates });
+      
       const dbUpdates: any = {};
       
+      // Map all possible update fields
       if (updates.status !== undefined) dbUpdates.status = updates.status;
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -277,6 +281,12 @@ export const useVariations = (projectId: string) => {
       if (updates.linked_tasks !== undefined) dbUpdates.linked_tasks = updates.linked_tasks;
       if (updates.linked_qa_items !== undefined) dbUpdates.linked_qa_items = updates.linked_qa_items;
 
+      // Always update the updated_at timestamp
+      dbUpdates.updated_at = new Date().toISOString();
+
+      console.log('Sending database update:', dbUpdates);
+
+      // Perform the database update with explicit error handling
       const { data, error } = await supabase
         .from('variations')
         .update(dbUpdates)
@@ -285,15 +295,18 @@ export const useVariations = (projectId: string) => {
         .single();
 
       if (error) {
-        console.error('Error updating variation:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update variation",
-          variant: "destructive"
-        });
-        return null;
+        console.error('Database update error:', error);
+        throw error;
       }
 
+      if (!data) {
+        console.error('No data returned from update');
+        throw new Error('Update succeeded but no data was returned');
+      }
+
+      console.log('Database update successful:', data);
+
+      // Transform and update local state
       const transformedData = transformDatabaseItem(data);
       setVariations(prev => 
         prev.map(variation => 
@@ -301,10 +314,17 @@ export const useVariations = (projectId: string) => {
         )
       );
 
+      console.log('Local state updated successfully');
       return transformedData;
+
     } catch (error) {
-      console.error('Error:', error);
-      return null;
+      console.error('Error in updateVariation:', error);
+      toast({
+        title: "Error",
+        description: `Failed to update variation: ${error.message || 'Unknown error'}`,
+        variant: "destructive"
+      });
+      throw error; // Re-throw to allow caller to handle
     }
   };
 

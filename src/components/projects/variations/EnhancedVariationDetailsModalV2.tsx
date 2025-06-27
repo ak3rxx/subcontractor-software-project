@@ -39,6 +39,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [showEditWarning, setShowEditWarning] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Force refresh trigger
 
   // Always get variationId (will be undefined if no variation)
   const variationId = variation?.id;
@@ -73,26 +74,35 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, uploadAttachment, fetchAttachments]);
 
-  // ENHANCED: Proper refresh after approval update with real-time sync
-  const handleApprovalUpdate = useCallback(async (id: string, updates: any) => {
+  // ENHANCED: Proper refresh after approval update with real-time sync and forced refresh
+  const handleUpdateFromModalEnhanced = useCallback(async (id: string, updates: any) => {
     if (onUpdate) {
       try {
+        console.log('Modal: Starting variation update with:', updates);
+        
+        // Perform the update
         await onUpdate(id, updates);
         
-        // Force a small delay to ensure backend is updated
-        setTimeout(() => {
-          // Trigger any parent component refresh if needed
-          if (variation && variation.id === id) {
-            console.log('Variation status updated, triggering refresh');
-          }
-        }, 500);
+        console.log('Modal: Update completed successfully');
+        
+        // Force a refresh of the modal content by incrementing refresh key
+        setRefreshKey(prev => prev + 1);
+        
+        // If this is a status change, give immediate visual feedback
+        if (updates.status) {
+          toast({
+            title: "Status Updated",
+            description: `Variation status changed to ${updates.status.replace('_', ' ')}`,
+            duration: 2000
+          });
+        }
         
       } catch (error) {
-        console.error('Error updating variation approval:', error);
+        console.error('Modal: Error updating variation:', error);
         throw error;
       }
     }
-  }, [onUpdate, variation]);
+  }, [onUpdate, toast]);
 
   const getStatusBadge = useCallback((status: string) => {
     switch (status) {
@@ -116,7 +126,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, isOpen, fetchAttachments]);
 
-  // ENHANCED: Reset edit state with ALL fields including NOD/EOT
+  // ENHANCED: Reset edit state with ALL fields including NOD/EOT and watch for refreshKey changes
   useEffect(() => {
     if (variation && isOpen) {
       setEditData({
@@ -142,7 +152,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       setActiveTab('details');
       setShowEditWarning(false);
     }
-  }, [variation, isOpen]);
+  }, [variation, isOpen, refreshKey]); // Include refreshKey to force updates
 
   // Early return after all hooks are called
   if (!variation) return null;
@@ -202,7 +212,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         updates.request_date = new Date().toISOString().split('T')[0];
       }
       
-      await onUpdate(variation.id, updates);
+      await handleUpdateFromModalEnhanced(variation.id, updates);
       setIsEditing(false);
       setHasUnsavedChanges(false);
       
@@ -370,7 +380,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                 <TabsContent value="approval" className="mt-0">
                   <EnhancedVariationApprovalTab
                     variation={variation}
-                    onUpdate={handleApprovalUpdate}
+                    onUpdate={handleUpdateFromModalEnhanced}
                     isBlocked={isApprovalBlocked}
                   />
                 </TabsContent>

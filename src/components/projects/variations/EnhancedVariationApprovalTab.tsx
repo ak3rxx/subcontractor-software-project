@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, 
-  RotateCcw, AlertTriangle, Unlock, History, FileText 
+  RotateCcw, AlertTriangle, Unlock, History, FileText, Loader2 
 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -110,23 +110,32 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
     setIsSubmitting(true);
     try {
+      console.log('Starting submit for approval process, current variation:', variation);
+      
       const updateData = {
         status: 'pending_approval' as const,
         request_date: new Date().toISOString().split('T')[0],
         requested_by: userProfile?.full_name || user?.email || user?.id
       };
       
+      console.log('Submitting update data:', updateData);
+      
+      // Call the update function and wait for completion
       await onUpdate(variation.id, updateData);
+      
+      console.log('Update completed successfully, variation should now be pending approval');
       
       toast({
         title: "Success",
-        description: "Variation submitted for approval"
+        description: "Variation submitted for approval",
+        duration: 3000
       });
+      
     } catch (error) {
       console.error('Error submitting for approval:', error);
       toast({
         title: "Error",
-        description: "Failed to submit variation for approval",
+        description: "Failed to submit variation for approval. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -162,6 +171,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
         approval_comments: approved ? approvalComments : rejectionReason
       };
 
+      console.log('Processing approval decision:', updateData);
       await onUpdate(variation.id, updateData);
       
       toast({
@@ -173,6 +183,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       setApprovalComments('');
       setRejectionReason('');
     } catch (error) {
+      console.error('Error updating approval:', error);
       toast({
         title: "Error",
         description: "Failed to update variation status",
@@ -403,7 +414,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
           </CardContent>
         </Card>
 
-        {/* Submit for Approval */}
+        {/* Submit for Approval - Enhanced with better feedback */}
         {canSubmitForApproval && !isBlocked && (
           <Card>
             <CardHeader>
@@ -419,7 +430,11 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                 disabled={isSubmitting}
                 className="flex items-center gap-2"
               >
-                <Send className="h-4 w-4" />
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
                 {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
               </Button>
             </CardContent>
@@ -466,7 +481,11 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                   disabled={isSubmitting}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
                   {isSubmitting ? 'Processing...' : 'Approve'}
                 </Button>
                 
@@ -475,7 +494,11 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                   disabled={isSubmitting || !rejectionReason.trim()}
                   variant="destructive"
                 >
-                  <XCircle className="h-4 w-4 mr-2" />
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4 mr-2" />
+                  )}
                   {isSubmitting ? 'Processing...' : 'Reject'}
                 </Button>
               </div>
@@ -532,7 +555,11 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                 variant="outline"
                 className="border-orange-500 text-orange-700 hover:bg-orange-50"
               >
-                <Unlock className="h-4 w-4 mr-2" />
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Unlock className="h-4 w-4 mr-2" />
+                )}
                 {isSubmitting ? 'Processing...' : 'Unlock & Revert to Draft'}
               </Button>
             </CardContent>
