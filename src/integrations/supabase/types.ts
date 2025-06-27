@@ -1556,11 +1556,14 @@ export type Database = {
           gst_amount: number | null
           id: string
           justification: string | null
+          linked_finance_impacts: Json | null
           linked_milestones: Json | null
+          linked_programme_milestones: Json | null
           linked_qa_items: Json | null
           linked_tasks: Json | null
           location: string | null
           nod_days: number | null
+          originating_rfi_id: string | null
           pdf_generated_at: string | null
           pdf_generated_by: string | null
           priority: string | null
@@ -1597,11 +1600,14 @@ export type Database = {
           gst_amount?: number | null
           id?: string
           justification?: string | null
+          linked_finance_impacts?: Json | null
           linked_milestones?: Json | null
+          linked_programme_milestones?: Json | null
           linked_qa_items?: Json | null
           linked_tasks?: Json | null
           location?: string | null
           nod_days?: number | null
+          originating_rfi_id?: string | null
           pdf_generated_at?: string | null
           pdf_generated_by?: string | null
           priority?: string | null
@@ -1638,11 +1644,14 @@ export type Database = {
           gst_amount?: number | null
           id?: string
           justification?: string | null
+          linked_finance_impacts?: Json | null
           linked_milestones?: Json | null
+          linked_programme_milestones?: Json | null
           linked_qa_items?: Json | null
           linked_tasks?: Json | null
           location?: string | null
           nod_days?: number | null
+          originating_rfi_id?: string | null
           pdf_generated_at?: string | null
           pdf_generated_by?: string | null
           priority?: string | null
@@ -1668,6 +1677,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variations_originating_rfi_id_fkey"
+            columns: ["originating_rfi_id"]
+            isOneToOne: false
+            referencedRelation: "rfis"
             referencedColumns: ["id"]
           },
           {

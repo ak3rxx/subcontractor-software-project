@@ -16,14 +16,24 @@ export interface SupabaseUploadedFile {
   error?: string;
 }
 
-export const useSupabaseFileUpload = () => {
+interface UseSupabaseFileUploadOptions {
+  bucket?: string;
+  folder?: string;
+}
+
+export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}) => {
+  const { bucket = 'qainspectionfiles', folder } = options;
   const [uploadedFiles, setUploadedFiles] = useState<SupabaseUploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [hasUploadFailures, setHasUploadFailures] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const uploadFile = useCallback(async (file: File, inspectionId?: string, checklistItemId?: string): Promise<SupabaseUploadedFile | null> => {
+  const uploadFile = useCallback(async (
+    file: File, 
+    inspectionId?: string, 
+    checklistItemId?: string
+  ): Promise<SupabaseUploadedFile | null> => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -38,16 +48,24 @@ export const useSupabaseFileUpload = () => {
     // Generate unique file path
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-    const filePath = inspectionId && checklistItemId 
-      ? `${inspectionId}/${checklistItemId}/${fileName}`
-      : `temp/${fileName}`;
+    
+    let filePath: string;
+    if (bucket === 'variation-attachments') {
+      // For variation attachments, organize by user ID and timestamp
+      filePath = folder ? `${folder}/${fileName}` : `${user.id}/${fileName}`;
+    } else {
+      // For QA inspections, use the original structure
+      filePath = inspectionId && checklistItemId 
+        ? `${inspectionId}/${checklistItemId}/${fileName}`
+        : `temp/${fileName}`;
+    }
 
     try {
-      console.log('Uploading file to bucket: qainspectionfiles, path:', filePath);
+      console.log(`Uploading file to bucket: ${bucket}, path:`, filePath);
       
       // Upload file to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('qainspectionfiles')
+        .from(bucket)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -60,9 +78,9 @@ export const useSupabaseFileUpload = () => {
 
       console.log('File uploaded successfully:', data);
 
-      // Get public URL - using the correct method for public access
+      // Get public URL
       const { data: urlData } = supabase.storage
-        .from('qainspectionfiles')
+        .from(bucket)
         .getPublicUrl(filePath);
 
       console.log('Public URL generated:', urlData.publicUrl);
@@ -114,9 +132,13 @@ export const useSupabaseFileUpload = () => {
     } finally {
       setUploading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, bucket, folder]);
 
-  const uploadFiles = useCallback(async (files: File[], inspectionId?: string, checklistItemId?: string): Promise<SupabaseUploadedFile[]> => {
+  const uploadFiles = useCallback(async (
+    files: File[], 
+    inspectionId?: string, 
+    checklistItemId?: string
+  ): Promise<SupabaseUploadedFile[]> => {
     const results = await Promise.all(files.map(file => uploadFile(file, inspectionId, checklistItemId)));
     return results.filter((file): file is SupabaseUploadedFile => file !== null);
   }, [uploadFile]);
@@ -128,7 +150,7 @@ export const useSupabaseFileUpload = () => {
         console.log('Deleting file from storage:', fileToRemove.path);
         // Delete from Supabase Storage
         const { error } = await supabase.storage
-          .from('qainspectionfiles')
+          .from(bucket)
           .remove([fileToRemove.path]);
 
         if (error) {
@@ -152,9 +174,13 @@ export const useSupabaseFileUpload = () => {
       setHasUploadFailures(hasFailures);
       return updated;
     });
-  }, [uploadedFiles, toast]);
+  }, [uploadedFiles, toast, bucket]);
 
-  const retryFailedUpload = useCallback(async (fileId: string, inspectionId?: string, checklistItemId?: string) => {
+  const retryFailedUpload = useCallback(async (
+    fileId: string, 
+    inspectionId?: string, 
+    checklistItemId?: string
+  ) => {
     const failedFile = uploadedFiles.find(f => f.id === fileId && !f.uploaded);
     if (!failedFile) return;
 
@@ -175,7 +201,7 @@ export const useSupabaseFileUpload = () => {
       try {
         console.log('Clearing files from storage:', uploadedFilePaths);
         const { error } = await supabase.storage
-          .from('qainspectionfiles')
+          .from(bucket)
           .remove(uploadedFilePaths);
 
         if (error) {
@@ -188,7 +214,7 @@ export const useSupabaseFileUpload = () => {
 
     setUploadedFiles([]);
     setHasUploadFailures(false);
-  }, [uploadedFiles]);
+  }, [uploadedFiles, bucket]);
 
   return {
     uploadedFiles,
