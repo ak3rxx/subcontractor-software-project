@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +20,7 @@ export const useVariationAttachments = (variationId?: string) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchAttachments = async () => {
+  const fetchAttachments = useCallback(async () => {
     if (!variationId) {
       setAttachments([]);
       return;
@@ -52,9 +52,9 @@ export const useVariationAttachments = (variationId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [variationId, toast]);
 
-  const uploadAttachment = async (file: File): Promise<VariationAttachment | null> => {
+  const uploadAttachment = useCallback(async (file: File): Promise<VariationAttachment | null> => {
     if (!variationId) {
       console.error('Cannot upload attachment: no variation ID');
       return null;
@@ -113,9 +113,9 @@ export const useVariationAttachments = (variationId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [variationId, toast]);
 
-  const downloadAttachment = async (attachment: VariationAttachment) => {
+  const downloadAttachment = useCallback(async (attachment: VariationAttachment) => {
     try {
       console.log('Downloading attachment:', attachment.file_name);
       
@@ -149,9 +149,9 @@ export const useVariationAttachments = (variationId?: string) => {
         variant: "destructive"
       });
     }
-  };
+  }, [toast]);
 
-  const deleteAttachment = async (attachmentId: string) => {
+  const deleteAttachment = useCallback(async (attachmentId: string) => {
     try {
       console.log('Deleting attachment:', attachmentId);
       
@@ -196,7 +196,7 @@ export const useVariationAttachments = (variationId?: string) => {
         variant: "destructive"
       });
     }
-  };
+  }, [attachments, toast]);
 
   return {
     attachments,

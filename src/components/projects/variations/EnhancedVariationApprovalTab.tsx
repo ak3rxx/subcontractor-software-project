@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,13 +7,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, 
-  RotateCcw, AlertTriangle, Unlock 
+  RotateCcw, AlertTriangle, Unlock, History, FileText 
 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+interface ApprovalHistoryItem {
+  timestamp: string;
+  action: string;
+  user: string;
+  status: string;
+  comments?: string;
+  reason?: string;
+}
 
 interface EnhancedVariationApprovalTabProps {
   variation: any;
@@ -34,27 +44,60 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const [unlockReason, setUnlockReason] = useState('');
   const [unlockTargetStatus, setUnlockTargetStatus] = useState<'draft'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryItem[]>([]);
 
   // Enhanced permission checks - Project Managers can now retract/unlock
   const userRole = user?.role || 'user';
   const isProjectManager = userRole === 'project_manager';
   const canApprove = isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager;
-  const canUnlock = isDeveloper() || canAdmin('variations') || isProjectManager; // Project managers can unlock
+  const canUnlock = isDeveloper() || canAdmin('variations') || isProjectManager;
   const canSubmitForApproval = variation.status === 'draft' && (isDeveloper() || canEdit('variations') || isProjectManager);
   const showApprovalActions = canApprove && variation.status === 'pending_approval';
   const showUnlockActions = canUnlock && ['approved', 'rejected'].includes(variation.status);
 
-  console.log('Enhanced Approval Tab permissions:', {
-    userRole,
-    isProjectManager,
-    canApprove,
-    canUnlock,
-    canSubmitForApproval,
-    showApprovalActions,
-    showUnlockActions,
-    variationStatus: variation.status,
-    isBlocked
-  });
+  // Build approval history from variation data
+  useEffect(() => {
+    const history: ApprovalHistoryItem[] = [];
+
+    // Add creation/submission events
+    if (variation.request_date) {
+      history.push({
+        timestamp: variation.request_date,
+        action: 'Submitted for Approval',
+        user: variation.requested_by || 'Unknown',
+        status: 'pending_approval'
+      });
+    }
+
+    // Add approval/rejection events
+    if (variation.approval_date && variation.approved_by) {
+      history.push({
+        timestamp: variation.approval_date,
+        action: variation.status === 'approved' ? 'Approved' : 'Rejected',
+        user: variation.approved_by,
+        status: variation.status,
+        comments: variation.approval_comments
+      });
+    }
+
+    // Parse unlock history from approval comments if present
+    if (variation.approval_comments && variation.approval_comments.includes('UNLOCKED by')) {
+      const unlockMatches = variation.approval_comments.match(/UNLOCKED by (.+?) on (.+?):/);
+      if (unlockMatches) {
+        history.push({
+          timestamp: unlockMatches[2],
+          action: 'Unlocked to Draft',
+          user: unlockMatches[1],
+          status: 'draft',
+          reason: variation.approval_comments.split(':')[1]?.trim()
+        });
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setApprovalHistory(history);
+  }, [variation]);
 
   const handleSubmitForApproval = async () => {
     if (!canSubmitForApproval || isBlocked) {
@@ -71,7 +114,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       const updateData = {
         status: 'pending_approval' as const,
         request_date: new Date().toISOString().split('T')[0],
-        requested_by: userProfile?.id || user?.id
+        requested_by: userProfile?.full_name || user?.email || user?.id
       };
       
       await onUpdate(variation.id, updateData);
@@ -115,7 +158,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     try {
       const updateData = {
         status: approved ? 'approved' : 'rejected',
-        approved_by: userProfile?.id || user?.id,
+        approved_by: userProfile?.full_name || user?.email || user?.id,
         approval_date: new Date().toISOString().split('T')[0],
         approval_comments: approved ? approvalComments : rejectionReason
       };
@@ -228,6 +271,21 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     }
   };
 
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'Submitted for Approval':
+        return <Send className="h-4 w-4 text-blue-600" />;
+      case 'Approved':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'Rejected':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'Unlocked to Draft':
+        return <Unlock className="h-4 w-4 text-orange-600" />;
+      default:
+        return <FileText className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Blocked Notice */}
@@ -290,6 +348,54 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                   </div>
                 </div>
               )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Approval History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Approval History
+            {approvalHistory.length > 0 && (
+              <Badge variant="outline">{approvalHistory.length}</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {approvalHistory.length > 0 ? (
+            <ScrollArea className="h-48">
+              <div className="space-y-4">
+                {approvalHistory.map((item, index) => (
+                  <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="mt-0.5">
+                      {getActionIcon(item.action)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{item.action}</span>
+                        {getWorkflowStatusBadge(item.status)}
+                      </div>
+                      <div className="text-xs text-gray-600 mb-2">
+                        by {item.user} on {new Date(item.timestamp).toLocaleDateString()}
+                      </div>
+                      {(item.comments || item.reason) && (
+                        <div className="text-sm text-gray-700 bg-white p-2 rounded border">
+                          {item.comments || item.reason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="text-center p-8 text-gray-500">
+              <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No approval history available</p>
+              <p className="text-sm">Actions will appear here as the variation progresses</p>
             </div>
           )}
         </CardContent>
@@ -375,7 +481,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
         </Card>
       )}
 
-      {/* Unlock Section - Enhanced for Project Managers */}
+      {/* Unlock Section */}
       {showUnlockActions && !isBlocked && (
         <Card className="border-orange-200">
           <CardHeader>

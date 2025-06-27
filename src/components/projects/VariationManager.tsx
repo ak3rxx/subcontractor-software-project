@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -20,7 +21,7 @@ interface VariationManagerProps {
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId, crossModuleData }) => {
   // All hooks must be called at the top of the component
-  const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
+  const { variations, loading, createVariation, updateVariation, sendVariationEmail, refreshVariations } = useVariations(projectId);
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin, canAccess } = usePermissions();
   
@@ -102,6 +103,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   };
 
   const handleEdit = (variation: any) => {
+    // Check if variation is in pending approval status
+    if (variation.status === 'pending_approval') {
+      toast({
+        title: "Cannot Edit",
+        description: "This variation is pending approval and cannot be edited",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!canEditVariations) {
       toast({
         title: "Access Denied",
@@ -110,6 +121,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       });
       return;
     }
+    
     console.log('Editing variation:', variation);
     setEditingVariation(variation);
     setShowForm(true);
@@ -131,6 +143,25 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       return;
     }
     await handleSendEmail(variationId);
+  };
+
+  // Enhanced update handler with real-time refresh
+  const handleUpdateFromModalEnhanced = async (id: string, updates: any) => {
+    try {
+      await handleUpdateFromModal(id, updates);
+      // Refresh variations to ensure UI is in sync
+      await refreshVariations();
+      // Update selected variation if it's the one being updated
+      if (selectedVariation && selectedVariation.id === id) {
+        const updatedVariation = variations.find(v => v.id === id);
+        if (updatedVariation) {
+          setSelectedVariation({ ...updatedVariation, ...updates });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating variation:', error);
+      throw error;
+    }
   };
 
   return (
@@ -195,7 +226,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           setShowDetailsModal(false);
           setSelectedVariation(null);
         }}
-        onUpdate={handleUpdateFromModal}
+        onUpdate={handleUpdateFromModalEnhanced}
       />
     </div>
   );

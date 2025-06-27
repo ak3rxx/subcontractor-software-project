@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Edit, Save, X, AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { FileText, Edit, Save, X, AlertTriangle, CheckCircle, XCircle, Clock, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -35,6 +36,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
+  const [showEditWarning, setShowEditWarning] = useState(false);
 
   const {
     attachments,
@@ -45,12 +47,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     deleteAttachment
   } = useVariationAttachments(variation?.id);
 
-  // Fetch attachments when variation changes
-  useEffect(() => {
+  // Memoized fetch function to prevent loops
+  const memoizedFetchAttachments = useCallback(() => {
     if (variation?.id && isOpen) {
       fetchAttachments();
     }
   }, [variation?.id, isOpen, fetchAttachments]);
+
+  // Fetch attachments when variation changes
+  useEffect(() => {
+    memoizedFetchAttachments();
+  }, [memoizedFetchAttachments]);
 
   // Reset edit state when variation changes
   useEffect(() => {
@@ -71,6 +78,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       setIsEditing(false);
       setHasUnsavedChanges(false);
       setActiveTab('details');
+      setShowEditWarning(false);
     }
   }, [variation, isOpen]);
 
@@ -88,28 +96,58 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     'manager'
   ].includes(userRole) || isFullAccessUser || isDeveloper() || canEdit('variations');
 
+  // Status-based edit restrictions
+  const canStartEditing = canEditVariation && variation.status !== 'pending_approval';
+  const isApproved = variation.status === 'approved';
+
   const handleEdit = () => {
-    if (!canEditVariation) {
+    if (!canStartEditing) {
       toast({
         title: "Access Denied",
-        description: "You don't have permission to edit variations",
+        description: variation.status === 'pending_approval' 
+          ? "Cannot edit variation while it's pending approval"
+          : "You don't have permission to edit variations",
         variant: "destructive"
       });
       return;
     }
+
+    if (isApproved) {
+      setShowEditWarning(true);
+    } else {
+      setIsEditing(true);
+    }
+  };
+
+  const handleEditConfirm = () => {
     setIsEditing(true);
+    setShowEditWarning(false);
   };
 
   const handleSave = async () => {
     if (!onUpdate || !canEditVariation) return;
     
     try {
-      await onUpdate(variation.id, editData);
+      const updates = { ...editData };
+      
+      // If variation was approved and is being edited, reset to pending approval
+      if (isApproved) {
+        updates.status = 'pending_approval';
+        updates.approved_by = null;
+        updates.approval_date = null;
+        updates.approval_comments = null;
+        updates.request_date = new Date().toISOString().split('T')[0];
+      }
+      
+      await onUpdate(variation.id, updates);
       setIsEditing(false);
       setHasUnsavedChanges(false);
+      
       toast({
         title: "Success",
-        description: "Variation updated successfully"
+        description: isApproved 
+          ? "Variation updated and submitted for approval"
+          : "Variation updated successfully"
       });
     } catch (error) {
       toast({
@@ -138,21 +176,21 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setHasUnsavedChanges(false);
   };
 
-  const handleDataChange = (newData: any) => {
+  const handleDataChange = useCallback((newData: any) => {
     setEditData(prev => ({ ...prev, ...newData }));
     setHasUnsavedChanges(true);
-  };
+  }, []);
 
   // Handle file uploads by processing array of files
-  const handleFileUpload = async (files: File[]) => {
+  const handleFileUpload = useCallback(async (files: File[]) => {
     for (const file of files) {
       await uploadAttachment(file);
     }
     // Refresh attachments after upload
     await fetchAttachments();
-  };
+  }, [uploadAttachment, fetchAttachments]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useMemo(() => (status: string) => {
     switch (status) {
       case 'approved':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
@@ -165,7 +203,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
-  };
+  }, []);
 
   const canShowApprovalTab = () => {
     // Show approval tab if variation is not in draft or if user can edit
@@ -175,114 +213,171 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   // Disable approval actions when in edit mode with unsaved changes
   const isApprovalBlocked = isEditing && hasUnsavedChanges;
 
+  // Handle approval workflow updates with real-time refresh
+  const handleApprovalUpdate = useCallback(async (id: string, updates: any) => {
+    if (onUpdate) {
+      await onUpdate(id, updates);
+      // Force a re-render by updating local state
+      if (variation && variation.id === id) {
+        // The parent component should handle the state update
+        // This ensures the UI reflects changes immediately
+      }
+    }
+  }, [onUpdate, variation]);
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Variation {variation.variation_number}
-                {getStatusBadge(variation.status)}
-              </DialogTitle>
-              <DialogDescription>
-                {variation.title}
-              </DialogDescription>
-            </div>
-            <div className="flex gap-2">
-              {canEditVariation && !isEditing && variation.status === 'draft' && (
-                <Button variant="outline" size="sm" onClick={handleEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-              {isEditing && (
-                <>
-                  <Button variant="outline" size="sm" onClick={handleCancel}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Variation {variation.variation_number}
+                  {getStatusBadge(variation.status)}
+                  {variation.status === 'pending_approval' && <Lock className="h-4 w-4 text-yellow-600" />}
+                </DialogTitle>
+                <DialogDescription>
+                  {variation.title}
+                </DialogDescription>
+              </div>
+              <div className="flex gap-2">
+                {canStartEditing && !isEditing && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleEdit}
+                    disabled={variation.status === 'pending_approval'}
+                    className={variation.status === 'pending_approval' ? 'opacity-50' : ''}
+                  >
+                    <Edit className={`h-4 w-4 mr-2 ${variation.status === 'pending_approval' ? 'opacity-50' : ''}`} />
+                    Edit
                   </Button>
-                  <Button size="sm" onClick={handleSave}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-          
-          {isApprovalBlocked && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm text-yellow-800">
-                  Please save or cancel your changes before using the approval workflow.
-                </span>
+                )}
+                {isEditing && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={handleCancel}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSave}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-          )}
-        </DialogHeader>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="costs">Costs</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-            {canShowApprovalTab() && (
-              <TabsTrigger value="approval" disabled={isApprovalBlocked}>
-                Approval
-                {isApprovalBlocked && (
-                  <AlertTriangle className="h-3 w-3 ml-1 text-yellow-600" />
-                )}
-              </TabsTrigger>
+            
+            {isApprovalBlocked && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm text-yellow-800">
+                    Please save or cancel your changes before using the approval workflow.
+                  </span>
+                </div>
+              </div>
             )}
-          </TabsList>
 
-          <div className="flex-1 overflow-y-auto mt-4">
-            <TabsContent value="details" className="mt-0">
-              <VariationDetailsTab
-                variation={variation}
-                editData={editData}
-                isEditing={isEditing}
-                onDataChange={handleDataChange}
-              />
-            </TabsContent>
+            {variation.status === 'pending_approval' && (
+              <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mt-2">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm text-orange-800">
+                    This variation is pending approval and cannot be edited until the approval process is complete.
+                  </span>
+                </div>
+              </div>
+            )}
+          </DialogHeader>
 
-            <TabsContent value="costs" className="mt-0">
-              <VariationCostTab
-                variation={variation}
-                editData={editData}
-                isEditing={isEditing}
-                onDataChange={handleDataChange}
-              />
-            </TabsContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="costs">Costs</TabsTrigger>
+              <TabsTrigger value="files">Files</TabsTrigger>
+              {canShowApprovalTab() && (
+                <TabsTrigger value="approval" disabled={isApprovalBlocked}>
+                  Approval
+                  {isApprovalBlocked && (
+                    <AlertTriangle className="h-3 w-3 ml-1 text-yellow-600" />
+                  )}
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-            <TabsContent value="files" className="mt-0">
-              <VariationFilesTab
-                variation={variation}
-                attachments={attachments}
-                attachmentsLoading={attachmentsLoading}
-                canEdit={canEditVariation && isEditing}
-                onUpload={handleFileUpload}
-                onDownload={downloadAttachment}
-                onDelete={deleteAttachment}
-              />
-            </TabsContent>
-
-            {canShowApprovalTab() && (
-              <TabsContent value="approval" className="mt-0">
-                <EnhancedVariationApprovalTab
+            <div className="flex-1 overflow-y-auto mt-4">
+              <TabsContent value="details" className="mt-0">
+                <VariationDetailsTab
                   variation={variation}
-                  onUpdate={onUpdate || (() => Promise.resolve())}
-                  isBlocked={isApprovalBlocked}
+                  editData={editData}
+                  isEditing={isEditing}
+                  onDataChange={handleDataChange}
                 />
               </TabsContent>
-            )}
-          </div>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+
+              <TabsContent value="costs" className="mt-0">
+                <VariationCostTab
+                  variation={variation}
+                  editData={editData}
+                  isEditing={isEditing}
+                  onDataChange={handleDataChange}
+                />
+              </TabsContent>
+
+              <TabsContent value="files" className="mt-0">
+                <VariationFilesTab
+                  variation={variation}
+                  attachments={attachments}
+                  attachmentsLoading={attachmentsLoading}
+                  canEdit={canEditVariation && isEditing}
+                  onUpload={handleFileUpload}
+                  onDownload={downloadAttachment}
+                  onDelete={deleteAttachment}
+                />
+              </TabsContent>
+
+              {canShowApprovalTab() && (
+                <TabsContent value="approval" className="mt-0">
+                  <EnhancedVariationApprovalTab
+                    variation={variation}
+                    onUpdate={handleApprovalUpdate}
+                    isBlocked={isApprovalBlocked}
+                  />
+                </TabsContent>
+              )}
+            </div>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Warning Dialog for Approved Variations */}
+      <AlertDialog open={showEditWarning} onOpenChange={setShowEditWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Edit Approved Variation
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This variation has been approved. Making changes will automatically resubmit it for approval and change its status to "Pending Approval". 
+              
+              <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
+                <strong>Important:</strong> The variation will lose its approved status and require re-approval before implementation.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowEditWarning(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditConfirm} className="bg-yellow-600 hover:bg-yellow-700">
+              Continue Editing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
