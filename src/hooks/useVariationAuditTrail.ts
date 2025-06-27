@@ -19,6 +19,45 @@ export interface AuditTrailEntry {
   action_timestamp: string;
 }
 
+// Database response interface
+interface DatabaseAuditEntry {
+  id: string;
+  user_id: string;
+  user_name: string;
+  action_type: string;
+  field_name?: string;
+  old_value?: string;
+  new_value?: string;
+  status_from?: string;
+  status_to?: string;
+  comments?: string;
+  metadata: any;
+  action_timestamp: string;
+}
+
+// Helper function to validate and transform database response
+const transformAuditEntry = (dbEntry: DatabaseAuditEntry): AuditTrailEntry => {
+  const validActionTypes = ['create', 'edit', 'submit', 'approve', 'reject', 'unlock', 'email_sent'];
+  const actionType = validActionTypes.includes(dbEntry.action_type) 
+    ? dbEntry.action_type as AuditTrailEntry['action_type']
+    : 'edit'; // fallback to 'edit' for invalid types
+
+  return {
+    id: dbEntry.id,
+    user_id: dbEntry.user_id,
+    user_name: dbEntry.user_name,
+    action_type: actionType,
+    field_name: dbEntry.field_name,
+    old_value: dbEntry.old_value,
+    new_value: dbEntry.new_value,
+    status_from: dbEntry.status_from,
+    status_to: dbEntry.status_to,
+    comments: dbEntry.comments,
+    metadata: dbEntry.metadata,
+    action_timestamp: dbEntry.action_timestamp
+  };
+};
+
 export const useVariationAuditTrail = (variationId?: string) => {
   const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,7 +82,12 @@ export const useVariationAuditTrail = (variationId?: string) => {
         return;
       }
 
-      setAuditTrail(data || []);
+      // Transform the database response to match our TypeScript interface
+      const transformedData = (data || []).map((entry: DatabaseAuditEntry) => 
+        transformAuditEntry(entry)
+      );
+      
+      setAuditTrail(transformedData);
     } catch (error) {
       console.error('Error:', error);
     } finally {
