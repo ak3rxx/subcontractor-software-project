@@ -74,12 +74,15 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
     setIsSubmitting(true);
     try {
-      console.log('Starting submit for approval process, current variation:', variation);
+      console.log('Starting submit for approval process');
+      console.log('Current variation status:', variation.status);
+      console.log('User info:', { userId: user?.id, userEmail: user?.email, userProfile });
       
+      // Use user.id directly instead of userProfile.id
       const updateData = {
         status: 'pending_approval' as const,
         request_date: new Date().toISOString().split('T')[0],
-        requested_by: userProfile?.full_name || user?.email || user?.id
+        requested_by: user?.id  // Fixed: use user.id instead of userProfile?.id
       };
       
       console.log('Submitting update data:', updateData);
@@ -87,19 +90,25 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       // Call the update function and wait for completion
       await onUpdate(variation.id, updateData);
       
-      // Log the submission and wait for it to complete
-      const logSuccess = await logAuditEntry('submit', {
-        statusFrom: 'draft',
-        statusTo: 'pending_approval',
-        comments: `Variation submitted for approval by ${userProfile?.full_name || user?.email}`
-      });
-
-      if (logSuccess) {
-        // Manual refresh only if logging succeeded
-        setTimeout(() => refetchAudit(), 500);
+      console.log('Database update completed successfully');
+      
+      // Log the submission - but don't block on it
+      try {
+        await logAuditEntry('submit', {
+          statusFrom: 'draft',
+          statusTo: 'pending_approval',
+          comments: `Variation submitted for approval by ${user?.email || 'user'}`
+        });
+        console.log('Audit entry logged successfully');
+      } catch (auditError) {
+        console.warn('Failed to log audit entry, but continuing:', auditError);
       }
       
-      console.log('Update completed successfully, variation should now be pending approval');
+      // Refresh audit trail after a brief delay to allow for database consistency
+      setTimeout(() => {
+        console.log('Refreshing audit trail after submission');
+        refetchAudit();
+      }, 1000);
       
       toast({
         title: "Success",
@@ -111,7 +120,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       console.error('Error submitting for approval:', error);
       toast({
         title: "Error",
-        description: "Failed to submit variation for approval. Please try again.",
+        description: `Failed to submit variation for approval: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
@@ -142,7 +151,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     try {
       const updateData = {
         status: approved ? 'approved' : 'rejected',
-        approved_by: userProfile?.full_name || user?.email || user?.id,
+        approved_by: user?.email || user?.id, // Fixed: use user email or id
         approval_date: new Date().toISOString().split('T')[0],
         approval_comments: approved ? approvalComments : rejectionReason
       };
@@ -150,17 +159,19 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       console.log('Processing approval decision:', updateData);
       await onUpdate(variation.id, updateData);
       
-      // Log the approval/rejection and wait for completion
-      const logSuccess = await logAuditEntry(approved ? 'approve' : 'reject', {
-        statusFrom: 'pending_approval',
-        statusTo: approved ? 'approved' : 'rejected',
-        comments: approved ? approvalComments : rejectionReason
-      });
-      
-      if (logSuccess) {
-        // Manual refresh only if logging succeeded
-        setTimeout(() => refetchAudit(), 500);
+      // Log the approval/rejection - but don't block on it
+      try {
+        await logAuditEntry(approved ? 'approve' : 'reject', {
+          statusFrom: 'pending_approval',
+          statusTo: approved ? 'approved' : 'rejected',
+          comments: approved ? approvalComments : rejectionReason
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry, but continuing:', auditError);
       }
+      
+      // Refresh audit trail
+      setTimeout(() => refetchAudit(), 1000);
       
       toast({
         title: "Success",
@@ -203,7 +214,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
     setIsSubmitting(true);
     try {
-      const unlockComment = `UNLOCKED by ${userProfile?.full_name || user?.email} on ${new Date().toLocaleDateString()}: ${unlockReason}`;
+      const unlockComment = `UNLOCKED by ${user?.email || 'user'} on ${new Date().toLocaleDateString()}: ${unlockReason}`;
       const previousComment = variation.approval_comments ? `\n\nPrevious comments: ${variation.approval_comments}` : '';
       
       const updateData = {
@@ -215,17 +226,19 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
       await onUpdate(variation.id, updateData);
       
-      // Log the unlock and wait for completion
-      const logSuccess = await logAuditEntry('unlock', {
-        statusFrom: variation.status,
-        statusTo: unlockTargetStatus,
-        comments: unlockComment
-      });
-      
-      if (logSuccess) {
-        // Manual refresh only if logging succeeded
-        setTimeout(() => refetchAudit(), 500);
+      // Log the unlock - but don't block on it
+      try {
+        await logAuditEntry('unlock', {
+          statusFrom: variation.status,
+          statusTo: unlockTargetStatus,
+          comments: unlockComment
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry, but continuing:', auditError);
       }
+      
+      // Refresh audit trail
+      setTimeout(() => refetchAudit(), 1000);
       
       toast({
         title: "Success",
