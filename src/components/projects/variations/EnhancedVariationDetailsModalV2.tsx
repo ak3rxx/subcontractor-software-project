@@ -38,6 +38,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [activeTab, setActiveTab] = useState('details');
   const [showEditWarning, setShowEditWarning] = useState(false);
 
+  // Get variation ID for attachments
+  const variationId = variation?.id;
+
   const {
     attachments,
     loading: attachmentsLoading,
@@ -45,19 +48,19 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     uploadAttachment,
     downloadAttachment,
     deleteAttachment
-  } = useVariationAttachments(variation?.id);
+  } = useVariationAttachments(variationId);
 
-  // Memoized fetch function to prevent loops
-  const memoizedFetchAttachments = useCallback(() => {
-    if (variation?.id && isOpen) {
+  // Stable fetch function that doesn't change unless variationId or isOpen changes
+  const handleFetchAttachments = useCallback(() => {
+    if (variationId && isOpen) {
       fetchAttachments();
     }
-  }, [variation?.id, isOpen, fetchAttachments]);
+  }, [variationId, isOpen, fetchAttachments]);
 
   // Fetch attachments when variation changes
   useEffect(() => {
-    memoizedFetchAttachments();
-  }, [memoizedFetchAttachments]);
+    handleFetchAttachments();
+  }, [handleFetchAttachments]);
 
   // Reset edit state when variation changes
   useEffect(() => {
@@ -82,6 +85,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variation, isOpen]);
 
+  // Early return if no variation
   if (!variation) return null;
 
   // Enhanced permission checks
@@ -176,20 +180,26 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setHasUnsavedChanges(false);
   };
 
+  // Stable data change handler
   const handleDataChange = useCallback((newData: any) => {
     setEditData(prev => ({ ...prev, ...newData }));
     setHasUnsavedChanges(true);
   }, []);
 
-  // Handle file uploads by processing array of files
+  // Stable file upload handler
   const handleFileUpload = useCallback(async (files: File[]) => {
-    for (const file of files) {
-      await uploadAttachment(file);
+    try {
+      for (const file of files) {
+        await uploadAttachment(file);
+      }
+      // Refresh attachments after upload
+      handleFetchAttachments();
+    } catch (error) {
+      console.error('Error uploading files:', error);
     }
-    // Refresh attachments after upload
-    await fetchAttachments();
-  }, [uploadAttachment, fetchAttachments]);
+  }, [uploadAttachment, handleFetchAttachments]);
 
+  // Stable status badge function
   const getStatusBadge = useMemo(() => (status: string) => {
     switch (status) {
       case 'approved':
@@ -213,17 +223,12 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   // Disable approval actions when in edit mode with unsaved changes
   const isApprovalBlocked = isEditing && hasUnsavedChanges;
 
-  // Handle approval workflow updates with real-time refresh
+  // Stable approval update handler
   const handleApprovalUpdate = useCallback(async (id: string, updates: any) => {
     if (onUpdate) {
       await onUpdate(id, updates);
-      // Force a re-render by updating local state
-      if (variation && variation.id === id) {
-        // The parent component should handle the state update
-        // This ensures the UI reflects changes immediately
-      }
     }
-  }, [onUpdate, variation]);
+  }, [onUpdate]);
 
   return (
     <>
