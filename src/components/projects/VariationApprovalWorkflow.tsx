@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, RotateCcw } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
+import PermissionGate from '@/components/PermissionGate';
 
 interface VariationApprovalWorkflowProps {
   variation: any;
@@ -19,40 +21,50 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   variation,
   onUpdate
 }) => {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const { isDeveloper, canEdit, canAdmin, userProfile } = usePermissions();
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [retractionReason, setRetractionReason] = useState('');
   const [retractionStatus, setRetractionStatus] = useState<'draft' | 'rejected'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const userRole = user?.role || 'user';
-  const userEmail = user?.email || '';
-  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
-  
-  // Allow approval for project managers, admins, or the full access user
-  const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser;
-  
-  // Allow retraction only for project managers, admins, or the full access user
-  const canRetract = (['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser) && variation.status === 'approved';
-  
-  // Allow submission if variation is in draft status
-  const canSubmitForApproval = variation.status === 'draft';
-  
-  // Show approval actions if user can approve and variation is pending approval
+  // Enhanced permission checks using the permission system
+  const canApprove = isDeveloper() || canAdmin('variations') || canEdit('variations');
+  const canRetract = (isDeveloper() || canAdmin('variations')) && variation.status === 'approved';
+  const canSubmitForApproval = variation.status === 'draft' && (isDeveloper() || canEdit('variations'));
   const showApprovalActions = canApprove && variation.status === 'pending_approval';
 
+  console.log('Permission check:', {
+    userProfile,
+    isDeveloper: isDeveloper(),
+    canEdit: canEdit('variations'),
+    canAdmin: canAdmin('variations'),
+    canApprove,
+    canRetract,
+    canSubmitForApproval,
+    showApprovalActions,
+    variationStatus: variation.status
+  });
+
   const handleSubmitForApproval = async () => {
+    if (!canSubmitForApproval) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to submit variations for approval",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       console.log('Submitting variation for approval, current status:', variation.status);
       
-      // Update the variation with pending_approval status and submission details
       const updateData = {
         status: 'pending_approval' as const,
         request_date: new Date().toISOString().split('T')[0],
-        requested_by: user?.id
+        requested_by: userProfile?.id
       };
       
       console.log('Update data being sent:', updateData);
@@ -76,11 +88,29 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   };
 
   const handleApproval = async (approved: boolean) => {
+    if (!canApprove) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to approve variations",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!approved && !rejectionReason.trim()) {
+      toast({
+        title: "Rejection Reason Required",
+        description: "Please provide a reason for rejecting this variation",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const updateData = {
         status: approved ? 'approved' : 'rejected',
-        approved_by: user?.id,
+        approved_by: userProfile?.id,
         approval_date: new Date().toISOString().split('T')[0],
         approval_comments: approved ? approvalComments : rejectionReason
       };
@@ -107,6 +137,15 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   };
 
   const handleRetraction = async () => {
+    if (!canRetract) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to retract approvals",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!retractionReason.trim()) {
       toast({
         title: "Error",
@@ -253,130 +292,136 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
         <Separator />
 
         {/* Submission Section */}
-        {canSubmitForApproval && (
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm">Ready to Submit for Approval?</h4>
-            <p className="text-sm text-gray-600">
-              Once submitted, this variation will be sent to the approval team for review. 
-              You will not be able to edit the variation while it's under review.
-            </p>
-            <Button 
-              onClick={handleSubmitForApproval}
-              disabled={isSubmitting}
-              className="flex items-center gap-2"
-            >
-              <Send className="h-4 w-4" />
-              {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
-            </Button>
-          </div>
-        )}
+        <PermissionGate module="variations" requiredLevel="write">
+          {canSubmitForApproval && (
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm">Ready to Submit for Approval?</h4>
+              <p className="text-sm text-gray-600">
+                Once submitted, this variation will be sent to the approval team for review. 
+                You will not be able to edit the variation while it's under review.
+              </p>
+              <Button 
+                onClick={handleSubmitForApproval}
+                disabled={isSubmitting}
+                className="flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" />
+                {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+              </Button>
+            </div>
+          )}
+        </PermissionGate>
 
         {/* Approval Actions */}
-        {showApprovalActions && (
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm">Approval Decision</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Approval Comments */}
-              <div className="flex flex-col space-y-2">
-                <Label htmlFor="approval-comments">Approval Comments (Optional)</Label>
-                <Textarea
-                  id="approval-comments"
-                  value={approvalComments}
-                  onChange={(e) => setApprovalComments(e.target.value)}
-                  placeholder="Add any comments about this approval..."
-                  rows={3}
-                  className="flex-1"
-                />
-              </div>
-
-              {/* Rejection Reason */}
-              <div className="flex flex-col space-y-2">
-                <Label htmlFor="rejection-reason">Rejection Reason</Label>
-                <Textarea
-                  id="rejection-reason"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Explain why this variation is being rejected..."
-                  rows={3}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button 
-                onClick={() => handleApproval(true)}
-                disabled={isSubmitting}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Processing...' : 'Approve'}
-              </Button>
-              
-              <Button 
-                onClick={() => handleApproval(false)}
-                disabled={isSubmitting || !rejectionReason.trim()}
-                variant="destructive"
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Processing...' : 'Reject'}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Retraction Section - Only for Project Managers on Approved Variations */}
-        {canRetract && (
-          <>
-            <Separator />
+        <PermissionGate module="variations" requiredLevel="admin">
+          {showApprovalActions && (
             <div className="space-y-4">
-              <h4 className="font-medium text-sm text-orange-700">Retract Approval (Project Manager Only)</h4>
-              <p className="text-sm text-gray-600">
-                This will retract the approval and revert the variation to the selected status. 
-                This action should only be used when necessary.
-              </p>
+              <h4 className="font-medium text-sm">Approval Decision</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Approval Comments */}
                 <div className="flex flex-col space-y-2">
-                  <Label htmlFor="retraction-status">Revert To</Label>
-                  <Select value={retractionStatus} onValueChange={(value: 'draft' | 'rejected') => setRetractionStatus(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="approval-comments">Approval Comments (Optional)</Label>
+                  <Textarea
+                    id="approval-comments"
+                    value={approvalComments}
+                    onChange={(e) => setApprovalComments(e.target.value)}
+                    placeholder="Add any comments about this approval..."
+                    rows={3}
+                    className="flex-1"
+                  />
                 </div>
 
+                {/* Rejection Reason */}
                 <div className="flex flex-col space-y-2">
-                  <Label htmlFor="retraction-reason">Retraction Reason *</Label>
+                  <Label htmlFor="rejection-reason">Rejection Reason</Label>
                   <Textarea
-                    id="retraction-reason"
-                    value={retractionReason}
-                    onChange={(e) => setRetractionReason(e.target.value)}
-                    placeholder="Explain why you are retracting this approval..."
+                    id="rejection-reason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Explain why this variation is being rejected..."
                     rows={3}
                     className="flex-1"
                   />
                 </div>
               </div>
 
-              <Button 
-                onClick={handleRetraction}
-                disabled={isSubmitting || !retractionReason.trim()}
-                variant="outline"
-                className="border-orange-500 text-orange-700 hover:bg-orange-50"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Processing...' : 'Retract Approval'}
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                <Button 
+                  onClick={() => handleApproval(true)}
+                  disabled={isSubmitting}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Processing...' : 'Approve'}
+                </Button>
+                
+                <Button 
+                  onClick={() => handleApproval(false)}
+                  disabled={isSubmitting || !rejectionReason.trim()}
+                  variant="destructive"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Processing...' : 'Reject'}
+                </Button>
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </PermissionGate>
+
+        {/* Retraction Section - Only for Admin Level Users */}
+        <PermissionGate module="variations" requiredLevel="admin">
+          {canRetract && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-orange-700">Retract Approval (Admin Only)</h4>
+                <p className="text-sm text-gray-600">
+                  This will retract the approval and revert the variation to the selected status. 
+                  This action should only be used when necessary.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="retraction-status">Revert To</Label>
+                    <Select value={retractionStatus} onValueChange={(value: 'draft' | 'rejected') => setRetractionStatus(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="retraction-reason">Retraction Reason *</Label>
+                    <Textarea
+                      id="retraction-reason"
+                      value={retractionReason}
+                      onChange={(e) => setRetractionReason(e.target.value)}
+                      placeholder="Explain why you are retracting this approval..."
+                      rows={3}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleRetraction}
+                  disabled={isSubmitting || !retractionReason.trim()}
+                  variant="outline"
+                  className="border-orange-500 text-orange-700 hover:bg-orange-50"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Processing...' : 'Retract Approval'}
+                </Button>
+              </div>
+            </>
+          )}
+        </PermissionGate>
 
         {/* Current Status Info */}
         {variation.status !== 'draft' && (

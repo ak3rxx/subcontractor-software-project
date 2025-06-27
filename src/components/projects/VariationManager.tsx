@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useVariations } from '@/hooks/useVariations';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
+import PermissionGate from '@/components/PermissionGate';
 import QuotationVariationForm from './variations/QuotationVariationForm';
 import EnhancedVariationDetailsModal from './variations/EnhancedVariationDetailsModal';
 import VariationSummaryCards from './variations/VariationSummaryCards';
@@ -21,7 +22,7 @@ interface VariationManagerProps {
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId, crossModuleData }) => {
   const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
   const { toast } = useToast();
-  const { isDeveloper, canEdit, canAdmin } = usePermissions();
+  const { isDeveloper, canEdit, canAdmin, canAccess } = usePermissions();
   
   const [showForm, setShowForm] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
@@ -31,10 +32,32 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
 
-  // Permission checks - developers have full access
+  // Enhanced permission checks using the permission system
   const canCreateVariations = isDeveloper() || canEdit('variations');
   const canEditVariations = isDeveloper() || canEdit('variations') || canAdmin('variations');
   const canSendEmails = isDeveloper() || canAdmin('variations');
+  const canViewVariations = isDeveloper() || canAccess('variations');
+
+  // Log permission check results for debugging
+  console.log('VariationManager permissions:', {
+    isDeveloper: isDeveloper(),
+    canEdit: canEdit('variations'),
+    canAdmin: canAdmin('variations'),
+    canAccess: canAccess('variations'),
+    canCreateVariations,
+    canEditVariations,
+    canSendEmails,
+    canViewVariations
+  });
+
+  // Early return if user doesn't have access to variations
+  if (!canViewVariations) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-600">You don't have permission to view variations.</p>
+      </div>
+    );
+  }
 
   const {
     handleCreateVariation,
@@ -116,12 +139,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <h2 className="text-2xl font-bold text-gray-900">Variations</h2>
           <p className="text-gray-600">Manage project variations and change orders</p>
         </div>
-        {canCreateVariations && (
+        <PermissionGate module="variations" requiredLevel="write">
           <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             New Variation
           </Button>
-        )}
+        </PermissionGate>
       </div>
 
       {/* Summary Cards */}
@@ -149,8 +172,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         onCreateFirst={() => setShowForm(true)}
       />
 
-      {/* Modals */}
-      {canCreateVariations && (
+      {/* Modals - Protected by permissions */}
+      <PermissionGate module="variations" requiredLevel="write">
         <QuotationVariationForm
           isOpen={showForm}
           onClose={() => {
@@ -161,7 +184,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           projectName={projectName}
           editingVariation={editingVariation}
         />
-      )}
+      </PermissionGate>
 
       <EnhancedVariationDetailsModal
         variation={selectedVariation}

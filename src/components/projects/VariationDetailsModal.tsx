@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -8,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Calendar, DollarSign, Clock, User, Mail, FileText, Edit, Check, X, Download, Paperclip } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
+import PermissionGate from '@/components/PermissionGate';
 import VariationApprovalWorkflow from './VariationApprovalWorkflow';
 
 interface Variation {
@@ -48,38 +50,33 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
   onClose,
   onUpdate
 }) => {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const { isDeveloper, canEdit } = usePermissions();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
   if (!variation) return null;
 
-  // Debug: log the user info to console
-  console.log('Current user role:', user?.role);
-  console.log('Current user email:', user?.email);
-  console.log('Current user:', user);
+  // Enhanced permission checks using the permission system
+  const canEditVariation = isDeveloper() || canEdit('variations');
 
-  // Determine user permissions based on role and email
-  const userRole = user?.role || 'user';
-  const userEmail = user?.email || '';
-  
-  // Check if user is the special admin user
-  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
-  
-  // Allow editing for project managers, contract administrators, project engineers, or the full access user
-  const canEdit = [
-    'project_manager', 
-    'contract_administrator', 
-    'project_engineer',
-    'admin',
-    'manager'
-  ].includes(userRole) || isFullAccessUser || !userRole; // Allow if no role set for testing
-  
-  // Allow approval for project managers, admins, or the full access user
-  const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser || !userRole; // Allow if no role set for testing
+  console.log('VariationDetailsModal permissions:', {
+    isDeveloper: isDeveloper(),
+    canEdit: canEdit('variations'),
+    canEditVariation,
+    variationStatus: variation.status
+  });
 
   const handleEdit = () => {
+    if (!canEditVariation) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to edit variations",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setEditData({
       title: variation.title,
       description: variation.description || '',
@@ -95,7 +92,7 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
   };
 
   const handleSave = async () => {
-    if (!onUpdate) return;
+    if (!onUpdate || !canEditVariation) return;
     
     try {
       await onUpdate(variation.id, editData);
@@ -172,12 +169,14 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
               </DialogDescription>
             </div>
             <div className="flex gap-2">
-              {canEdit && !isEditing && variation.status === 'draft' && (
-                <Button variant="outline" size="sm" onClick={handleEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
+              <PermissionGate module="variations" requiredLevel="write">
+                {!isEditing && variation.status === 'draft' && (
+                  <Button variant="outline" size="sm" onClick={handleEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+              </PermissionGate>
             </div>
           </div>
         </DialogHeader>
@@ -404,19 +403,21 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
             )}
 
             {/* Edit Actions */}
-            {isEditing && (
-              <>
-                <Separator />
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setIsEditing(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave}>
-                    Save Changes
-                  </Button>
-                </div>
-              </>
-            )}
+            <PermissionGate module="variations" requiredLevel="write">
+              {isEditing && (
+                <>
+                  <Separator />
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSave}>
+                      Save Changes
+                    </Button>
+                  </div>
+                </>
+              )}
+            </PermissionGate>
           </div>
 
           {/* Approval Workflow - Right Side */}
