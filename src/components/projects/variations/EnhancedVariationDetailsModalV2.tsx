@@ -1,10 +1,9 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { FileText, Edit, Save, X, AlertTriangle, CheckCircle, XCircle, Clock, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -41,9 +40,10 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [showEditWarning, setShowEditWarning] = useState(false);
+  const [currentVariation, setCurrentVariation] = useState(variation);
 
   // Always get variationId (will be undefined if no variation)
-  const variationId = variation?.id;
+  const variationId = currentVariation?.id;
 
   // Always call the attachments hook
   const {
@@ -54,6 +54,13 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     downloadAttachment,
     deleteAttachment
   } = useVariationAttachments(variationId);
+
+  // Update current variation when variation prop changes
+  useEffect(() => {
+    if (variation && variation.id) {
+      setCurrentVariation(variation);
+    }
+  }, [variation]);
 
   // Memoized handlers - these must always be defined
   const handleDataChange = useCallback((newData: any) => {
@@ -75,13 +82,16 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, uploadAttachment, fetchAttachments]);
 
-  // Simplified update handler without forced refreshes
+  // Enhanced update handler with proper state management
   const handleUpdateFromModal = useCallback(async (id: string, updates: any) => {
     if (onUpdate) {
       try {
         console.log('Modal: Starting variation update with:', updates);
         
         await onUpdate(id, updates);
+        
+        // Update local state immediately for UI responsiveness
+        setCurrentVariation(prev => prev ? { ...prev, ...updates } : null);
         
         console.log('Modal: Update completed successfully');
         
@@ -100,6 +110,13 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       }
     }
   }, [onUpdate, toast]);
+
+  // Handle status changes from approval tab
+  const handleStatusChange = useCallback(() => {
+    console.log('Status change detected, refreshing variation data');
+    // The parent component should handle refreshing the variation data
+    // We'll just update the UI to reflect any changes
+  }, []);
 
   const getStatusBadge = useCallback((status: string) => {
     switch (status) {
@@ -123,36 +140,36 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, isOpen, fetchAttachments]);
 
-  // Reset edit state when variation changes - simplified without refreshKey
+  // Reset edit state when variation changes
   useEffect(() => {
-    if (variation && isOpen) {
+    if (currentVariation && isOpen) {
       setEditData({
-        title: variation.title,
-        description: variation.description || '',
-        location: variation.location || '',
-        category: variation.category || '',
-        trade: variation.trade || '',
-        priority: variation.priority,
-        client_email: variation.client_email || '',
-        justification: variation.justification || '',
-        time_impact: variation.time_impact,
-        cost_breakdown: variation.cost_breakdown || [],
-        total_amount: variation.total_amount || variation.cost_impact,
-        gst_amount: variation.gst_amount || 0,
-        requires_nod: variation.requires_nod || false,
-        requires_eot: variation.requires_eot || false,
-        nod_days: variation.nod_days || 0,
-        eot_days: variation.eot_days || 0
+        title: currentVariation.title,
+        description: currentVariation.description || '',
+        location: currentVariation.location || '',
+        category: currentVariation.category || '',
+        trade: currentVariation.trade || '',
+        priority: currentVariation.priority,
+        client_email: currentVariation.client_email || '',
+        justification: currentVariation.justification || '',
+        time_impact: currentVariation.time_impact,
+        cost_breakdown: currentVariation.cost_breakdown || [],
+        total_amount: currentVariation.total_amount || currentVariation.cost_impact,
+        gst_amount: currentVariation.gst_amount || 0,
+        requires_nod: currentVariation.requires_nod || false,
+        requires_eot: currentVariation.requires_eot || false,
+        nod_days: currentVariation.nod_days || 0,
+        eot_days: currentVariation.eot_days || 0
       });
       setIsEditing(false);
       setHasUnsavedChanges(false);
       setActiveTab('details');
       setShowEditWarning(false);
     }
-  }, [variation?.id, isOpen]); // Only depend on variation.id and isOpen
+  }, [currentVariation?.id, isOpen]);
 
   // Early return after all hooks are called
-  if (!variation) return null;
+  if (!currentVariation) return null;
 
   // Enhanced permission checks
   const userRole = user?.role || 'user';
@@ -167,14 +184,14 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   ].includes(userRole) || isFullAccessUser || isDeveloper() || canEdit('variations');
 
   // Status-based edit restrictions
-  const canStartEditing = canEditVariation && variation.status !== 'pending_approval';
-  const isApproved = variation.status === 'approved';
+  const canStartEditing = canEditVariation && currentVariation.status !== 'pending_approval';
+  const isApproved = currentVariation.status === 'approved';
 
   const handleEdit = () => {
     if (!canStartEditing) {
       toast({
         title: "Access Denied",
-        description: variation.status === 'pending_approval' 
+        description: currentVariation.status === 'pending_approval' 
           ? "Cannot edit variation while it's pending approval"
           : "You don't have permission to edit variations",
         variant: "destructive"
@@ -207,9 +224,10 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         updates.approval_date = null;
         updates.approval_comments = null;
         updates.request_date = new Date().toISOString().split('T')[0];
+        updates.updated_by = user?.id;
       }
       
-      await handleUpdateFromModal(variation.id, updates);
+      await handleUpdateFromModal(currentVariation.id, updates);
       
       // Log the edit action in audit trail
       if (user) {
@@ -240,22 +258,22 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
   const handleCancel = () => {
     setEditData({
-      title: variation.title,
-      description: variation.description || '',
-      location: variation.location || '',
-      category: variation.category || '',
-      trade: variation.trade || '',
-      priority: variation.priority,
-      client_email: variation.client_email || '',
-      justification: variation.justification || '',
-      time_impact: variation.time_impact,
-      cost_breakdown: variation.cost_breakdown || [],
-      total_amount: variation.total_amount || variation.cost_impact,
-      gst_amount: variation.gst_amount || 0,
-      requires_nod: variation.requires_nod || false,
-      requires_eot: variation.requires_eot || false,
-      nod_days: variation.nod_days || 0,
-      eot_days: variation.eot_days || 0
+      title: currentVariation.title,
+      description: currentVariation.description || '',
+      location: currentVariation.location || '',
+      category: currentVariation.category || '',
+      trade: currentVariation.trade || '',
+      priority: currentVariation.priority,
+      client_email: currentVariation.client_email || '',
+      justification: currentVariation.justification || '',
+      time_impact: currentVariation.time_impact,
+      cost_breakdown: currentVariation.cost_breakdown || [],
+      total_amount: currentVariation.total_amount || currentVariation.cost_impact,
+      gst_amount: currentVariation.gst_amount || 0,
+      requires_nod: currentVariation.requires_nod || false,
+      requires_eot: currentVariation.requires_eot || false,
+      nod_days: currentVariation.nod_days || 0,
+      eot_days: currentVariation.eot_days || 0
     });
     setIsEditing(false);
     setHasUnsavedChanges(false);
@@ -263,7 +281,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
   const canShowApprovalTab = () => {
     // Show approval tab if variation is not in draft or if user can edit
-    return variation.status !== 'draft' || canEditVariation;
+    return currentVariation.status !== 'draft' || canEditVariation;
   };
 
   // Disable approval actions when in edit mode with unsaved changes
@@ -278,12 +296,12 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               <div>
                 <DialogTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Variation {variation.variation_number}
-                  {getStatusBadge(variation.status)}
-                  {variation.status === 'pending_approval' && <Lock className="h-4 w-4 text-yellow-600" />}
+                  Variation {currentVariation.variation_number}
+                  {getStatusBadge(currentVariation.status)}
+                  {currentVariation.status === 'pending_approval' && <Lock className="h-4 w-4 text-yellow-600" />}
                 </DialogTitle>
                 <DialogDescription>
-                  {variation.title}
+                  {currentVariation.title}
                 </DialogDescription>
               </div>
               <div className="flex gap-2">
@@ -292,10 +310,10 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                     variant="outline" 
                     size="sm" 
                     onClick={handleEdit}
-                    disabled={variation.status === 'pending_approval'}
-                    className={variation.status === 'pending_approval' ? 'opacity-50' : ''}
+                    disabled={currentVariation.status === 'pending_approval'}
+                    className={currentVariation.status === 'pending_approval' ? 'opacity-50' : ''}
                   >
-                    <Edit className={`h-4 w-4 mr-2 ${variation.status === 'pending_approval' ? 'opacity-50' : ''}`} />
+                    <Edit className={`h-4 w-4 mr-2 ${currentVariation.status === 'pending_approval' ? 'opacity-50' : ''}`} />
                     Edit
                   </Button>
                 )}
@@ -325,7 +343,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               </div>
             )}
 
-            {variation.status === 'pending_approval' && (
+            {currentVariation.status === 'pending_approval' && (
               <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mt-2">
                 <div className="flex items-center gap-2">
                   <Lock className="h-4 w-4 text-orange-600" />
@@ -355,7 +373,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div className="flex-1 overflow-y-auto mt-4">
               <TabsContent value="details" className="mt-0">
                 <VariationDetailsTab
-                  variation={variation}
+                  variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
@@ -364,7 +382,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
               <TabsContent value="costs" className="mt-0">
                 <VariationCostTab
-                  variation={variation}
+                  variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
@@ -373,7 +391,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
               <TabsContent value="files" className="mt-0">
                 <VariationFilesTab
-                  variation={variation}
+                  variation={currentVariation}
                   attachments={attachments}
                   attachmentsLoading={attachmentsLoading}
                   canEdit={canEditVariation && isEditing}
@@ -386,8 +404,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               {canShowApprovalTab() && (
                 <TabsContent value="approval" className="mt-0">
                   <EnhancedVariationApprovalTab
-                    variation={variation}
+                    variation={currentVariation}
                     onUpdate={handleUpdateFromModal}
+                    onStatusChange={handleStatusChange}
                     isBlocked={isApprovalBlocked}
                   />
                 </TabsContent>
