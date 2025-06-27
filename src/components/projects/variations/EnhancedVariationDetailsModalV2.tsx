@@ -29,18 +29,21 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   onClose,
   onUpdate
 }) => {
+  // All hooks must be called before any early returns
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
+  
   const [isEditing, setIsEditing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [showEditWarning, setShowEditWarning] = useState(false);
 
-  // Get variation ID for attachments
+  // Always get variationId (will be undefined if no variation)
   const variationId = variation?.id;
 
+  // Always call the attachments hook
   const {
     attachments,
     loading: attachmentsLoading,
@@ -50,17 +53,53 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     deleteAttachment
   } = useVariationAttachments(variationId);
 
-  // Stable fetch function that doesn't change unless variationId or isOpen changes
-  const handleFetchAttachments = useCallback(() => {
+  // Memoized handlers - these must always be defined
+  const handleDataChange = useCallback((newData: any) => {
+    setEditData(prev => ({ ...prev, ...newData }));
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const handleFileUpload = useCallback(async (files: File[]) => {
+    if (!variationId) return;
+    
+    try {
+      for (const file of files) {
+        await uploadAttachment(file);
+      }
+      // Refresh attachments after upload
+      await fetchAttachments();
+    } catch (error) {
+      console.error('Error uploading files:', error);
+    }
+  }, [variationId, uploadAttachment, fetchAttachments]);
+
+  const handleApprovalUpdate = useCallback(async (id: string, updates: any) => {
+    if (onUpdate) {
+      await onUpdate(id, updates);
+    }
+  }, [onUpdate]);
+
+  const getStatusBadge = useCallback((status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      case 'pending_approval':
+        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending Approval</Badge>;
+      case 'draft':
+        return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  }, []);
+
+  // Fetch attachments when variation changes
+  useEffect(() => {
     if (variationId && isOpen) {
       fetchAttachments();
     }
   }, [variationId, isOpen, fetchAttachments]);
-
-  // Fetch attachments when variation changes
-  useEffect(() => {
-    handleFetchAttachments();
-  }, [handleFetchAttachments]);
 
   // Reset edit state when variation changes
   useEffect(() => {
@@ -85,7 +124,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variation, isOpen]);
 
-  // Early return if no variation
+  // Early return after all hooks are called
   if (!variation) return null;
 
   // Enhanced permission checks
@@ -180,41 +219,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setHasUnsavedChanges(false);
   };
 
-  // Stable data change handler
-  const handleDataChange = useCallback((newData: any) => {
-    setEditData(prev => ({ ...prev, ...newData }));
-    setHasUnsavedChanges(true);
-  }, []);
-
-  // Stable file upload handler
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    try {
-      for (const file of files) {
-        await uploadAttachment(file);
-      }
-      // Refresh attachments after upload
-      handleFetchAttachments();
-    } catch (error) {
-      console.error('Error uploading files:', error);
-    }
-  }, [uploadAttachment, handleFetchAttachments]);
-
-  // Stable status badge function
-  const getStatusBadge = useMemo(() => (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
-      case 'pending_approval':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending Approval</Badge>;
-      case 'draft':
-        return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  }, []);
-
   const canShowApprovalTab = () => {
     // Show approval tab if variation is not in draft or if user can edit
     return variation.status !== 'draft' || canEditVariation;
@@ -222,13 +226,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
   // Disable approval actions when in edit mode with unsaved changes
   const isApprovalBlocked = isEditing && hasUnsavedChanges;
-
-  // Stable approval update handler
-  const handleApprovalUpdate = useCallback(async (id: string, updates: any) => {
-    if (onUpdate) {
-      await onUpdate(id, updates);
-    }
-  }, [onUpdate]);
 
   return (
     <>
