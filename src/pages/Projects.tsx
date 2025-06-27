@@ -58,9 +58,10 @@ const Projects = () => {
     
     // Show toast notification about the cross-module integration
     if (data.fromVariation) {
+      const actionName = action.replace('create-', '').replace('-', ' ');
       toast({
         title: "Cross-Module Integration Active",
-        description: `Data from variation ${data.variationNumber} has been pre-filled for ${action.replace('create-', '').replace('-', ' ')}`,
+        description: `${actionName} form will auto-populate with data from variation ${data.variationNumber}`,
       });
     }
   };

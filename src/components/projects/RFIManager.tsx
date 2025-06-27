@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, MessageSquare, Clock, AlertTriangle, CheckCircle2, Upload } from 'lucide-react';
+import { Plus, MessageSquare, Clock, AlertTriangle, CheckCircle2, Upload, Link } from 'lucide-react';
+import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 
 interface RFIManagerProps {
   projectName: string;
@@ -18,6 +19,7 @@ interface RFIManagerProps {
 
 const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData }) => {
   const { toast } = useToast();
+  const { getCrossModuleAction } = useCrossModuleNavigation();
   const [showNewRFI, setShowNewRFI] = useState(false);
   const [newRFI, setNewRFI] = useState({
     title: '',
@@ -27,8 +29,36 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
     dueDate: '',
     priority: 'normal',
     category: '',
-    relatedArea: ''
+    relatedArea: '',
+    referenceNumber: ''
   });
+
+  // Auto-open form and populate when arriving from cross-module navigation
+  useEffect(() => {
+    const action = getCrossModuleAction();
+    if (action === 'create-rfi' && crossModuleData) {
+      console.log('Auto-opening RFI form with cross-module data:', crossModuleData);
+      
+      setNewRFI({
+        title: crossModuleData.rfi_title || crossModuleData.title || '',
+        question: crossModuleData.rfi_description || crossModuleData.description || '',
+        submittedTo: '',
+        submittedBy: '',
+        dueDate: '',
+        priority: 'normal',
+        category: 'design',
+        relatedArea: crossModuleData.trade || crossModuleData.category || '',
+        referenceNumber: crossModuleData.reference_number || crossModuleData.variationNumber || ''
+      });
+      
+      setShowNewRFI(true);
+      
+      toast({
+        title: "Cross-Module Integration",
+        description: `RFI form auto-populated from variation ${crossModuleData.variationNumber}`,
+      });
+    }
+  }, [crossModuleData, getCrossModuleAction]);
 
   // Sample RFI data
   const rfis = [
@@ -43,7 +73,8 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
       status: 'overdue',
       priority: 'high',
       response: '',
-      daysOverdue: 2
+      daysOverdue: 2,
+      referenceNumber: '001-VAR-0001'
     },
     {
       id: 'RFI-002',
@@ -56,7 +87,8 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
       status: 'open',
       priority: 'high',
       response: '',
-      daysOverdue: 0
+      daysOverdue: 0,
+      referenceNumber: ''
     },
     {
       id: 'RFI-003',
@@ -69,7 +101,8 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
       status: 'answered',
       priority: 'normal',
       response: 'Approved for polished concrete finish as per specification sheet attached.',
-      daysOverdue: 0
+      daysOverdue: 0,
+      referenceNumber: ''
     }
   ];
 
@@ -117,7 +150,8 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
       dueDate: '',
       priority: 'normal',
       category: '',
-      relatedArea: ''
+      relatedArea: '',
+      referenceNumber: ''
     });
     setShowNewRFI(false);
   };
@@ -128,6 +162,12 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
         <div>
           <h3 className="text-lg font-semibold">RFI Manager</h3>
           <p className="text-gray-600">Request for Information tracking and management</p>
+          {crossModuleData?.fromVariation && (
+            <Badge className="mt-2 bg-blue-100 text-blue-800 flex items-center gap-1 w-fit">
+              <Link className="h-3 w-3" />
+              Linked from Variation {crossModuleData.variationNumber}
+            </Badge>
+          )}
         </div>
         <Button onClick={() => setShowNewRFI(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -180,9 +220,17 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
 
       {/* New RFI Form */}
       {showNewRFI && (
-        <Card>
+        <Card className={crossModuleData?.fromVariation ? "border-blue-200 bg-blue-50" : ""}>
           <CardHeader>
-            <CardTitle>Submit New RFI</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Submit New RFI
+              {crossModuleData?.fromVariation && (
+                <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                  <Link className="h-3 w-3" />
+                  From Variation {crossModuleData.variationNumber}
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitRFI} className="space-y-4">
@@ -245,7 +293,7 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="priority">Priority</Label>
                   <Select value={newRFI.priority} onValueChange={(value) => setNewRFI(prev => ({ ...prev, priority: value }))}>
@@ -282,6 +330,16 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
                     value={newRFI.relatedArea}
                     onChange={(e) => setNewRFI(prev => ({ ...prev, relatedArea: e.target.value }))}
                     placeholder="e.g. Electrical, Level 3"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referenceNumber">Reference #</Label>
+                  <Input
+                    id="referenceNumber"
+                    value={newRFI.referenceNumber}
+                    onChange={(e) => setNewRFI(prev => ({ ...prev, referenceNumber: e.target.value }))}
+                    placeholder="VAR-001"
+                    readOnly={crossModuleData?.fromVariation}
                   />
                 </div>
               </div>
@@ -327,6 +385,7 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
                 <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
+                <TableHead>Reference</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -343,6 +402,13 @@ const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData })
                   <TableCell>{rfi.dueDate}</TableCell>
                   <TableCell>{getStatusBadge(rfi.status, rfi.daysOverdue)}</TableCell>
                   <TableCell>{getPriorityBadge(rfi.priority)}</TableCell>
+                  <TableCell>
+                    {rfi.referenceNumber && (
+                      <Badge variant="outline" className="text-xs">
+                        {rfi.referenceNumber}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" title="View Details">

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, CheckCircle2, Clock, AlertTriangle, User, Calendar } from 'lucide-react';
+import { Plus, CheckCircle2, Clock, AlertTriangle, User, Calendar, Link } from 'lucide-react';
+import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 
 interface TaskManagerProps {
   projectName: string;
@@ -18,6 +19,7 @@ interface TaskManagerProps {
 
 const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData }) => {
   const { toast } = useToast();
+  const { getCrossModuleAction } = useCrossModuleNavigation();
   const [showNewTask, setShowNewTask] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [newTask, setNewTask] = useState({
@@ -28,8 +30,36 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
     status: 'todo',
     relatedModule: '',
     description: '',
-    estimatedHours: ''
+    estimatedHours: '',
+    referenceNumber: ''
   });
+
+  // Auto-open form and populate when arriving from cross-module navigation
+  useEffect(() => {
+    const action = getCrossModuleAction();
+    if (action === 'create-task' && crossModuleData) {
+      console.log('Auto-opening task form with cross-module data:', crossModuleData);
+      
+      setNewTask({
+        name: crossModuleData.task_title || crossModuleData.title || '',
+        assignedTo: '',
+        dueDate: '',
+        priority: 'medium',
+        status: 'todo',
+        relatedModule: 'Variation',
+        description: crossModuleData.task_description || crossModuleData.description || '',
+        estimatedHours: '',
+        referenceNumber: crossModuleData.reference_number || crossModuleData.variationNumber || ''
+      });
+      
+      setShowNewTask(true);
+      
+      toast({
+        title: "Cross-Module Integration",
+        description: `Task form auto-populated from variation ${crossModuleData.variationNumber}`,
+      });
+    }
+  }, [crossModuleData, getCrossModuleAction]);
 
   // Sample tasks data
   const tasks = [
@@ -42,7 +72,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
       status: 'in-progress',
       relatedModule: 'RFI',
       description: 'Review and approve electrical drawings for Level 3',
-      createdDate: '2024-01-15'
+      createdDate: '2024-01-15',
+      referenceNumber: 'RFI-002'
     },
     {
       id: 'TASK-002',
@@ -53,7 +84,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
       status: 'done',
       relatedModule: 'Delivery Schedule',
       description: 'Coordinate concrete delivery for foundation pour',
-      createdDate: '2024-01-10'
+      createdDate: '2024-01-10',
+      referenceNumber: ''
     },
     {
       id: 'TASK-003',
@@ -64,18 +96,20 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
       status: 'todo',
       relatedModule: 'Documents',
       description: 'Update SWMS for new work area',
-      createdDate: '2024-01-16'
+      createdDate: '2024-01-16',
+      referenceNumber: ''
     },
     {
       id: 'TASK-004',
-      name: 'Respond to client variation',
+      name: 'Complete Kitchen Installation',
       assignedTo: 'Lisa Wang',
       dueDate: '2024-01-17',
       priority: 'high',
-      status: 'blocked',
+      status: 'todo',
       relatedModule: 'Variation',
-      description: 'Pending engineer approval for structural modification',
-      createdDate: '2024-01-12'
+      description: 'Complete kitchen installation as per variation requirements',
+      createdDate: '2024-01-12',
+      referenceNumber: '001-VAR-0001'
     }
   ];
 
@@ -130,7 +164,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
       status: 'todo',
       relatedModule: '',
       description: '',
-      estimatedHours: ''
+      estimatedHours: '',
+      referenceNumber: ''
     });
     setShowNewTask(false);
   };
@@ -147,6 +182,12 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
         <div>
           <h3 className="text-lg font-semibold">Task Manager</h3>
           <p className="text-gray-600">Track project tasks and action items</p>
+          {crossModuleData?.fromVariation && (
+            <Badge className="mt-2 bg-blue-100 text-blue-800 flex items-center gap-1 w-fit">
+              <Link className="h-3 w-3" />
+              Linked from Variation {crossModuleData.variationNumber}
+            </Badge>
+          )}
         </div>
         <Button onClick={() => setShowNewTask(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -227,9 +268,17 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
 
       {/* New Task Form */}
       {showNewTask && (
-        <Card>
+        <Card className={crossModuleData?.fromVariation ? "border-blue-200 bg-blue-50" : ""}>
           <CardHeader>
-            <CardTitle>Create New Task</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Create New Task
+              {crossModuleData?.fromVariation && (
+                <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                  <Link className="h-3 w-3" />
+                  From Variation {crossModuleData.variationNumber}
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateTask} className="space-y-4">
@@ -271,7 +320,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dueDate">Due Date</Label>
                   <Input
@@ -323,6 +372,16 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
                     step="0.5"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referenceNumber">Reference #</Label>
+                  <Input
+                    id="referenceNumber"
+                    value={newTask.referenceNumber}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, referenceNumber: e.target.value }))}
+                    placeholder="VAR-001"
+                    readOnly={crossModuleData?.fromVariation}
+                  />
+                </div>
               </div>
               
               <div className="flex gap-4">
@@ -351,6 +410,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Related Module</TableHead>
+                <TableHead>Reference</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -376,6 +436,13 @@ const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData 
                   <TableCell>{getStatusBadge(task.status)}</TableCell>
                   <TableCell>{getPriorityBadge(task.priority)}</TableCell>
                   <TableCell>{task.relatedModule}</TableCell>
+                  <TableCell>
+                    {task.referenceNumber && (
+                      <Badge variant="outline" className="text-xs">
+                        {task.referenceNumber}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm">Edit</Button>
