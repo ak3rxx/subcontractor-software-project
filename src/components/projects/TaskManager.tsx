@@ -13,9 +13,10 @@ import { Plus, CheckCircle2, Clock, AlertTriangle, User, Calendar } from 'lucide
 
 interface TaskManagerProps {
   projectName: string;
+  crossModuleData?: any;
 }
 
-const TaskManager: React.FC<TaskManagerProps> = ({ projectName }) => {
+const TaskManager: React.FC<TaskManagerProps> = ({ projectName, crossModuleData }) => {
   const { toast } = useToast();
   const [showNewTask, setShowNewTask] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');

@@ -13,9 +13,10 @@ import { Plus, MessageSquare, Clock, AlertTriangle, CheckCircle2, Upload } from 
 
 interface RFIManagerProps {
   projectName: string;
+  crossModuleData?: any;
 }
 
-const RFIManager: React.FC<RFIManagerProps> = ({ projectName }) => {
+const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData }) => {
   const { toast } = useToast();
   const [showNewRFI, setShowNewRFI] = useState(false);
   const [newRFI, setNewRFI] = useState({

@@ -17,9 +17,10 @@ import TimelineView from './programme/TimelineView';
 interface ProgrammeTrackerProps {
   projectName: string;
   projectId?: string;
+  crossModuleData?: any;
 }
 
-const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projectId }) => {
+const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projectId, crossModuleData }) => {
   const [showNewMilestone, setShowNewMilestone] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   

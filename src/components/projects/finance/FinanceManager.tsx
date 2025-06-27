@@ -10,9 +10,10 @@ import CostSummaryDashboard from './CostSummaryDashboard';
 
 interface FinanceManagerProps {
   projectName: string;
+  crossModuleData?: any;
 }
 
-const FinanceManager: React.FC<FinanceManagerProps> = ({ projectName }) => {
+const FinanceManager: React.FC<FinanceManagerProps> = ({ projectName, crossModuleData }) => {
   const [activeTab, setActiveTab] = useState('budget');
 
   return (
