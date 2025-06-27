@@ -1,541 +1,396 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { FileText, Edit, Save, X, AlertTriangle, CheckCircle, XCircle, Clock, Lock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+import { FileText, Edit, Check, X, Loader2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Variation } from '@/hooks/useVariations';
-import { useVariationAttachments } from '@/hooks/useVariationAttachments';
+import { useToast } from '@/hooks/use-toast';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
+import PermissionGate from '@/components/PermissionGate';
 import VariationDetailsTab from './VariationDetailsTab';
 import VariationCostTab from './VariationCostTab';
 import VariationFilesTab from './VariationFilesTab';
 import EnhancedVariationApprovalTab from './EnhancedVariationApprovalTab';
+
+interface Variation {
+  id: string;
+  variation_number: string;
+  title: string;
+  description?: string;
+  location?: string;
+  requested_by?: string;
+  request_date: string;
+  cost_impact: number;
+  time_impact: number;
+  status: string;
+  category?: string;
+  priority: string;
+  client_email?: string;
+  justification?: string;
+  approved_by?: string;
+  approval_date?: string;
+  approval_comments?: string;
+  email_sent?: boolean;
+  email_sent_date?: string;
+  attachments?: any[];
+  trade?: string;
+  requires_nod?: boolean;
+  requires_eot?: boolean;
+  nod_days?: number;
+  eot_days?: number;
+  total_amount?: number;
+  gst_amount?: number;
+  cost_breakdown?: any[];
+  updated_at?: string;
+}
 
 interface EnhancedVariationDetailsModalV2Props {
   variation: Variation | null;
   isOpen: boolean;
   onClose: () => void;
   onUpdate?: (id: string, updates: any) => Promise<void>;
+  onVariationUpdate?: (updatedVariation: Variation) => void;
 }
 
 const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2Props> = ({ 
   variation, 
   isOpen, 
   onClose,
-  onUpdate
+  onUpdate,
+  onVariationUpdate
 }) => {
-  // All hooks must be called before any early returns
-  const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
   const { logAuditEntry } = useVariationAuditTrail(variation?.id);
   
   const [isEditing, setIsEditing] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editData, setEditData] = useState<any>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentVariation, setCurrentVariation] = useState<Variation | null>(variation);
   const [activeTab, setActiveTab] = useState('details');
-  const [showEditWarning, setShowEditWarning] = useState(false);
-  const [currentVariation, setCurrentVariation] = useState(variation);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Always get variationId (will be undefined if no variation)
-  const variationId = currentVariation?.id;
-
-  // Always call the attachments hook
-  const {
-    attachments,
-    loading: attachmentsLoading,
-    fetchAttachments,
-    uploadAttachment,
-    downloadAttachment,
-    deleteAttachment
-  } = useVariationAttachments(variationId);
-
-  // Update current variation when variation prop changes
+  // Update current variation when prop changes
   useEffect(() => {
-    if (variation && variation.id) {
-      console.log('Variation prop changed, updating current variation:', variation);
+    if (variation) {
       setCurrentVariation(variation);
-      setRefreshKey(prev => prev + 1);
     }
   }, [variation]);
-
-  // Memoized handlers - these must always be defined
-  const handleDataChange = useCallback((newData: any) => {
-    setEditData(prev => ({ ...prev, ...newData }));
-    setHasUnsavedChanges(true);
-  }, []);
-
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    if (!variationId) return;
-    
-    try {
-      for (const file of files) {
-        await uploadAttachment(file);
-      }
-      // Refresh attachments after upload
-      await fetchAttachments();
-    } catch (error) {
-      console.error('Error uploading files:', error);
-    }
-  }, [variationId, uploadAttachment, fetchAttachments]);
-
-  // Helper function to get changed fields
-  const getChangedFields = useCallback((originalData: any, newData: any) => {
-    const changes: Array<{field: string, oldValue: any, newValue: any}> = [];
-    
-    const fieldsToCheck = [
-      'title', 'description', 'location', 'category', 'trade', 'priority',
-      'client_email', 'justification', 'time_impact', 'total_amount', 'gst_amount',
-      'requires_nod', 'requires_eot', 'nod_days', 'eot_days', 'cost_breakdown'
-    ];
-
-    fieldsToCheck.forEach(field => {
-      const oldValue = originalData[field];
-      const newValue = newData[field];
-      
-      // Handle different data types properly
-      if (field === 'cost_breakdown') {
-        if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-          changes.push({
-            field,
-            oldValue: JSON.stringify(oldValue || []),
-            newValue: JSON.stringify(newValue || [])
-          });
-        }
-      } else if (oldValue !== newValue) {
-        changes.push({
-          field,
-          oldValue: String(oldValue || ''),
-          newValue: String(newValue || '')
-        });
-      }
-    });
-
-    return changes;
-  }, []);
-
-  // Enhanced update handler with proper state management and audit trail
-  const handleUpdateFromModal = useCallback(async (id: string, updates: any) => {
-    if (onUpdate) {
-      try {
-        console.log('Modal: Starting variation update with:', updates);
-        
-        await onUpdate(id, updates);
-        
-        // Update local state immediately for UI responsiveness
-        setCurrentVariation(prev => {
-          if (prev) {
-            const updated = { ...prev, ...updates };
-            console.log('Updated current variation:', updated);
-            return updated;
-          }
-          return null;
-        });
-        
-        // Trigger a refresh of all components
-        setRefreshKey(prev => prev + 1);
-        
-        console.log('Modal: Update completed successfully');
-        
-        // Enhanced toast notification with status-specific messages
-        if (updates.status) {
-          const statusMessages = {
-            'pending_approval': 'Variation submitted for approval',
-            'approved': 'Variation approved successfully',
-            'rejected': 'Variation rejected',
-            'draft': 'Variation unlocked and reverted to draft'
-          };
-          
-          toast({
-            title: "Status Updated",
-            description: statusMessages[updates.status] || `Status changed to ${updates.status.replace('_', ' ')}`,
-            duration: 3000
-          });
-        }
-        
-      } catch (error) {
-        console.error('Modal: Error updating variation:', error);
-        throw error;
-      }
-    }
-  }, [onUpdate, toast]);
-
-  // Handle status changes from approval tab with immediate refresh
-  const handleStatusChange = useCallback(() => {
-    console.log('Status change detected in modal, triggering immediate refresh');
-    setRefreshKey(prev => prev + 1);
-    
-    // Force a re-render of all tabs to show updated status
-    setTimeout(() => {
-      setRefreshKey(prev => prev + 1);
-    }, 100);
-  }, []);
-
-  const getStatusBadge = useCallback((status: string) => {
-    switch (status) {
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
-      case 'pending_approval':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending Approval</Badge>;
-      case 'draft':
-        return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  }, []);
-
-  // Fetch attachments when variation changes
-  useEffect(() => {
-    if (variationId && isOpen) {
-      fetchAttachments();
-    }
-  }, [variationId, isOpen, fetchAttachments]);
-
-  // Reset edit state when variation changes
-  useEffect(() => {
-    if (currentVariation && isOpen) {
-      setEditData({
-        title: currentVariation.title,
-        description: currentVariation.description || '',
-        location: currentVariation.location || '',
-        category: currentVariation.category || '',
-        trade: currentVariation.trade || '',
-        priority: currentVariation.priority,
-        client_email: currentVariation.client_email || '',
-        justification: currentVariation.justification || '',
-        time_impact: currentVariation.time_impact,
-        cost_breakdown: currentVariation.cost_breakdown || [],
-        total_amount: currentVariation.total_amount || currentVariation.cost_impact,
-        gst_amount: currentVariation.gst_amount || 0,
-        requires_nod: currentVariation.requires_nod || false,
-        requires_eot: currentVariation.requires_eot || false,
-        nod_days: currentVariation.nod_days || 0,
-        eot_days: currentVariation.eot_days || 0
-      });
-      setIsEditing(false);
-      setHasUnsavedChanges(false);
-      setActiveTab('details');
-      setShowEditWarning(false);
-    }
-  }, [currentVariation?.id, isOpen]);
 
   // Early return after all hooks are called
   if (!currentVariation) return null;
 
-  // Enhanced permission checks
-  const userRole = user?.role || 'user';
-  const userEmail = user?.email || '';
-  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
-  const canEditVariation = [
-    'project_manager', 
-    'contract_administrator', 
-    'project_engineer',
-    'admin',
-    'manager'
-  ].includes(userRole) || isFullAccessUser || isDeveloper() || canEdit('variations');
+  const canEditVariation = isDeveloper() || canEdit('variations');
 
-  // Status-based edit restrictions - show warning for approved AND rejected variations
-  const canStartEditing = canEditVariation && currentVariation.status !== 'pending_approval';
-  const needsConfirmation = ['approved', 'rejected'].includes(currentVariation.status);
+  console.log('EnhancedVariationDetailsModalV2 permissions:', {
+    isDeveloper: isDeveloper(),
+    canEdit: canEdit('variations'),
+    canEditVariation,
+    variationStatus: currentVariation.status
+  });
+
+  const initializeEditData = useCallback(() => {
+    setEditData({
+      title: currentVariation.title,
+      description: currentVariation.description || '',
+      location: currentVariation.location || '',
+      cost_impact: currentVariation.cost_impact,
+      time_impact: currentVariation.time_impact,
+      category: currentVariation.category || '',
+      priority: currentVariation.priority,
+      client_email: currentVariation.client_email || '',
+      justification: currentVariation.justification || '',
+      trade: currentVariation.trade || '',
+      requires_nod: currentVariation.requires_nod || false,
+      requires_eot: currentVariation.requires_eot || false,
+      nod_days: currentVariation.nod_days || 0,
+      eot_days: currentVariation.eot_days || 0,
+      total_amount: currentVariation.total_amount || 0,
+      gst_amount: currentVariation.gst_amount || 0,
+      cost_breakdown: currentVariation.cost_breakdown || []
+    });
+  }, [currentVariation]);
 
   const handleEdit = () => {
-    if (!canStartEditing) {
+    if (!canEditVariation) {
       toast({
         title: "Access Denied",
-        description: currentVariation.status === 'pending_approval' 
-          ? "Cannot edit variation while it's pending approval"
-          : "You don't have permission to edit variations",
+        description: "You don't have permission to edit variations",
         variant: "destructive"
       });
       return;
     }
 
-    if (needsConfirmation) {
-      setShowEditWarning(true);
-    } else {
-      setIsEditing(true);
-    }
+    initializeEditData();
+    setIsEditing(true);
+    setHasUnsavedChanges(false);
   };
 
-  const handleEditConfirm = () => {
-    setIsEditing(true);
-    setShowEditWarning(false);
+  const handleDataChange = (changes: any) => {
+    setEditData(prev => {
+      const newData = { ...prev, ...changes };
+      
+      // Check if there are actual changes
+      const hasChanges = Object.keys(changes).some(key => {
+        const currentValue = currentVariation[key as keyof Variation];
+        const newValue = newData[key];
+        return currentValue !== newValue;
+      });
+      
+      if (hasChanges && !hasUnsavedChanges) {
+        setHasUnsavedChanges(true);
+      }
+      
+      return newData;
+    });
   };
 
   const handleSave = async () => {
     if (!onUpdate || !canEditVariation) return;
     
+    setIsSaving(true);
     try {
-      // Get changed fields for audit trail
-      const changedFields = getChangedFields(currentVariation, editData);
+      // Prepare update data with updated_at timestamp
+      const updateData = {
+        ...editData,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Saving variation with data:', updateData);
       
-      const updates = { ...editData };
+      await onUpdate(currentVariation.id, updateData);
       
-      // If variation was approved/rejected and is being edited, reset to pending approval
-      if (needsConfirmation) {
-        updates.status = 'pending_approval';
-        updates.approved_by = null;
-        updates.approval_date = null;
-        updates.approval_comments = null;
-        updates.request_date = new Date().toISOString().split('T')[0];
-        updates.updated_by = user?.id;
+      // Log detailed audit entries for each changed field
+      const changedFields = Object.keys(editData).filter(key => {
+        const oldValue = currentVariation[key as keyof Variation];
+        const newValue = editData[key];
+        return oldValue !== newValue;
+      });
+
+      console.log('Changed fields:', changedFields);
+
+      for (const field of changedFields) {
+        const oldValue = String(currentVariation[field as keyof Variation] || '');
+        const newValue = String(editData[field] || '');
+        
+        if (oldValue !== newValue) {
+          await logAuditEntry('edit', {
+            fieldName: field,
+            oldValue,
+            newValue,
+            comments: `Field '${field}' updated from '${oldValue}' to '${newValue}'`
+          });
+        }
       }
+
+      // Update the current variation state with new data
+      const updatedVariation = { ...currentVariation, ...updateData };
+      setCurrentVariation(updatedVariation);
       
-      await handleUpdateFromModal(currentVariation.id, updates);
-      
-      // Log detailed field changes in audit trail
-      if (user && changedFields.length > 0) {
-        // Log status change if applicable
-        if (needsConfirmation) {
-          await logAuditEntry('edit', {
-            statusFrom: currentVariation.status,
-            statusTo: 'pending_approval',
-            comments: `Variation edited and resubmitted for approval. Original status: ${currentVariation.status}`
-          });
-        }
-        
-        // Log each field change
-        for (const change of changedFields) {
-          await logAuditEntry('edit', {
-            fieldName: change.field,
-            oldValue: change.oldValue,
-            newValue: change.newValue,
-            comments: `Field '${change.field}' updated`
-          });
-        }
-        
-        // Log general edit action
-        await logAuditEntry('edit', {
-          comments: needsConfirmation 
-            ? `Variation edited (${changedFields.length} fields changed) and resubmitted for approval`
-            : `Variation updated (${changedFields.length} fields changed)`
-        });
+      // Notify parent component of the update
+      if (onVariationUpdate) {
+        onVariationUpdate(updatedVariation);
       }
       
       setIsEditing(false);
       setHasUnsavedChanges(false);
       
-      // Trigger immediate refresh of all components
-      setRefreshKey(prev => prev + 1);
-      
       toast({
         title: "Success",
-        description: needsConfirmation 
-          ? "Variation updated and submitted for approval"
-          : "Variation updated successfully"
+        description: "Variation updated successfully"
       });
     } catch (error) {
+      console.error('Error saving variation:', error);
       toast({
         title: "Error",
         description: "Failed to update variation",
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
-    // ... keep existing code (reset edit state)
-    setEditData({
-      title: currentVariation.title,
-      description: currentVariation.description || '',
-      location: currentVariation.location || '',
-      category: currentVariation.category || '',
-      trade: currentVariation.trade || '',
-      priority: currentVariation.priority,
-      client_email: currentVariation.client_email || '',
-      justification: currentVariation.justification || '',
-      time_impact: currentVariation.time_impact,
-      cost_breakdown: currentVariation.cost_breakdown || [],
-      total_amount: currentVariation.total_amount || currentVariation.cost_impact,
-      gst_amount: currentVariation.gst_amount || 0,
-      requires_nod: currentVariation.requires_nod || false,
-      requires_eot: currentVariation.requires_eot || false,
-      nod_days: currentVariation.nod_days || 0,
-      eot_days: currentVariation.eot_days || 0
-    });
+    if (hasUnsavedChanges) {
+      const confirmCancel = window.confirm("You have unsaved changes. Are you sure you want to cancel?");
+      if (!confirmCancel) return;
+    }
+    
     setIsEditing(false);
     setHasUnsavedChanges(false);
+    initializeEditData();
   };
 
-  const canShowApprovalTab = () => {
-    // Show approval tab if variation is not in draft or if user can edit
-    return currentVariation.status !== 'draft' || canEditVariation;
+  // Handle status changes from approval tab
+  const handleStatusChange = useCallback(async () => {
+    console.log('Status change callback triggered');
+    
+    // Notify parent component to refresh the variation data
+    if (onVariationUpdate && currentVariation) {
+      // Trigger a refresh by updating the variation with current timestamp
+      const refreshedVariation = {
+        ...currentVariation,
+        updated_at: new Date().toISOString()
+      };
+      onVariationUpdate(refreshedVariation);
+      setCurrentVariation(refreshedVariation);
+    }
+  }, [onVariationUpdate, currentVariation]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800">✅ Approved</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>;
+      case 'pending_approval':
+        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>;
+      case 'draft':
+        return <Badge className="bg-gray-100 text-gray-800">📝 Draft</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
   };
 
-  // Disable approval actions when in edit mode with unsaved changes
-  const isApprovalBlocked = isEditing && hasUnsavedChanges;
+  const canEditInCurrentStatus = () => {
+    return currentVariation.status === 'draft' || isDeveloper();
+  };
+
+  const shouldShowEditConfirmation = () => {
+    return currentVariation.status !== 'draft' && !isDeveloper();
+  };
+
+  const handleEditWithConfirmation = () => {
+    if (shouldShowEditConfirmation()) {
+      const confirmEdit = window.confirm(
+        `This variation is currently ${currentVariation.status}. Editing will require administrative review. Are you sure you want to proceed?`
+      );
+      if (!confirmEdit) return;
+    }
+    handleEdit();
+  };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <DialogTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Variation {currentVariation.variation_number}
-                  {getStatusBadge(currentVariation.status)}
-                  {currentVariation.status === 'pending_approval' && <Lock className="h-4 w-4 text-yellow-600" />}
-                </DialogTitle>
-                <DialogDescription>
-                  {currentVariation.title}
-                </DialogDescription>
-              </div>
-              <div className="flex gap-2">
-                {canStartEditing && !isEditing && (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
+          <div className="flex justify-between items-start">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Variation {currentVariation.variation_number}
+              </DialogTitle>
+              <DialogDescription>
+                {currentVariation.title}
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {getStatusBadge(currentVariation.status)}
+              <PermissionGate module="variations" requiredLevel="write">
+                {!isEditing && canEditVariation && (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={handleEdit}
-                    disabled={currentVariation.status === 'pending_approval'}
-                    className={currentVariation.status === 'pending_approval' ? 'opacity-50' : ''}
+                    onClick={handleEditWithConfirmation}
+                    disabled={isSaving}
                   >
-                    <Edit className={`h-4 w-4 mr-2 ${currentVariation.status === 'pending_approval' ? 'opacity-50' : ''}`} />
+                    <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
                 )}
-                {isEditing && (
-                  <>
-                    <Button variant="outline" size="sm" onClick={handleCancel}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={handleSave}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </Button>
-                  </>
-                )}
-              </div>
+              </PermissionGate>
             </div>
-            
-            {isApprovalBlocked && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-2">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm text-yellow-800">
-                    Please save or cancel your changes before using the approval workflow.
-                  </span>
-                </div>
-              </div>
-            )}
+          </div>
+        </DialogHeader>
 
-            {currentVariation.status === 'pending_approval' && (
-              <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mt-2">
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm text-orange-800">
-                    This variation is pending approval and cannot be edited until the approval process is complete.
-                  </span>
-                </div>
-              </div>
-            )}
-          </DialogHeader>
+        {/* Edit Actions Bar */}
+        {isEditing && (
+          <div className="flex items-center justify-between p-4 bg-blue-50 border-b flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Edit className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">
+                Edit Mode {hasUnsavedChanges && "(Unsaved changes)"}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCancel}
+                disabled={isSaving}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleSave}
+                disabled={isSaving || !hasUnsavedChanges}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4 mr-1" />
+                )}
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        )}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
-            <TabsList className="grid w-full grid-cols-4">
+        {/* Tab Content */}
+        <div className="flex-1 overflow-hidden">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-4 flex-shrink-0">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="costs">Costs</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
-              {canShowApprovalTab() && (
-                <TabsTrigger value="approval" disabled={isApprovalBlocked}>
-                  Approval
-                  {isApprovalBlocked && (
-                    <AlertTriangle className="h-3 w-3 ml-1 text-yellow-600" />
-                  )}
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="approval">Approval</TabsTrigger>
             </TabsList>
-
-            <div className="flex-1 overflow-y-auto mt-4">
-              <TabsContent value="details" className="mt-0">
+            
+            <div className="flex-1 overflow-hidden">
+              <TabsContent value="details" className="h-full overflow-y-auto">
                 <VariationDetailsTab
-                  key={`details-${currentVariation.id}-${refreshKey}`}
                   variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
                 />
               </TabsContent>
-
-              <TabsContent value="costs" className="mt-0">
+              
+              <TabsContent value="costs" className="h-full overflow-y-auto">
                 <VariationCostTab
-                  key={`costs-${currentVariation.id}-${refreshKey}`}
                   variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
                 />
               </TabsContent>
-
-              <TabsContent value="files" className="mt-0">
+              
+              <TabsContent value="files" className="h-full overflow-y-auto">
                 <VariationFilesTab
-                  key={`files-${currentVariation.id}-${refreshKey}`}
                   variation={currentVariation}
-                  attachments={attachments}
-                  attachmentsLoading={attachmentsLoading}
-                  canEdit={canEditVariation && isEditing}
-                  onUpload={handleFileUpload}
-                  onDownload={downloadAttachment}
-                  onDelete={deleteAttachment}
+                  onUpdate={onUpdate || (() => Promise.resolve())}
                 />
               </TabsContent>
-
-              {canShowApprovalTab() && (
-                <TabsContent value="approval" className="mt-0">
-                  <EnhancedVariationApprovalTab
-                    key={`approval-${currentVariation.id}-${refreshKey}`}
-                    variation={currentVariation}
-                    onUpdate={handleUpdateFromModal}
-                    onStatusChange={handleStatusChange}
-                    isBlocked={isApprovalBlocked}
-                  />
-                </TabsContent>
-              )}
+              
+              <TabsContent value="approval" className="h-full overflow-y-auto">
+                <EnhancedVariationApprovalTab 
+                  variation={currentVariation}
+                  onUpdate={onUpdate || (() => Promise.resolve())}
+                  onStatusChange={handleStatusChange}
+                  isBlocked={isEditing && hasUnsavedChanges}
+                />
+              </TabsContent>
             </div>
           </Tabs>
-        </DialogContent>
-      </Dialog>
-
-      {/* Enhanced Edit Warning Dialog for Approved/Rejected Variations */}
-      <AlertDialog open={showEditWarning} onOpenChange={setShowEditWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              Edit {currentVariation.status === 'approved' ? 'Approved' : 'Rejected'} Variation
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This variation has been {currentVariation.status}. Making changes will automatically resubmit it for approval and change its status to "Pending Approval". 
-              
-              <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
-                <strong>Important:</strong> The variation will lose its {currentVariation.status} status and require re-approval before implementation.
-                {currentVariation.status === 'approved' && (
-                  <div className="mt-2 text-sm">
-                    Any approved budget impacts or programme adjustments may need to be reconsidered.
-                  </div>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowEditWarning(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEditConfirm} className="bg-yellow-600 hover:bg-yellow-700">
-              Continue Editing
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

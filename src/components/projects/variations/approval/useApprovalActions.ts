@@ -44,7 +44,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         status: 'pending_approval' as const,
         request_date: new Date().toISOString().split('T')[0],
         requested_by: user?.id,
-        updated_by: user?.id
+        updated_by: user?.id,
+        updated_at: new Date().toISOString()
       };
       
       console.log('Submitting for approval with data:', updateData);
@@ -60,8 +61,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         });
       }
       
-      // Immediate callback to trigger refreshes
-      onStatusChange();
+      // Trigger immediate status change callback
+      await onStatusChange();
       
       toast({
         title: "Success",
@@ -107,7 +108,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         approved_by: user?.id,
         approval_date: new Date().toISOString().split('T')[0],
         approval_comments: approved ? approvalComments : rejectionReason,
-        updated_by: user?.id
+        updated_by: user?.id,
+        updated_at: new Date().toISOString()
       };
 
       console.log('Updating variation approval with:', updateData);
@@ -123,8 +125,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         });
       }
       
-      // Immediate callback to trigger refreshes across all components
-      onStatusChange();
+      // Trigger immediate status change callback
+      await onStatusChange();
       
       toast({
         title: "Success",
@@ -176,7 +178,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         approved_by: null,
         approval_date: null,
         approval_comments: unlockComment + previousComment,
-        updated_by: user?.id
+        updated_by: user?.id,
+        updated_at: new Date().toISOString()
       };
 
       console.log('Unlocking variation with data:', updateData);
@@ -192,8 +195,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         });
       }
       
-      // Immediate callback to trigger refreshes
-      onStatusChange();
+      // Trigger immediate status change callback
+      await onStatusChange();
       
       toast({
         title: "Success",
