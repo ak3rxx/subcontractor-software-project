@@ -143,6 +143,15 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setHasUnsavedChanges(true);
   };
 
+  // Handle file uploads by processing array of files
+  const handleFileUpload = async (files: File[]) => {
+    for (const file of files) {
+      await uploadAttachment(file);
+    }
+    // Refresh attachments after upload
+    await fetchAttachments();
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
@@ -255,7 +264,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                 attachments={attachments}
                 attachmentsLoading={attachmentsLoading}
                 canEdit={canEditVariation && isEditing}
-                onUpload={uploadAttachment}
+                onUpload={handleFileUpload}
                 onDownload={downloadAttachment}
                 onDelete={deleteAttachment}
               />
