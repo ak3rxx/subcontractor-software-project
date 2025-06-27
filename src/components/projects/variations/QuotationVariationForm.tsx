@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +34,9 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   editingVariation
 }) => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
+  
+  // Initialize form state
+  const initialFormData = useMemo(() => ({
     title: '',
     description: '',
     location: '',
@@ -47,25 +49,40 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
     requires_nod: false,
     eot_days: 0,
     nod_days: 0
-  });
+  }), []);
 
-  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>([
+  const initialCostBreakdown = useMemo(() => ([
     { id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 }
-  ]);
+  ]), []);
+
+  const [formData, setFormData] = useState(initialFormData);
+  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>(initialCostBreakdown);
   const [gstRate, setGstRate] = useState(10);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const {
     attachments,
     uploadAttachment,
     deleteAttachment,
-    fetchAttachments,
     downloadAttachment
   } = useVariationAttachments(editingVariation?.id || null);
 
+  // Memoized functions to prevent re-renders
+  const handleInputChange = useCallback((field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const calculateTotals = useCallback(() => {
+    const subtotal = costBreakdown.reduce((sum, item) => sum + item.subtotal, 0);
+    const gstAmount = subtotal * (gstRate / 100);
+    const total = subtotal + gstAmount;
+    return { subtotal, gstAmount, total };
+  }, [costBreakdown, gstRate]);
+
+  // Initialize form data when editing variation changes
   useEffect(() => {
-    if (editingVariation) {
+    if (editingVariation && !isInitialized) {
       setFormData({
         title: editingVariation.title || '',
         description: editingVariation.description || '',
@@ -85,47 +102,26 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
         setCostBreakdown(editingVariation.cost_breakdown);
       }
 
-      if (editingVariation.id && fetchAttachments) {
-        fetchAttachments();
-      }
-    } else {
+      setUploadedFiles([]);
+      setIsInitialized(true);
+    } else if (!editingVariation && isInitialized) {
       // Reset form for new variation
-      setFormData({
-        title: '',
-        description: '',
-        location: '',
-        category: '',
-        trade: '',
-        priority: 'medium',
-        clientEmail: '',
-        justification: '',
-        requires_eot: false,
-        requires_nod: false,
-        eot_days: 0,
-        nod_days: 0
-      });
-      setCostBreakdown([{ id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 }]);
+      setFormData(initialFormData);
+      setCostBreakdown(initialCostBreakdown);
       setGstRate(10);
       setUploadedFiles([]);
+      setIsInitialized(false);
     }
-  }, [editingVariation, fetchAttachments]);
+  }, [editingVariation, isInitialized, initialFormData, initialCostBreakdown]);
 
+  // Reset initialization flag when dialog closes
   useEffect(() => {
-    setHasUnsavedChanges(true);
-  }, [formData, costBreakdown, uploadedFiles]);
+    if (!isOpen) {
+      setIsInitialized(false);
+    }
+  }, [isOpen]);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const calculateTotals = () => {
-    const subtotal = costBreakdown.reduce((sum, item) => sum + item.subtotal, 0);
-    const gstAmount = subtotal * (gstRate / 100);
-    const total = subtotal + gstAmount;
-    return { subtotal, gstAmount, total };
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     const { subtotal, gstAmount, total } = calculateTotals();
@@ -165,39 +161,21 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
       }
       
       // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        location: '',
-        category: '',
-        trade: '',
-        priority: 'medium',
-        clientEmail: '',
-        justification: '',
-        requires_eot: false,
-        requires_nod: false,
-        eot_days: 0,
-        nod_days: 0
-      });
-      setCostBreakdown([{ id: '1', description: '', quantity: 1, rate: 0, subtotal: 0 }]);
+      setFormData(initialFormData);
+      setCostBreakdown(initialCostBreakdown);
       setUploadedFiles([]);
-      setHasUnsavedChanges(false);
+      setIsInitialized(false);
       
       onClose();
     } catch (error) {
       console.error('Error submitting variation:', error);
     }
-  };
+  }, [formData, costBreakdown, calculateTotals, onSubmit, uploadedFiles, editingVariation, uploadAttachment, toast, initialFormData, initialCostBreakdown, onClose]);
 
-  const handleClose = () => {
-    if (hasUnsavedChanges) {
-      const confirmClose = window.confirm('You have unsaved changes. Are you sure you want to close?');
-      if (!confirmClose) return;
-    }
-    
-    setHasUnsavedChanges(false);
+  const handleClose = useCallback(() => {
+    setIsInitialized(false);
     onClose();
-  };
+  }, [onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
