@@ -55,6 +55,7 @@ export interface Variation {
   linked_milestones: string[];
   linked_tasks: string[];
   linked_qa_items: string[];
+  originating_rfi_id?: string;
 }
 
 // Helper function to safely parse cost breakdown
@@ -121,6 +122,7 @@ const transformDatabaseItem = (item: any): Variation => ({
   linked_milestones: item.linked_milestones || [],
   linked_tasks: item.linked_tasks || [],
   linked_qa_items: item.linked_qa_items || [],
+  originating_rfi_id: item.originating_rfi_id,
   created_at: item.created_at,
   updated_at: item.updated_at
 });
