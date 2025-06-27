@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -62,9 +63,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   onUpdate,
   onVariationUpdate
 }) => {
+  // All hooks must be called at the top level - never conditionally
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
-  const { logAuditEntry } = useVariationAuditTrail(variation?.id);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
@@ -73,6 +74,10 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [currentVariation, setCurrentVariation] = useState<Variation | null>(variation);
   const [activeTab, setActiveTab] = useState('details');
 
+  // Initialize hooks with stable IDs - these must always be called
+  const variationId = currentVariation?.id || variation?.id;
+  const { logAuditEntry } = useVariationAuditTrail(variationId);
+  
   // Initialize attachments hook
   const {
     attachments,
@@ -81,17 +86,26 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     downloadAttachment,
     deleteAttachment,
     fetchAttachments
-  } = useVariationAttachments(currentVariation?.id);
+  } = useVariationAttachments(variationId);
 
   // Update current variation when prop changes
   useEffect(() => {
     if (variation) {
+      console.log('Updating current variation:', variation.id, variation.status);
       setCurrentVariation(variation);
     }
   }, [variation]);
 
-  // Early return after all hooks are called
-  if (!currentVariation) return null;
+  // Handle case where no variation exists - AFTER all hooks are called
+  if (!currentVariation && !variation) {
+    return null;
+  }
+
+  // Use the most current variation data
+  const workingVariation = currentVariation || variation;
+  if (!workingVariation) {
+    return null;
+  }
 
   const canEditVariation = isDeveloper() || canEdit('variations');
 
@@ -99,30 +113,33 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     isDeveloper: isDeveloper(),
     canEdit: canEdit('variations'),
     canEditVariation,
-    variationStatus: currentVariation.status
+    variationStatus: workingVariation.status,
+    variationId: workingVariation.id
   });
 
   const initializeEditData = useCallback(() => {
+    if (!workingVariation) return;
+    
     setEditData({
-      title: currentVariation.title,
-      description: currentVariation.description || '',
-      location: currentVariation.location || '',
-      cost_impact: currentVariation.cost_impact,
-      time_impact: currentVariation.time_impact,
-      category: currentVariation.category || '',
-      priority: currentVariation.priority,
-      client_email: currentVariation.client_email || '',
-      justification: currentVariation.justification || '',
-      trade: currentVariation.trade || '',
-      requires_nod: currentVariation.requires_nod || false,
-      requires_eot: currentVariation.requires_eot || false,
-      nod_days: currentVariation.nod_days || 0,
-      eot_days: currentVariation.eot_days || 0,
-      total_amount: currentVariation.total_amount || 0,
-      gst_amount: currentVariation.gst_amount || 0,
-      cost_breakdown: currentVariation.cost_breakdown || []
+      title: workingVariation.title,
+      description: workingVariation.description || '',
+      location: workingVariation.location || '',
+      cost_impact: workingVariation.cost_impact,
+      time_impact: workingVariation.time_impact,
+      category: workingVariation.category || '',
+      priority: workingVariation.priority,
+      client_email: workingVariation.client_email || '',
+      justification: workingVariation.justification || '',
+      trade: workingVariation.trade || '',
+      requires_nod: workingVariation.requires_nod || false,
+      requires_eot: workingVariation.requires_eot || false,
+      nod_days: workingVariation.nod_days || 0,
+      eot_days: workingVariation.eot_days || 0,
+      total_amount: workingVariation.total_amount || 0,
+      gst_amount: workingVariation.gst_amount || 0,
+      cost_breakdown: workingVariation.cost_breakdown || []
     });
-  }, [currentVariation]);
+  }, [workingVariation]);
 
   const handleEdit = () => {
     if (!canEditVariation) {
@@ -145,7 +162,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       
       // Check if there are actual changes
       const hasChanges = Object.keys(changes).some(key => {
-        const currentValue = currentVariation[key as keyof Variation];
+        const currentValue = workingVariation[key as keyof Variation];
         const newValue = newData[key];
         return currentValue !== newValue;
       });
@@ -159,7 +176,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   };
 
   const handleSave = async () => {
-    if (!onUpdate || !canEditVariation) return;
+    if (!onUpdate || !canEditVariation || !workingVariation) return;
     
     setIsSaving(true);
     try {
@@ -169,17 +186,19 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         updated_at: new Date().toISOString()
       };
 
-      await onUpdate(currentVariation.id, updateData);
+      console.log('Saving variation updates:', updateData);
+      await onUpdate(workingVariation.id, updateData);
       
       // Log detailed audit entries for each changed field
       const changedFields = Object.keys(editData).filter(key => {
-        const oldValue = currentVariation[key as keyof Variation];
+        const oldValue = workingVariation[key as keyof Variation];
         const newValue = editData[key];
         return oldValue !== newValue;
       });
 
+      console.log('Changed fields:', changedFields);
       for (const field of changedFields) {
-        const oldValue = String(currentVariation[field as keyof Variation] || '');
+        const oldValue = String(workingVariation[field as keyof Variation] || '');
         const newValue = String(editData[field] || '');
         
         if (oldValue !== newValue) {
@@ -193,11 +212,12 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       }
 
       // Update the current variation state with new data
-      const updatedVariation = { ...currentVariation, ...updateData };
+      const updatedVariation = { ...workingVariation, ...updateData };
       setCurrentVariation(updatedVariation);
       
-      // Notify parent component of the update
+      // Notify parent component of the update immediately
       if (onVariationUpdate) {
+        console.log('Notifying parent of variation update');
         onVariationUpdate(updatedVariation);
       }
       
@@ -231,26 +251,28 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     initializeEditData();
   };
 
-  // Handle status changes from approval tab
+  // Handle status changes from approval tab with immediate refresh
   const handleStatusChange = useCallback(async () => {
-    console.log('Status change callback triggered');
+    console.log('Status change callback triggered - forcing immediate refresh');
     
-    // Refresh attachments when status changes
-    if (currentVariation?.id) {
+    // Force immediate refresh of attachments if variation ID exists
+    if (workingVariation?.id) {
+      console.log('Refreshing attachments for variation:', workingVariation.id);
       await fetchAttachments();
     }
     
-    // Notify parent component to refresh the variation data
-    if (onVariationUpdate && currentVariation) {
-      // Trigger a refresh by updating the variation with current timestamp
+    // Notify parent component to refresh the variation data immediately
+    if (onVariationUpdate && workingVariation) {
+      console.log('Triggering parent refresh for variation:', workingVariation.id);
+      // Create a refreshed variation with current timestamp to force update
       const refreshedVariation = {
-        ...currentVariation,
+        ...workingVariation,
         updated_at: new Date().toISOString()
       };
       onVariationUpdate(refreshedVariation);
       setCurrentVariation(refreshedVariation);
     }
-  }, [onVariationUpdate, currentVariation, fetchAttachments]);
+  }, [onVariationUpdate, workingVariation, fetchAttachments]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -268,17 +290,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   };
 
   const canEditInCurrentStatus = () => {
-    return currentVariation.status === 'draft' || isDeveloper();
+    return workingVariation.status === 'draft' || isDeveloper();
   };
 
   const shouldShowEditConfirmation = () => {
-    return currentVariation.status !== 'draft' && !isDeveloper();
+    return workingVariation.status !== 'draft' && !isDeveloper();
   };
 
   const handleEditWithConfirmation = () => {
     if (shouldShowEditConfirmation()) {
       const confirmEdit = window.confirm(
-        `This variation is currently ${currentVariation.status}. Editing will require administrative review. Are you sure you want to proceed?`
+        `This variation is currently ${workingVariation.status}. Editing will require administrative review. Are you sure you want to proceed?`
       );
       if (!confirmEdit) return;
     }
@@ -344,14 +366,14 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Variation {currentVariation.variation_number}
+                Variation {workingVariation.variation_number}
               </DialogTitle>
               <DialogDescription>
-                {currentVariation.title}
+                {workingVariation.title}
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusBadge(currentVariation.status)}
+              {getStatusBadge(workingVariation.status)}
               <PermissionGate module="variations" requiredLevel="write">
                 {!isEditing && canEditVariation && (
                   <Button 
@@ -417,7 +439,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div className="flex-1 overflow-hidden">
               <TabsContent value="details" className="h-full overflow-y-auto">
                 <VariationDetailsTab
-                  variation={currentVariation}
+                  variation={workingVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
@@ -426,7 +448,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               <TabsContent value="costs" className="h-full overflow-y-auto">
                 <VariationCostTab
-                  variation={currentVariation}
+                  variation={workingVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
@@ -435,7 +457,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               <TabsContent value="files" className="h-full overflow-y-auto">
                 <VariationFilesTab
-                  variation={currentVariation}
+                  variation={workingVariation}
                   attachments={attachments || []}
                   attachmentsLoading={attachmentsLoading}
                   canEdit={canEditVariation && !isEditing}
@@ -447,7 +469,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               <TabsContent value="approval" className="h-full overflow-y-auto">
                 <EnhancedVariationApprovalTab 
-                  variation={currentVariation}
+                  variation={workingVariation}
                   onUpdate={onUpdate || (() => Promise.resolve())}
                   onStatusChange={handleStatusChange}
                   isBlocked={isEditing && hasUnsavedChanges}
