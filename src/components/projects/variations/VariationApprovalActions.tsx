@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -103,11 +102,13 @@ const VariationApprovalActions: React.FC<VariationApprovalActionsProps> = ({
     try {
       const updateData = {
         status: approved ? 'approved' : 'rejected',
-        approved_by: user?.email || user?.id,
+        approved_by: user?.id,
         approval_date: new Date().toISOString().split('T')[0],
         approval_comments: approved ? approvalComments : rejectionReason,
         updated_by: user?.id
       };
+
+      console.log('Updating variation with:', updateData); // Debug logging
 
       await onUpdate(variation.id, updateData);
       onStatusChange();
@@ -124,7 +125,7 @@ const VariationApprovalActions: React.FC<VariationApprovalActionsProps> = ({
       console.error('Error updating approval:', error);
       toast({
         title: "Error",
-        description: "Failed to update variation status",
+        description: `Failed to update variation status: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
@@ -175,9 +176,10 @@ const VariationApprovalActions: React.FC<VariationApprovalActionsProps> = ({
       // Clear form
       setUnlockReason('');
     } catch (error) {
+      console.error('Error unlocking variation:', error);
       toast({
         title: "Error",
-        description: "Failed to unlock variation",
+        description: `Failed to unlock variation: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
