@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,6 +42,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [activeTab, setActiveTab] = useState('details');
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [currentVariation, setCurrentVariation] = useState(variation);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Always get variationId (will be undefined if no variation)
   const variationId = currentVariation?.id;
@@ -58,7 +60,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   // Update current variation when variation prop changes
   useEffect(() => {
     if (variation && variation.id) {
+      console.log('Variation prop changed, updating current variation:', variation);
       setCurrentVariation(variation);
+      setRefreshKey(prev => prev + 1);
     }
   }, [variation]);
 
@@ -91,7 +95,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         await onUpdate(id, updates);
         
         // Update local state immediately for UI responsiveness
-        setCurrentVariation(prev => prev ? { ...prev, ...updates } : null);
+        setCurrentVariation(prev => {
+          if (prev) {
+            const updated = { ...prev, ...updates };
+            console.log('Updated current variation:', updated);
+            return updated;
+          }
+          return null;
+        });
+        
+        // Trigger a refresh of all components
+        setRefreshKey(prev => prev + 1);
         
         console.log('Modal: Update completed successfully');
         
@@ -113,9 +127,8 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
   // Handle status changes from approval tab
   const handleStatusChange = useCallback(() => {
-    console.log('Status change detected, refreshing variation data');
-    // The parent component should handle refreshing the variation data
-    // We'll just update the UI to reflect any changes
+    console.log('Status change detected in modal, triggering refresh');
+    setRefreshKey(prev => prev + 1);
   }, []);
 
   const getStatusBadge = useCallback((status: string) => {
@@ -373,6 +386,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div className="flex-1 overflow-y-auto mt-4">
               <TabsContent value="details" className="mt-0">
                 <VariationDetailsTab
+                  key={`details-${refreshKey}`}
                   variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
@@ -382,6 +396,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
               <TabsContent value="costs" className="mt-0">
                 <VariationCostTab
+                  key={`costs-${refreshKey}`}
                   variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
@@ -391,6 +406,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
               <TabsContent value="files" className="mt-0">
                 <VariationFilesTab
+                  key={`files-${refreshKey}`}
                   variation={currentVariation}
                   attachments={attachments}
                   attachmentsLoading={attachmentsLoading}
@@ -404,6 +420,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               {canShowApprovalTab() && (
                 <TabsContent value="approval" className="mt-0">
                   <EnhancedVariationApprovalTab
+                    key={`approval-${refreshKey}`}
                     variation={currentVariation}
                     onUpdate={handleUpdateFromModal}
                     onStatusChange={handleStatusChange}

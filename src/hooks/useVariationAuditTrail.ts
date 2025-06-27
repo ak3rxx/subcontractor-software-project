@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -61,23 +61,14 @@ const transformAuditEntry = (dbEntry: DatabaseAuditEntry): AuditTrailEntry => {
 export const useVariationAuditTrail = (variationId?: string) => {
   const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [lastFetch, setLastFetch] = useState<number>(0);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchAuditTrail = async () => {
+  const fetchAuditTrail = useCallback(async () => {
     if (!variationId) {
       setAuditTrail([]);
       return;
     }
-
-    // Debounce rapid successive calls
-    const now = Date.now();
-    if (now - lastFetch < 1000) {
-      console.log('Debouncing audit trail fetch');
-      return;
-    }
-    setLastFetch(now);
 
     setLoading(true);
     try {
@@ -117,7 +108,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [variationId, toast]);
 
   const logAuditEntry = async (
     actionType: AuditTrailEntry['action_type'],
@@ -168,6 +159,8 @@ export const useVariationAuditTrail = (variationId?: string) => {
         return false;
       } else {
         console.log('Audit entry logged successfully:', data);
+        // Immediately refresh the audit trail after logging
+        fetchAuditTrail();
         return true;
       }
     } catch (error) {
@@ -176,7 +169,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
     }
   };
 
-  // Single useEffect with proper dependency management
+  // Fetch audit trail when variationId changes
   useEffect(() => {
     if (variationId) {
       console.log('useEffect triggered for variationId:', variationId);
@@ -184,7 +177,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
     } else {
       setAuditTrail([]);
     }
-  }, [variationId]); // Only depend on variationId to prevent loops
+  }, [variationId, fetchAuditTrail]);
 
   return {
     auditTrail,

@@ -26,12 +26,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const { isDeveloper, canEdit, canAdmin } = usePermissions();
   const { auditTrail, loading: auditLoading, refetch: refetchAudit } = useVariationAuditTrail(variation?.id);
 
-  // Fetch audit trail when variation changes
-  useEffect(() => {
-    if (variation?.id && !auditLoading) {
-      refetchAudit();
-    }
-  }, [variation?.id, refetchAudit]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Enhanced permission checks
   const userRole = user?.role || 'user';
@@ -46,21 +41,34 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     'manager'
   ].includes(userRole) || isFullAccessUser || isDeveloper() || canEdit('variations');
 
-  const canShowApprovalTab = () => {
-    // Show approval tab if variation is not in draft or if user can edit
-    return variation.status !== 'draft' || canEditVariation;
-  };
+  // Refresh audit trail when variation changes or when triggered
+  useEffect(() => {
+    if (variation?.id) {
+      console.log('Refreshing audit trail for variation:', variation.id);
+      refetchAudit();
+    }
+  }, [variation?.id, variation?.status, refreshTrigger, refetchAudit]);
 
   const handleStatusChange = () => {
-    // Refresh audit trail after status change
-    setTimeout(() => {
+    console.log('Status change detected, triggering immediate refresh');
+    
+    // Immediate audit trail refresh
+    if (variation?.id) {
       refetchAudit();
-    }, 500);
+    }
+    
+    // Trigger a refresh of this component
+    setRefreshTrigger(prev => prev + 1);
     
     // Call parent callback if provided
     if (onStatusChange) {
       onStatusChange();
     }
+  };
+
+  const canShowApprovalTab = () => {
+    // Show approval tab if variation is not in draft or if user can edit
+    return variation.status !== 'draft' || canEditVariation;
   };
 
   return (

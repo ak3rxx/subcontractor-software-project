@@ -46,6 +46,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
       };
       
       await onUpdate(variation.id, updateData);
+      
+      // Immediate callback to trigger refreshes
       onStatusChange();
       
       toast({
@@ -98,6 +100,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
       console.log('Updating variation with:', updateData);
 
       await onUpdate(variation.id, updateData);
+      
+      // Immediate callback to trigger refreshes
       onStatusChange();
       
       toast({
@@ -153,6 +157,8 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
       };
 
       await onUpdate(variation.id, updateData);
+      
+      // Immediate callback to trigger refreshes
       onStatusChange();
       
       toast({
