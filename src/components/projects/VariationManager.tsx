@@ -20,6 +20,7 @@ interface VariationManagerProps {
 }
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId, crossModuleData }) => {
+  // All hooks must be called at the top of the component
   const { variations, loading, createVariation, updateVariation, sendVariationEmail } = useVariations(projectId);
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin, canAccess } = usePermissions();
@@ -31,6 +32,19 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+
+  // Call useVariationActions hook before any conditional logic
+  const {
+    handleCreateVariation,
+    handleUpdateVariation,
+    handleSendEmail,
+    handleUpdateFromModal
+  } = useVariationActions({
+    variations,
+    createVariation,
+    updateVariation,
+    sendVariationEmail
+  });
 
   // Enhanced permission checks using the permission system
   const canCreateVariations = isDeveloper() || canEdit('variations');
@@ -50,7 +64,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     canViewVariations
   });
 
-  // Early return if user doesn't have access to variations
+  // Handle loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Check permissions after all hooks are called
   if (!canViewVariations) {
     return (
       <div className="text-center py-8">
@@ -58,18 +81,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       </div>
     );
   }
-
-  const {
-    handleCreateVariation,
-    handleUpdateVariation,
-    handleSendEmail,
-    handleUpdateFromModal
-  } = useVariationActions({
-    variations,
-    createVariation,
-    updateVariation,
-    sendVariationEmail
-  });
 
   const filteredVariations = variations.filter(variation => {
     const matchesSearch = variation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -122,14 +133,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     }
     await handleSendEmail(variationId);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

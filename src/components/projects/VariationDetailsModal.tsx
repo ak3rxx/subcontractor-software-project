@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -50,11 +49,13 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
   onClose,
   onUpdate
 }) => {
+  // All hooks must be called at the top
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
 
+  // Early return after all hooks are called
   if (!variation) return null;
 
   // Enhanced permission checks using the permission system
