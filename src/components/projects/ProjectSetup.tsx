@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AddressInput } from '@/components/ui/address-input';
 import { useToast } from '@/hooks/use-toast';
-import { X, Building2, Calendar } from 'lucide-react';
+import { X, Building2, Calendar, Hash } from 'lucide-react';
 
 interface ProjectSetupProps {
   onClose: () => void;
@@ -17,6 +18,7 @@ interface ProjectSetupProps {
 const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [projectNumber, setProjectNumber] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     projectName: '',
     projectType: '',
@@ -27,7 +29,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
     projectStatus: 'planning',
     description: '',
     contactEmail: '',
-    contactPhone: ''
+    contactPhone: '',
+    totalBudget: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,17 +50,21 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
     
     try {
       if (onProjectCreated) {
-        const result = await onProjectCreated(formData);
+        const projectData = {
+          ...formData,
+          totalBudget: formData.totalBudget ? parseFloat(formData.totalBudget) : undefined
+        };
+        
+        const result = await onProjectCreated(projectData);
         
         if (result) {
           toast({
             title: "Project Created Successfully",
-            description: `${formData.projectName} has been set up and is ready to use.`,
+            description: `Project #${result.project_number} - ${formData.projectName} has been set up and is ready to use.`,
           });
           onClose();
         }
       } else {
-        // Fallback if no handler provided
         toast({
           title: "Project Created Successfully",
           description: `${formData.projectName} has been set up and is ready to use.`,
@@ -82,6 +89,12 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
         <div className="flex items-center gap-2">
           <Building2 className="h-5 w-5 text-blue-600" />
           <h3 className="text-lg font-semibold">New Project Setup</h3>
+          {projectNumber && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+              <Hash className="h-3 w-3" />
+              Project #{projectNumber}
+            </div>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>
           <X className="h-4 w-4" />
@@ -193,6 +206,20 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="totalBudget">Total Budget ($)</Label>
+              <Input
+                id="totalBudget"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.totalBudget}
+                onChange={(e) => setFormData(prev => ({ ...prev, totalBudget: e.target.value }))}
+                placeholder="e.g. 500000"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="description">Project Description</Label>
               <Textarea
                 id="description"
@@ -246,10 +273,11 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onClose, onProjectCreated }
             Upon project creation, the following will be ready:
           </p>
           <ul className="text-sm text-blue-700 mt-2 space-y-1">
+            <li>• Sequential project number assignment</li>
             <li>• Project dashboard with key metrics</li>
             <li>• QA/ITP inspection tracking</li>
             <li>• Material handover management</li>
-            <li>• Document management system</li>
+            <li>• Cross-module integration ready</li>
           </ul>
         </div>
 

@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { X, Calendar, Flag, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { X, Calendar, Flag, AlertTriangle, Link } from 'lucide-react';
 import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
+import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 
 interface MilestoneFormProps {
   showForm: boolean;
@@ -27,6 +29,8 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
   projectId,
   crossModuleData
 }) => {
+  const { getCrossModuleData, getCrossModuleAction } = useCrossModuleNavigation();
+  
   const [formData, setFormData] = useState({
     milestone_name: '',
     description: '',
@@ -42,6 +46,11 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
     delay_risk_flag: false,
     notes: ''
   });
+
+  // Check for cross-module data from URL or props
+  const urlCrossModuleData = getCrossModuleData();
+  const crossModuleAction = getCrossModuleAction();
+  const activeCrossModuleData = crossModuleData || urlCrossModuleData;
 
   useEffect(() => {
     if (editingMilestone) {
@@ -60,18 +69,20 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
         delay_risk_flag: editingMilestone.delay_risk_flag,
         notes: editingMilestone.notes || ''
       });
-    } else if (crossModuleData) {
-      // Auto-populate from cross-module data (e.g., from variations)
+    } else if (activeCrossModuleData && crossModuleAction === 'create-milestone') {
+      // Auto-populate from cross-module data
       setFormData(prev => ({
         ...prev,
-        milestone_name: crossModuleData.title || crossModuleData.milestone_name || '',
-        category: crossModuleData.category || '',
-        trade: crossModuleData.trade || '',
-        reference_number: crossModuleData.variationNumber || crossModuleData.reference_number || '',
-        description: crossModuleData.description || ''
+        milestone_name: activeCrossModuleData.milestone_name || activeCrossModuleData.title || '',
+        description: activeCrossModuleData.description || '',
+        category: activeCrossModuleData.category || '',
+        trade: activeCrossModuleData.trade || '',
+        reference_number: activeCrossModuleData.reference_number || activeCrossModuleData.variationNumber || '',
+        notes: activeCrossModuleData.fromVariation ? 
+          `Auto-generated from variation ${activeCrossModuleData.variationNumber}` : ''
       }));
     }
-  }, [editingMilestone, crossModuleData]);
+  }, [editingMilestone, activeCrossModuleData, crossModuleAction]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,10 +111,23 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              {editingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
-            </CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                {editingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
+                {activeCrossModuleData?.fromVariation && (
+                  <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                    <Link className="h-3 w-3" />
+                    From Variation {activeCrossModuleData.variationNumber}
+                  </Badge>
+                )}
+              </CardTitle>
+              {activeCrossModuleData?.fromVariation && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Data has been pre-filled from variation {activeCrossModuleData.variationNumber}
+                </p>
+              )}
+            </div>
             <Button variant="ghost" size="sm" onClick={onCancel}>
               <X className="h-4 w-4" />
             </Button>

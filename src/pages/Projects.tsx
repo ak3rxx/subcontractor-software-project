@@ -8,6 +8,7 @@ import { Plus, Building2, Calendar, Users, Settings, Calculator, Hash } from 'lu
 import { useProjects } from '@/hooks/useProjects';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import ProjectDashboard from '@/components/projects/ProjectDashboard';
 import VariationManager from '@/components/projects/VariationManager';
@@ -27,13 +28,14 @@ const Projects = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { getCrossModuleData, getCrossModuleAction } = useCrossModuleNavigation();
 
   // Handle URL parameters for cross-module integration
   useEffect(() => {
     const projectId = searchParams.get('id');
     const tab = searchParams.get('tab');
-    const action = searchParams.get('action');
-    const data = searchParams.get('data');
+    const action = getCrossModuleAction();
+    const crossModuleData = getCrossModuleData();
 
     if (projectId && projects.length > 0) {
       const project = projects.find(p => p.id === projectId);
@@ -43,14 +45,9 @@ const Projects = () => {
           setActiveTab(tab);
         }
         
-        // Handle cross-module actions
-        if (action && data) {
-          try {
-            const parsedData = JSON.parse(decodeURIComponent(data));
-            handleCrossModuleAction(action, parsedData, tab);
-          } catch (error) {
-            console.error('Error parsing cross-module data:', error);
-          }
+        // Handle cross-module actions and show notification
+        if (action && crossModuleData) {
+          handleCrossModuleAction(action, crossModuleData, tab);
         }
       }
     }
@@ -62,8 +59,8 @@ const Projects = () => {
     // Show toast notification about the cross-module integration
     if (data.fromVariation) {
       toast({
-        title: "Cross-Module Integration",
-        description: `Data from variation ${data.variationNumber} has been pre-filled`,
+        title: "Cross-Module Integration Active",
+        description: `Data from variation ${data.variationNumber} has been pre-filled for ${action.replace('create-', '').replace('-', ' ')}`,
       });
     }
   };
@@ -74,6 +71,9 @@ const Projects = () => {
       setSelectedProject(newProject);
       setShowNewProject(false);
       setActiveTab('dashboard');
+      
+      // Update URL to show the new project
+      navigate(`/projects?id=${newProject.id}&tab=dashboard`);
     }
   };
 
@@ -113,6 +113,8 @@ const Projects = () => {
   }
 
   if (selectedProject) {
+    const crossModuleData = getCrossModuleData();
+    
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
@@ -124,6 +126,11 @@ const Projects = () => {
                   <Hash className="h-3 w-3" />
                   Project #{selectedProject.project_number}
                 </Badge>
+                {crossModuleData?.fromVariation && (
+                  <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                    🔗 Linked from Variation {crossModuleData.variationNumber}
+                  </Badge>
+                )}
               </div>
               <p className="text-gray-600">{selectedProject.description}</p>
               <div className="flex items-center gap-4 mt-2">
@@ -131,6 +138,11 @@ const Projects = () => {
                 <span className="text-sm text-gray-500">
                   Created: {new Date(selectedProject.created_at).toLocaleDateString()}
                 </span>
+                {selectedProject.total_budget && (
+                  <span className="text-sm text-gray-500">
+                    Budget: ${selectedProject.total_budget.toLocaleString()}
+                  </span>
+                )}
               </div>
             </div>
             <Button 
@@ -171,14 +183,14 @@ const Projects = () => {
           <TabsContent value="tasks" className="mt-6">
             <TaskManager 
               projectName={selectedProject.name}
-              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
+              crossModuleData={crossModuleData}
             />
           </TabsContent>
 
           <TabsContent value="rfis" className="mt-6">
             <RFIManager 
               projectName={selectedProject.name}
-              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
+              crossModuleData={crossModuleData}
             />
           </TabsContent>
 
@@ -193,14 +205,14 @@ const Projects = () => {
             <ProgrammeTracker 
               projectName={selectedProject.name}
               projectId={selectedProject.id}
-              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
+              crossModuleData={crossModuleData}
             />
           </TabsContent>
 
           <TabsContent value="finance" className="mt-6">
             <FinanceManager 
               projectName={selectedProject.name}
-              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
+              crossModuleData={crossModuleData}
             />
           </TabsContent>
 
@@ -280,7 +292,7 @@ const Projects = () => {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="h-4 w-4" />
-                    <span>Started: {project.start_date || 'Not set'}</span>
+                    <span>Started: {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Users className="h-4 w-4" />
@@ -295,7 +307,10 @@ const Projects = () => {
                 </div>
                 <Button 
                   className="w-full mt-4" 
-                  onClick={() => setSelectedProject(project)}
+                  onClick={() => {
+                    setSelectedProject(project);
+                    navigate(`/projects?id=${project.id}&tab=dashboard`);
+                  }}
                 >
                   Open Project
                 </Button>

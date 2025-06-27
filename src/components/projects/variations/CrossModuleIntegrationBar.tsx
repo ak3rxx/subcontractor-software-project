@@ -4,78 +4,42 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, CheckSquare, MessageSquare, Calculator, ArrowRight } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 
 interface CrossModuleIntegrationBarProps {
   variation: any;
 }
 
 const CrossModuleIntegrationBar: React.FC<CrossModuleIntegrationBarProps> = ({ variation }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const {
+    navigateToMilestoneCreation,
+    navigateToTaskCreation,
+    navigateToRFICreation,
+    navigateToFinanceCreation,
+    getCurrentProjectId
+  } = useCrossModuleNavigation();
 
-  const createCrossModuleUrl = (tab: string, action: string, data: any) => {
-    const currentParams = new URLSearchParams(location.search);
-    const projectId = currentParams.get('id');
-    
-    if (!projectId) {
-      console.error('No project ID found in current URL');
-      return '#';
-    }
+  const projectId = getCurrentProjectId();
 
-    const crossModuleData = {
-      title: variation.title,
-      description: variation.description,
-      category: variation.category,
-      trade: variation.trade,
-      variationNumber: variation.variation_number,
-      costImpact: variation.total_amount,
-      timeImpact: variation.time_impact,
-      fromVariation: true,
-      ...data
-    };
-
-    const encodedData = encodeURIComponent(JSON.stringify(crossModuleData));
-    return `/projects?id=${projectId}&tab=${tab}&action=${action}&data=${encodedData}`;
-  };
+  if (!projectId) {
+    console.error('No project ID found in current URL');
+    return null;
+  }
 
   const handleProgrammeClick = () => {
-    const url = createCrossModuleUrl('programme', 'create-milestone', {
-      milestone_name: variation.title,
-      category: variation.category,
-      trade: variation.trade,
-      reference_number: variation.variation_number
-    });
-    navigate(url);
+    navigateToMilestoneCreation(projectId, variation);
   };
 
   const handleTaskClick = () => {
-    const url = createCrossModuleUrl('tasks', 'create-task', {
-      task_title: `Complete ${variation.title}`,
-      task_description: variation.description,
-      reference_number: variation.variation_number
-    });
-    navigate(url);
+    navigateToTaskCreation(projectId, variation);
   };
 
   const handleRFIClick = () => {
-    const url = createCrossModuleUrl('rfis', 'create-rfi', {
-      rfi_title: `Query regarding ${variation.title}`,
-      rfi_description: `RFI related to variation: ${variation.description}`,
-      reference_number: variation.variation_number
-    });
-    navigate(url);
+    navigateToRFICreation(projectId, variation);
   };
 
   const handleFinanceClick = () => {
-    const url = createCrossModuleUrl('finance', 'create-budget-item', {
-      budget_description: variation.title,
-      budgeted_cost: variation.total_amount,
-      trade_category: variation.trade || variation.category,
-      reference_number: variation.variation_number,
-      originating_variation_id: variation.id
-    });
-    navigate(url);
+    navigateToFinanceCreation(projectId, variation);
   };
 
   return (
@@ -84,7 +48,7 @@ const CrossModuleIntegrationBar: React.FC<CrossModuleIntegrationBarProps> = ({ v
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-semibold text-gray-900">Cross-Module Integration</h4>
           <Badge variant="outline" className="text-xs">
-            Auto-populate from this variation
+            Auto-populate from variation {variation.variation_number}
           </Badge>
         </div>
         
@@ -143,7 +107,7 @@ const CrossModuleIntegrationBar: React.FC<CrossModuleIntegrationBarProps> = ({ v
         </div>
 
         <div className="mt-3 text-xs text-gray-500">
-          Click any module to create linked items with pre-populated data from this variation
+          Click any module to create linked items with pre-populated data from variation {variation.variation_number}
         </div>
       </CardContent>
     </Card>
