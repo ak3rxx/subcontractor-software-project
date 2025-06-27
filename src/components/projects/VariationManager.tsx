@@ -21,7 +21,7 @@ interface VariationManagerProps {
 
 const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projectId, crossModuleData }) => {
   // All hooks must be called at the top of the component
-  const { variations, loading, createVariation, updateVariation, sendVariationEmail, refreshVariations } = useVariations(projectId);
+  const { variations, loading, createVariation, updateVariation, sendVariationEmail, refetch: refreshVariations } = useVariations(projectId);
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin, canAccess } = usePermissions();
   
