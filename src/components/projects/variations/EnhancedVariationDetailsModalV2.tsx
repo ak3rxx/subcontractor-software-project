@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Variation } from '@/hooks/useVariations';
 import { useVariationAttachments } from '@/hooks/useVariationAttachments';
+import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 import VariationDetailsTab from './VariationDetailsTab';
 import VariationCostTab from './VariationCostTab';
 import VariationFilesTab from './VariationFilesTab';
@@ -33,6 +34,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
+  const { logAuditEntry } = useVariationAuditTrail(variation?.id);
   
   const [isEditing, setIsEditing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -213,6 +215,16 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       }
       
       await handleUpdateFromModalEnhanced(variation.id, updates);
+      
+      // Log the edit action in audit trail
+      if (user) {
+        await logAuditEntry('edit', {
+          comments: isApproved 
+            ? "Variation edited and resubmitted for approval" 
+            : "Variation details updated"
+        });
+      }
+      
       setIsEditing(false);
       setHasUnsavedChanges(false);
       

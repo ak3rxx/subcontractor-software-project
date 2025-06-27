@@ -224,6 +224,15 @@ export const useVariations = (projectId: string) => {
         return null;
       }
 
+      // Log creation in audit trail
+      await supabase.rpc('log_variation_change', {
+        p_variation_id: data.id,
+        p_user_id: user.id,
+        p_action_type: 'create',
+        p_comments: `Variation ${data.variation_number} created`,
+        p_metadata: { variation_number: data.variation_number }
+      });
+
       toast({
         title: "Success",
         description: `Variation ${data.variation_number} created successfully`
@@ -244,9 +253,20 @@ export const useVariations = (projectId: string) => {
   };
 
   const updateVariation = async (id: string, updates: Partial<Variation>) => {
+    if (!user) {
+      console.error('No user found for variation update');
+      throw new Error('User not authenticated');
+    }
+
     try {
       console.log('Starting variation update:', { id, updates });
       
+      // Get current variation for comparison
+      const currentVariation = variations.find(v => v.id === id);
+      if (!currentVariation) {
+        throw new Error('Variation not found');
+      }
+
       const dbUpdates: any = {};
       
       // Map all possible update fields
@@ -306,6 +326,23 @@ export const useVariations = (projectId: string) => {
 
       console.log('Database update successful:', data);
 
+      // Log field-level changes for non-status updates
+      if (!updates.status) {
+        for (const [field, newValue] of Object.entries(updates)) {
+          if (field !== 'status' && currentVariation[field] !== newValue) {
+            await supabase.rpc('log_variation_change', {
+              p_variation_id: id,
+              p_user_id: user.id,
+              p_action_type: 'edit',
+              p_field_name: field,
+              p_old_value: String(currentVariation[field] || ''),
+              p_new_value: String(newValue || ''),
+              p_comments: `Field ${field} updated`
+            });
+          }
+        }
+      }
+
       // Transform and update local state
       const transformedData = transformDatabaseItem(data);
       setVariations(prev => 
@@ -324,7 +361,7 @@ export const useVariations = (projectId: string) => {
         description: `Failed to update variation: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
-      throw error; // Re-throw to allow caller to handle
+      throw error;
     }
   };
 
@@ -359,6 +396,7 @@ export const useVariations = (projectId: string) => {
         return false;
       }
 
+      // Update variation and log email action
       const updateResult = await updateVariation(variationId, {
         email_sent: true,
         email_sent_date: new Date().toISOString(),
@@ -366,6 +404,15 @@ export const useVariations = (projectId: string) => {
       });
 
       if (updateResult) {
+        // Log email action
+        await supabase.rpc('log_variation_change', {
+          p_variation_id: variationId,
+          p_user_id: user.id,
+          p_action_type: 'email_sent',
+          p_comments: `Variation email sent to ${variation.client_email}`,
+          p_metadata: { recipient_email: variation.client_email }
+        });
+
         toast({
           title: "Success",
           description: `Variation email sent to ${variation.client_email}`,

@@ -1437,6 +1437,69 @@ export type Database = {
           },
         ]
       }
+      variation_audit_trail: {
+        Row: {
+          action_timestamp: string | null
+          action_type: string
+          comments: string | null
+          created_at: string | null
+          field_name: string | null
+          id: string
+          metadata: Json | null
+          new_value: string | null
+          old_value: string | null
+          status_from: string | null
+          status_to: string | null
+          user_id: string
+          variation_id: string
+        }
+        Insert: {
+          action_timestamp?: string | null
+          action_type: string
+          comments?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          status_from?: string | null
+          status_to?: string | null
+          user_id: string
+          variation_id: string
+        }
+        Update: {
+          action_timestamp?: string | null
+          action_type?: string
+          comments?: string | null
+          created_at?: string | null
+          field_name?: string | null
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          status_from?: string | null
+          status_to?: string | null
+          user_id?: string
+          variation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variation_audit_trail_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variation_audit_trail_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       variation_budget_impacts: {
         Row: {
           budget_item_id: string | null
@@ -1773,6 +1836,38 @@ export type Database = {
           category_name: string
           usage_count: number
         }[]
+      }
+      get_variation_audit_history: {
+        Args: { p_variation_id: string }
+        Returns: {
+          id: string
+          user_id: string
+          user_name: string
+          action_type: string
+          field_name: string
+          old_value: string
+          new_value: string
+          status_from: string
+          status_to: string
+          comments: string
+          metadata: Json
+          action_timestamp: string
+        }[]
+      }
+      log_variation_change: {
+        Args: {
+          p_variation_id: string
+          p_user_id: string
+          p_action_type: string
+          p_field_name?: string
+          p_old_value?: string
+          p_new_value?: string
+          p_status_from?: string
+          p_status_to?: string
+          p_comments?: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
       record_qa_change: {
         Args: {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,20 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, 
-  RotateCcw, AlertTriangle, Unlock, History, FileText, Loader2 
+  RotateCcw, AlertTriangle, Unlock, History, FileText, Loader2, Edit 
 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-interface ApprovalHistoryItem {
-  timestamp: string;
-  action: string;
-  user: string;
-  status: string;
-  comments?: string;
-  reason?: string;
-}
+import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 
 interface EnhancedVariationApprovalTabProps {
   variation: any;
@@ -38,12 +31,13 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const { toast } = useToast();
   const { user } = useAuth();
   const { isDeveloper, canEdit, canAdmin, userProfile } = usePermissions();
+  const { auditTrail, loading: auditLoading, refetch: refetchAudit } = useVariationAuditTrail(variation?.id);
+  
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [unlockReason, setUnlockReason] = useState('');
   const [unlockTargetStatus, setUnlockTargetStatus] = useState<'draft'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryItem[]>([]);
 
   // Enhanced permission checks - Project Managers can now retract/unlock
   const userRole = user?.role || 'user';
@@ -54,49 +48,12 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const showApprovalActions = canApprove && variation.status === 'pending_approval';
   const showUnlockActions = canUnlock && ['approved', 'rejected'].includes(variation.status);
 
-  // Build approval history from variation data
+  // Refresh audit trail when variation changes
   useEffect(() => {
-    const history: ApprovalHistoryItem[] = [];
-
-    // Add creation/submission events
-    if (variation.request_date) {
-      history.push({
-        timestamp: variation.request_date,
-        action: 'Submitted for Approval',
-        user: variation.requested_by || 'Unknown',
-        status: 'pending_approval'
-      });
+    if (variation?.id) {
+      refetchAudit();
     }
-
-    // Add approval/rejection events
-    if (variation.approval_date && variation.approved_by) {
-      history.push({
-        timestamp: variation.approval_date,
-        action: variation.status === 'approved' ? 'Approved' : 'Rejected',
-        user: variation.approved_by,
-        status: variation.status,
-        comments: variation.approval_comments
-      });
-    }
-
-    // Parse unlock history from approval comments if present
-    if (variation.approval_comments && variation.approval_comments.includes('UNLOCKED by')) {
-      const unlockMatches = variation.approval_comments.match(/UNLOCKED by (.+?) on (.+?):/);
-      if (unlockMatches) {
-        history.push({
-          timestamp: unlockMatches[2],
-          action: 'Unlocked to Draft',
-          user: unlockMatches[1],
-          status: 'draft',
-          reason: variation.approval_comments.split(':')[1]?.trim()
-        });
-      }
-    }
-
-    // Sort by timestamp (newest first)
-    history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setApprovalHistory(history);
-  }, [variation]);
+  }, [variation?.id, variation?.status, refetchAudit]);
 
   const handleSubmitForApproval = async () => {
     if (!canSubmitForApproval || isBlocked) {
@@ -124,6 +81,9 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       await onUpdate(variation.id, updateData);
       
       console.log('Update completed successfully, variation should now be pending approval');
+      
+      // Refresh audit trail to show the new entry
+      setTimeout(() => refetchAudit(), 1000);
       
       toast({
         title: "Success",
@@ -173,6 +133,9 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
       console.log('Processing approval decision:', updateData);
       await onUpdate(variation.id, updateData);
+      
+      // Refresh audit trail to show the new entry
+      setTimeout(() => refetchAudit(), 1000);
       
       toast({
         title: "Success",
@@ -228,6 +191,9 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
       await onUpdate(variation.id, updateData);
       
+      // Refresh audit trail to show the new entry
+      setTimeout(() => refetchAudit(), 1000);
+      
       toast({
         title: "Success",
         description: `Variation unlocked and reverted to ${unlockTargetStatus}`
@@ -281,18 +247,37 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     }
   };
 
-  const getActionIcon = (action: string) => {
-    switch (action) {
-      case 'Submitted for Approval':
+  const getActionIcon = (actionType: string) => {
+    switch (actionType) {
+      case 'create':
+        return <FileText className="h-4 w-4 text-blue-600" />;
+      case 'edit':
+        return <Edit className="h-4 w-4 text-orange-600" />;
+      case 'submit':
         return <Send className="h-4 w-4 text-blue-600" />;
-      case 'Approved':
+      case 'approve':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'Rejected':
+      case 'reject':
         return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'Unlocked to Draft':
+      case 'unlock':
         return <Unlock className="h-4 w-4 text-orange-600" />;
+      case 'email_sent':
+        return <Send className="h-4 w-4 text-purple-600" />;
       default:
         return <FileText className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const formatActionType = (actionType: string) => {
+    switch (actionType) {
+      case 'create': return 'Created';
+      case 'edit': return 'Edited';
+      case 'submit': return 'Submitted for Approval';
+      case 'approve': return 'Approved';
+      case 'reject': return 'Rejected';
+      case 'unlock': return 'Unlocked';
+      case 'email_sent': return 'Email Sent';
+      default: return actionType;
     }
   };
 
@@ -366,37 +351,65 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
           </CardContent>
         </Card>
 
-        {/* Approval History */}
+        {/* Complete Audit History */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
-              Approval History
-              {approvalHistory.length > 0 && (
-                <Badge variant="outline">{approvalHistory.length}</Badge>
+              Complete Audit Trail
+              {auditTrail.length > 0 && (
+                <Badge variant="outline">{auditTrail.length}</Badge>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {approvalHistory.length > 0 ? (
-              <ScrollArea className="h-64">
+            {auditLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-600">Loading audit history...</span>
+              </div>
+            ) : auditTrail.length > 0 ? (
+              <ScrollArea className="h-80">
                 <div className="space-y-4 pr-4">
-                  {approvalHistory.map((item, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  {auditTrail.map((entry, index) => (
+                    <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                       <div className="mt-0.5">
-                        {getActionIcon(item.action)}
+                        {getActionIcon(entry.action_type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-sm">{item.action}</span>
-                          {getWorkflowStatusBadge(item.status)}
+                          <span className="font-medium text-sm">{formatActionType(entry.action_type)}</span>
+                          {entry.status_to && getWorkflowStatusBadge(entry.status_to)}
                         </div>
                         <div className="text-xs text-gray-600 mb-2">
-                          by {item.user} on {new Date(item.timestamp).toLocaleDateString()}
+                          by {entry.user_name} on {new Date(entry.action_timestamp).toLocaleString()}
                         </div>
-                        {(item.comments || item.reason) && (
+                        
+                        {/* Field-level changes */}
+                        {entry.field_name && (
+                          <div className="text-sm mb-2">
+                            <span className="font-medium">Field:</span> {entry.field_name}
+                            {entry.old_value && entry.new_value && (
+                              <div className="mt-1 text-xs">
+                                <span className="text-red-600">From: {entry.old_value}</span> → 
+                                <span className="text-green-600 ml-1">To: {entry.new_value}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Status changes */}
+                        {entry.status_from && entry.status_to && (
+                          <div className="text-sm mb-2">
+                            <span className="font-medium">Status change:</span> 
+                            <span className="ml-1">{entry.status_from} → {entry.status_to}</span>
+                          </div>
+                        )}
+                        
+                        {/* Comments */}
+                        {entry.comments && (
                           <div className="text-sm text-gray-700 bg-white p-2 rounded border">
-                            {item.comments || item.reason}
+                            {entry.comments}
                           </div>
                         )}
                       </div>
@@ -407,7 +420,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
             ) : (
               <div className="text-center p-8 text-gray-500">
                 <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No approval history available</p>
+                <p>No audit history available</p>
                 <p className="text-sm">Actions will appear here as the variation progresses</p>
               </div>
             )}
