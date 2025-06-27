@@ -474,8 +474,6 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
         {/* Cross-Module Integration Bar - Only in Details Modal */}
         <CrossModuleIntegrationBar
           variation={variation}
-          projectId={variation.project_id}
-          onClose={onClose}
         />
       </DialogContent>
     </Dialog>

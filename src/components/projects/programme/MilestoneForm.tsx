@@ -32,8 +32,8 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
     description: '',
     start_date_planned: '',
     end_date_planned: '',
-    status: 'upcoming' as const,
-    priority: 'medium' as const,
+    status: 'upcoming' as 'upcoming' | 'in-progress' | 'complete' | 'delayed',
+    priority: 'medium' as 'low' | 'medium' | 'high',
     category: '',
     trade: '',
     reference_number: '',
@@ -175,7 +175,7 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                <Select value={formData.status} onValueChange={(value: 'upcoming' | 'in-progress' | 'complete' | 'delayed') => handleInputChange('status', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -190,7 +190,7 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                <Select value={formData.priority} onValueChange={(value: 'low' | 'medium' | 'high') => handleInputChange('priority', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
