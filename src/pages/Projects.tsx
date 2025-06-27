@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Building2, Calendar, Users, Settings, Calculator } from 'lucide-react';
+import { Plus, Building2, Calendar, Users, Settings, Calculator, Hash } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -65,12 +66,6 @@ const Projects = () => {
         description: `Data from variation ${data.variationNumber} has been pre-filled`,
       });
     }
-
-    // Clear the URL parameters after processing
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.delete('action');
-    newSearchParams.delete('data');
-    setSearchParams(newSearchParams);
   };
 
   const handleCreateProject = async (projectData: any) => {
@@ -103,7 +98,6 @@ const Projects = () => {
 
   const handleBackToProjects = () => {
     setSelectedProject(null);
-    // Clear all search parameters
     navigate('/projects');
   };
 
@@ -124,7 +118,13 @@ const Projects = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{selectedProject.name}</h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl font-bold text-gray-900">{selectedProject.name}</h1>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Hash className="h-3 w-3" />
+                  Project #{selectedProject.project_number}
+                </Badge>
+              </div>
               <p className="text-gray-600">{selectedProject.description}</p>
               <div className="flex items-center gap-4 mt-2">
                 {getStatusBadge(selectedProject.status)}
@@ -263,8 +263,16 @@ const Projects = () => {
             <Card key={project.id} className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{project.name}</CardTitle>
-                  {getStatusBadge(project.status)}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CardTitle className="text-lg">{project.name}</CardTitle>
+                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                        <Hash className="h-2 w-2" />
+                        #{project.project_number}
+                      </Badge>
+                    </div>
+                    {getStatusBadge(project.status)}
+                  </div>
                 </div>
                 <p className="text-gray-600 text-sm line-clamp-2">{project.description}</p>
               </CardHeader>

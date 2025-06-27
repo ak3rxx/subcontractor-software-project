@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Clock, GitBranch, AlertCircle } from 'lucide-react';
@@ -13,6 +13,7 @@ import OutlookOverview from './programme/OutlookOverview';
 import WeeklyCalendarView from './programme/WeeklyCalendarView';
 import GanttChart from './programme/GanttChart';
 import TimelineView from './programme/TimelineView';
+import { useSearchParams } from 'react-router-dom';
 
 interface ProgrammeTrackerProps {
   projectName: string;
@@ -23,8 +24,25 @@ interface ProgrammeTrackerProps {
 const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projectId, crossModuleData }) => {
   const [showNewMilestone, setShowNewMilestone] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const { milestones, loading, createMilestone, updateMilestone, deleteMilestone } = useProgrammeMilestones(projectId);
+
+  // Handle cross-module navigation and auto-form opening
+  useEffect(() => {
+    const action = searchParams.get('action');
+    const data = searchParams.get('data');
+    
+    if (action === 'create-milestone' && data) {
+      try {
+        const parsedData = JSON.parse(decodeURIComponent(data));
+        console.log('Auto-opening milestone form with data:', parsedData);
+        setShowNewMilestone(true);
+      } catch (error) {
+        console.error('Error parsing cross-module data:', error);
+      }
+    }
+  }, [searchParams]);
 
   console.log('ProgrammeTracker render:', { projectId, milestonesCount: milestones.length, loading });
 
@@ -53,10 +71,29 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
     
     if (success) {
       setShowNewMilestone(false);
+      // Clear search params after successful creation
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('action');
+      newSearchParams.delete('data');
+      setSearchParams(newSearchParams);
       console.log('Milestone created successfully, form closed');
     } else {
       console.error('Failed to create milestone');
     }
+  };
+
+  // Parse cross-module data for form auto-population
+  const getCrossModuleFormData = () => {
+    const data = searchParams.get('data');
+    if (data) {
+      try {
+        return JSON.parse(decodeURIComponent(data));
+      } catch (error) {
+        console.error('Error parsing cross-module data:', error);
+        return null;
+      }
+    }
+    return crossModuleData;
   };
 
   if (loading) {
@@ -123,9 +160,15 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             onCancel={() => {
               console.log('Form cancelled');
               setShowNewMilestone(false);
+              // Clear search params when cancelling
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.delete('action');
+              newSearchParams.delete('data');
+              setSearchParams(newSearchParams);
             }}
             onSubmit={handleCreateMilestone}
             projectId={projectId}
+            crossModuleData={getCrossModuleFormData()}
           />
         )}
 

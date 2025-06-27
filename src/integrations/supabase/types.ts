@@ -164,8 +164,10 @@ export type Database = {
           id: string
           last_variation_update: string | null
           notes: string | null
+          originating_variation_id: string | null
           project_id: string | null
           quantity: number | null
+          reference_number: string | null
           trade_category: string
           unit: string | null
           unit_cost: number | null
@@ -180,8 +182,10 @@ export type Database = {
           id?: string
           last_variation_update?: string | null
           notes?: string | null
+          originating_variation_id?: string | null
           project_id?: string | null
           quantity?: number | null
+          reference_number?: string | null
           trade_category: string
           unit?: string | null
           unit_cost?: number | null
@@ -196,8 +200,10 @@ export type Database = {
           id?: string
           last_variation_update?: string | null
           notes?: string | null
+          originating_variation_id?: string | null
           project_id?: string | null
           quantity?: number | null
+          reference_number?: string | null
           trade_category?: string
           unit?: string | null
           unit_cost?: number | null
@@ -603,9 +609,11 @@ export type Database = {
           planned_date: string
           priority: string | null
           project_id: string | null
+          reference_number: string | null
           start_date_actual: string | null
           start_date_planned: string | null
           status: string | null
+          trade: string | null
           updated_at: string | null
           variation_adjusted_date: string | null
           variation_time_impact: number | null
@@ -634,9 +642,11 @@ export type Database = {
           planned_date: string
           priority?: string | null
           project_id?: string | null
+          reference_number?: string | null
           start_date_actual?: string | null
           start_date_planned?: string | null
           status?: string | null
+          trade?: string | null
           updated_at?: string | null
           variation_adjusted_date?: string | null
           variation_time_impact?: number | null
@@ -665,9 +675,11 @@ export type Database = {
           planned_date?: string
           priority?: string | null
           project_id?: string | null
+          reference_number?: string | null
           start_date_actual?: string | null
           start_date_planned?: string | null
           status?: string | null
+          trade?: string | null
           updated_at?: string | null
           variation_adjusted_date?: string | null
           variation_time_impact?: number | null
@@ -765,6 +777,7 @@ export type Database = {
           name: string
           organization_id: string | null
           project_manager_id: string | null
+          project_number: number
           project_type: string | null
           site_address: string | null
           start_date: string | null
@@ -782,6 +795,7 @@ export type Database = {
           name: string
           organization_id?: string | null
           project_manager_id?: string | null
+          project_number: number
           project_type?: string | null
           site_address?: string | null
           start_date?: string | null
@@ -799,6 +813,7 @@ export type Database = {
           name?: string
           organization_id?: string | null
           project_manager_id?: string | null
+          project_number?: number
           project_type?: string | null
           site_address?: string | null
           start_date?: string | null
@@ -1015,6 +1030,7 @@ export type Database = {
           id: string
           priority: string | null
           project_id: string | null
+          reference_number: string | null
           response: string | null
           response_date: string | null
           rfi_number: string
@@ -1032,6 +1048,7 @@ export type Database = {
           id?: string
           priority?: string | null
           project_id?: string | null
+          reference_number?: string | null
           response?: string | null
           response_date?: string | null
           rfi_number: string
@@ -1049,6 +1066,7 @@ export type Database = {
           id?: string
           priority?: string | null
           project_id?: string | null
+          reference_number?: string | null
           response?: string | null
           response_date?: string | null
           rfi_number?: string
@@ -1194,6 +1212,7 @@ export type Database = {
           id: string
           priority: string | null
           project_id: string | null
+          reference_number: string | null
           status: string | null
           title: string
           updated_at: string | null
@@ -1208,6 +1227,7 @@ export type Database = {
           id?: string
           priority?: string | null
           project_id?: string | null
+          reference_number?: string | null
           status?: string | null
           title: string
           updated_at?: string | null
@@ -1222,6 +1242,7 @@ export type Database = {
           id?: string
           priority?: string | null
           project_id?: string | null
+          reference_number?: string | null
           status?: string | null
           title?: string
           updated_at?: string | null
@@ -1722,6 +1743,10 @@ export type Database = {
       generate_inspection_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      generate_project_number: {
+        Args: { org_id?: string }
+        Returns: number
       }
       generate_variation_number: {
         Args: { project_uuid: string }

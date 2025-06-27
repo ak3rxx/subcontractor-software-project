@@ -22,6 +22,7 @@ export interface Project {
   project_manager_id?: string;
   client_id?: string;
   total_budget?: number;
+  project_number: number;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ const transformProjectData = (project: ProjectRow): Project => {
     project_manager_id: project.project_manager_id || undefined,
     client_id: project.client_id || undefined,
     total_budget: project.total_budget || undefined,
+    project_number: project.project_number || 0,
     created_at: project.created_at || '',
     updated_at: project.updated_at || ''
   };
@@ -55,7 +57,6 @@ export const useProjects = () => {
     if (!user) return;
 
     try {
-      // Simplified query - just get projects where user is project manager
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -64,7 +65,6 @@ export const useProjects = () => {
 
       if (error) {
         console.error('Error fetching projects:', error);
-        // Only show error toast for non-RLS errors
         if (!error.message.includes('policy') && !error.message.includes('permission')) {
           toast({
             title: "Error",
@@ -90,7 +90,23 @@ export const useProjects = () => {
     if (!user) return null;
 
     try {
-      // Simplified project creation without organization dependencies
+      // Get the organization ID (for now, we'll use null as we simplified the organization system)
+      const orgId = null; // This would be the user's organization ID when implemented
+      
+      // Generate project number
+      const { data: projectNumber, error: numberError } = await supabase
+        .rpc('generate_project_number', { org_id: orgId });
+
+      if (numberError) {
+        console.error('Error generating project number:', numberError);
+        toast({
+          title: "Error",
+          description: "Failed to generate project number",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       const insertData: ProjectInsert = {
         name: projectData.projectName || projectData.name || '',
         description: projectData.description,
@@ -100,8 +116,8 @@ export const useProjects = () => {
         estimated_completion: projectData.estimatedCompletion,
         site_address: projectData.siteAddress,
         project_manager_id: user.id,
-        total_budget: projectData.totalBudget || null
-        // Removed organization_id completely
+        total_budget: projectData.totalBudget || null,
+        project_number: projectNumber
       };
 
       console.log('Creating project with data:', insertData);
@@ -124,7 +140,7 @@ export const useProjects = () => {
 
       toast({
         title: "Success",
-        description: "Project created successfully"
+        description: `Project #${projectNumber} created successfully`
       });
 
       const newProject = transformProjectData(data);
@@ -154,7 +170,6 @@ export const useProjects = () => {
         site_address: updates.site_address,
         client_id: updates.client_id,
         total_budget: updates.total_budget
-        // Removed organization_id completely
       };
 
       const { data, error } = await supabase

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,11 +18,13 @@ export interface ProgrammeMilestone {
   end_date_planned?: string;
   start_date_actual?: string;
   end_date_actual?: string;
-  planned_date: string; // Keep for backward compatibility
+  planned_date: string;
   actual_date?: string;
   status: 'upcoming' | 'in-progress' | 'complete' | 'delayed';
   priority: 'low' | 'medium' | 'high';
   category?: string;
+  trade?: string;
+  reference_number?: string;
   assigned_to?: string;
   completion_percentage: number;
   critical_path: boolean;
@@ -89,6 +92,8 @@ export const useProgrammeMilestones = (projectId?: string) => {
         status: milestone.status as ProgrammeMilestone['status'] || 'upcoming',
         priority: milestone.priority as ProgrammeMilestone['priority'] || 'medium',
         category: milestone.category || undefined,
+        trade: milestone.trade || undefined,
+        reference_number: milestone.reference_number || undefined,
         assigned_to: milestone.assigned_to || undefined,
         completion_percentage: milestone.completion_percentage || 0,
         critical_path: milestone.critical_path || false,
@@ -142,6 +147,8 @@ export const useProgrammeMilestones = (projectId?: string) => {
         status: milestoneData.status || 'upcoming',
         priority: milestoneData.priority || 'medium',
         category: milestoneData.category,
+        trade: milestoneData.trade,
+        reference_number: milestoneData.reference_number,
         assigned_to: milestoneData.assigned_to,
         completion_percentage: milestoneData.completion_percentage || 0,
         critical_path: milestoneData.critical_path || false,
@@ -206,6 +213,8 @@ export const useProgrammeMilestones = (projectId?: string) => {
         status: updates.status,
         priority: updates.priority,
         category: updates.category,
+        trade: updates.trade,
+        reference_number: updates.reference_number,
         assigned_to: updates.assigned_to,
         completion_percentage: updates.completion_percentage,
         critical_path: updates.critical_path,

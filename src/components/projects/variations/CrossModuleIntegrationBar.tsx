@@ -1,189 +1,152 @@
 
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Calendar, 
-  CheckSquare, 
-  HelpCircle, 
-  DollarSign,
-  ArrowRight
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Variation } from '@/hooks/useVariations';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, CheckSquare, MessageSquare, Calculator, ArrowRight } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface CrossModuleIntegrationBarProps {
-  variation: Variation;
-  projectId: string;
-  onClose: () => void;
+  variation: any;
 }
 
-const CrossModuleIntegrationBar: React.FC<CrossModuleIntegrationBarProps> = ({
-  variation,
-  projectId,
-  onClose
-}) => {
+const CrossModuleIntegrationBar: React.FC<CrossModuleIntegrationBarProps> = ({ variation }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleProgrammeIntegration = () => {
-    // Navigate to Programme module with pre-filled milestone data
-    const milestoneData = {
-      fromVariation: true,
-      variationId: variation.id,
-      variationNumber: variation.variation_number,
-      milestoneName: `${variation.title} - Implementation`,
-      timeImpact: variation.time_impact,
-      costImpact: variation.total_amount,
-      priority: variation.priority,
-      description: `Milestone created from variation ${variation.variation_number}: ${variation.description}`
-    };
+  const createCrossModuleUrl = (tab: string, action: string, data: any) => {
+    const currentParams = new URLSearchParams(location.search);
+    const projectId = currentParams.get('id');
     
-    const queryParams = new URLSearchParams({
-      tab: 'programme',
-      action: 'create_milestone',
-      data: JSON.stringify(milestoneData)
-    }).toString();
-    
-    onClose();
-    navigate(`/projects?id=${projectId}&${queryParams}`);
-  };
-
-  const handleTaskIntegration = () => {
-    // Navigate to Task module with pre-filled task data
-    const taskData = {
-      fromVariation: true,
-      variationId: variation.id,
-      variationNumber: variation.variation_number,
-      title: `${variation.title} - Implementation Tasks`,
-      description: `Tasks required for variation ${variation.variation_number}:\n\n${variation.description}`,
-      priority: variation.priority,
-      category: variation.category || 'variation_implementation',
-      dueDate: variation.requires_eot ? 
-        new Date(Date.now() + (variation.eot_days * 24 * 60 * 60 * 1000)).toISOString().split('T')[0] :
-        new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]
-    };
-    
-    const queryParams = new URLSearchParams({
-      tab: 'tasks',
-      action: 'create_task',
-      data: JSON.stringify(taskData)
-    }).toString();
-    
-    onClose();
-    navigate(`/projects?id=${projectId}&${queryParams}`);
-  };
-
-  const handleRFIIntegration = () => {
-    if (variation.originating_rfi_id) {
-      // Navigate to existing RFI
-      const queryParams = new URLSearchParams({
-        tab: 'rfis',
-        action: 'view_rfi',
-        rfiId: variation.originating_rfi_id
-      }).toString();
-      
-      onClose();
-      navigate(`/projects?id=${projectId}&${queryParams}`);
-    } else {
-      // Create new RFI for clarifications
-      const rfiData = {
-        fromVariation: true,
-        variationId: variation.id,
-        variationNumber: variation.variation_number,
-        title: `Clarification Required - ${variation.title}`,
-        description: `RFI created from variation ${variation.variation_number}:\n\nRequesting clarification on: ${variation.description}`,
-        priority: variation.priority === 'high' ? 'high' : 'medium',
-        category: variation.category || 'variation_clarification'
-      };
-      
-      const queryParams = new URLSearchParams({
-        tab: 'rfis',
-        action: 'create_rfi',
-        data: JSON.stringify(rfiData)
-      }).toString();
-      
-      onClose();
-      navigate(`/projects?id=${projectId}&${queryParams}`);
+    if (!projectId) {
+      console.error('No project ID found in current URL');
+      return '#';
     }
-  };
 
-  const handleFinanceIntegration = () => {
-    // Navigate to Finance module with variation impact data
-    const financeData = {
-      fromVariation: true,
-      variationId: variation.id,
+    const crossModuleData = {
+      title: variation.title,
+      description: variation.description,
+      category: variation.category,
+      trade: variation.trade,
       variationNumber: variation.variation_number,
       costImpact: variation.total_amount,
-      gstAmount: variation.gst_amount,
-      costBreakdown: variation.cost_breakdown,
-      budgetImpact: variation.status === 'approved' ? variation.total_amount : 0,
-      description: `Financial impact from variation ${variation.variation_number}`,
-      category: variation.category || 'variation_impact',
-      status: variation.status
+      timeImpact: variation.time_impact,
+      fromVariation: true,
+      ...data
     };
-    
-    const queryParams = new URLSearchParams({
-      tab: 'finance',
-      action: 'variation_impact',
-      data: JSON.stringify(financeData)
-    }).toString();
-    
-    onClose();
-    navigate(`/projects?id=${projectId}&${queryParams}`);
+
+    const encodedData = encodeURIComponent(JSON.stringify(crossModuleData));
+    return `/projects?id=${projectId}&tab=${tab}&action=${action}&data=${encodedData}`;
+  };
+
+  const handleProgrammeClick = () => {
+    const url = createCrossModuleUrl('programme', 'create-milestone', {
+      milestone_name: variation.title,
+      category: variation.category,
+      trade: variation.trade,
+      reference_number: variation.variation_number
+    });
+    navigate(url);
+  };
+
+  const handleTaskClick = () => {
+    const url = createCrossModuleUrl('tasks', 'create-task', {
+      task_title: `Complete ${variation.title}`,
+      task_description: variation.description,
+      reference_number: variation.variation_number
+    });
+    navigate(url);
+  };
+
+  const handleRFIClick = () => {
+    const url = createCrossModuleUrl('rfis', 'create-rfi', {
+      rfi_title: `Query regarding ${variation.title}`,
+      rfi_description: `RFI related to variation: ${variation.description}`,
+      reference_number: variation.variation_number
+    });
+    navigate(url);
+  };
+
+  const handleFinanceClick = () => {
+    const url = createCrossModuleUrl('finance', 'create-budget-item', {
+      budget_description: variation.title,
+      budgeted_cost: variation.total_amount,
+      trade_category: variation.trade || variation.category,
+      reference_number: variation.variation_number,
+      originating_variation_id: variation.id
+    });
+    navigate(url);
   };
 
   return (
-    <div className="border-t bg-gray-50 p-4 sticky bottom-0 z-10">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <ArrowRight className="h-4 w-4" />
-          <span className="font-medium">Quick Actions:</span>
-          <span>Create related items in other modules</span>
+    <Card className="mb-6">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-gray-900">Cross-Module Integration</h4>
+          <Badge variant="outline" className="text-xs">
+            Auto-populate from this variation
+          </Badge>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleProgrammeIntegration}
-            className="flex items-center gap-2"
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 h-auto p-3"
+            onClick={handleProgrammeClick}
           >
-            <Calendar className="h-4 w-4" />
-            Programme
+            <Calendar className="h-4 w-4 text-blue-600" />
+            <div className="text-left">
+              <div className="font-medium text-sm">Programme</div>
+              <div className="text-xs text-gray-500">Create milestone</div>
+            </div>
+            <ArrowRight className="h-3 w-3 ml-auto" />
           </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTaskIntegration}
-            className="flex items-center gap-2"
+
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 h-auto p-3"
+            onClick={handleTaskClick}
           >
-            <CheckSquare className="h-4 w-4" />
-            Tasks
+            <CheckSquare className="h-4 w-4 text-green-600" />
+            <div className="text-left">
+              <div className="font-medium text-sm">Tasks</div>
+              <div className="text-xs text-gray-500">Create task</div>
+            </div>
+            <ArrowRight className="h-3 w-3 ml-auto" />
           </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRFIIntegration}
-            className="flex items-center gap-2"
+
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 h-auto p-3"
+            onClick={handleRFIClick}
           >
-            <HelpCircle className="h-4 w-4" />
-            {variation.originating_rfi_id ? 'View RFI' : 'Create RFI'}
+            <MessageSquare className="h-4 w-4 text-purple-600" />
+            <div className="text-left">
+              <div className="font-medium text-sm">RFI</div>
+              <div className="text-xs text-gray-500">Create query</div>
+            </div>
+            <ArrowRight className="h-3 w-3 ml-auto" />
           </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleFinanceIntegration}
-            className="flex items-center gap-2"
+
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 h-auto p-3"
+            onClick={handleFinanceClick}
           >
-            <DollarSign className="h-4 w-4" />
-            Finances
+            <Calculator className="h-4 w-4 text-orange-600" />
+            <div className="text-left">
+              <div className="font-medium text-sm">Finance</div>
+              <div className="text-xs text-gray-500">Create budget item</div>
+            </div>
+            <ArrowRight className="h-3 w-3 ml-auto" />
           </Button>
         </div>
-      </div>
-    </div>
+
+        <div className="mt-3 text-xs text-gray-500">
+          Click any module to create linked items with pre-populated data from this variation
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

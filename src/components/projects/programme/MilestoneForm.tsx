@@ -1,238 +1,170 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Calendar, X, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { X, Calendar, Flag, AlertTriangle } from 'lucide-react';
 import { ProgrammeMilestone } from '@/hooks/useProgrammeMilestones';
-import { useToast } from '@/hooks/use-toast';
 
 interface MilestoneFormProps {
   showForm: boolean;
   onCancel: () => void;
-  onSubmit?: (milestoneData: Partial<ProgrammeMilestone>) => Promise<void>;
+  onSubmit: (data: Partial<ProgrammeMilestone>) => Promise<void>;
+  editingMilestone?: ProgrammeMilestone | null;
   projectId?: string;
-  editingMilestone?: ProgrammeMilestone;
+  crossModuleData?: any;
 }
 
 const MilestoneForm: React.FC<MilestoneFormProps> = ({
   showForm,
   onCancel,
   onSubmit,
+  editingMilestone,
   projectId,
-  editingMilestone
+  crossModuleData
 }) => {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState<Partial<ProgrammeMilestone>>({
-    milestone_name: editingMilestone?.milestone_name || '',
-    description: editingMilestone?.description || '',
-    start_date_planned: editingMilestone?.start_date_planned || '',
-    end_date_planned: editingMilestone?.end_date_planned || '',
-    status: editingMilestone?.status || 'upcoming',
-    priority: editingMilestone?.priority || 'medium',
-    category: editingMilestone?.category || '',
-    completion_percentage: editingMilestone?.completion_percentage || 0,
-    critical_path: editingMilestone?.critical_path || false,
-    notes: editingMilestone?.notes || '',
-    project_id: projectId || editingMilestone?.project_id
+  const [formData, setFormData] = useState({
+    milestone_name: '',
+    description: '',
+    start_date_planned: '',
+    end_date_planned: '',
+    status: 'upcoming' as const,
+    priority: 'medium' as const,
+    category: '',
+    trade: '',
+    reference_number: '',
+    completion_percentage: 0,
+    critical_path: false,
+    delay_risk_flag: false,
+    notes: ''
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    
-    if (!formData.milestone_name?.trim()) {
-      errors.milestone_name = 'Milestone name is required';
+  useEffect(() => {
+    if (editingMilestone) {
+      setFormData({
+        milestone_name: editingMilestone.milestone_name,
+        description: editingMilestone.description || '',
+        start_date_planned: editingMilestone.start_date_planned || '',
+        end_date_planned: editingMilestone.end_date_planned || '',
+        status: editingMilestone.status,
+        priority: editingMilestone.priority,
+        category: editingMilestone.category || '',
+        trade: editingMilestone.trade || '',
+        reference_number: editingMilestone.reference_number || '',
+        completion_percentage: editingMilestone.completion_percentage,
+        critical_path: editingMilestone.critical_path,
+        delay_risk_flag: editingMilestone.delay_risk_flag,
+        notes: editingMilestone.notes || ''
+      });
+    } else if (crossModuleData) {
+      // Auto-populate from cross-module data (e.g., from variations)
+      setFormData(prev => ({
+        ...prev,
+        milestone_name: crossModuleData.title || crossModuleData.milestone_name || '',
+        category: crossModuleData.category || '',
+        trade: crossModuleData.trade || '',
+        reference_number: crossModuleData.variationNumber || crossModuleData.reference_number || '',
+        description: crossModuleData.description || ''
+      }));
     }
-    
-    if (!formData.start_date_planned) {
-      errors.start_date_planned = 'Start date is required';
-    }
-    
-    if (!projectId) {
-      errors.project = 'No project selected';
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  }, [editingMilestone, crossModuleData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Form submission started with data:', formData);
-    console.log('Project ID:', projectId);
-    
-    if (!validateForm()) {
-      console.log('Validation failed:', validationErrors);
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
+    const milestoneData = {
+      ...formData,
+      project_id: projectId,
+      planned_date: formData.start_date_planned || new Date().toISOString().split('T')[0]
+    };
 
-    setIsSubmitting(true);
-    
-    try {
-      if (onSubmit) {
-        console.log('Calling onSubmit with form data');
-        await onSubmit(formData);
-        console.log('onSubmit completed successfully');
-        
-        toast({
-          title: "Success",
-          description: editingMilestone ? "Milestone updated successfully" : "Milestone created successfully"
-        });
-      } else {
-        console.log('No onSubmit handler provided');
-        toast({
-          title: "Error",
-          description: "No submit handler available",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error submitting milestone:', error);
-      toast({
-        title: "Error",
-        description: `Failed to ${editingMilestone ? 'update' : 'create'} milestone. Please try again.`,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    console.log('Submitting milestone data:', milestoneData);
+    await onSubmit(milestoneData);
   };
 
-  const handleInputChange = (field: keyof ProgrammeMilestone, value: any) => {
-    console.log(`Updating field ${field} with value:`, value);
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    
-    // Clear validation error for this field
-    if (validationErrors[field]) {
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
   };
 
   if (!showForm) return null;
 
   return (
-    <TooltipProvider>
-      <Card className="mb-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-600" />
-                {editingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
-                {!projectId && (
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <AlertCircle className="h-4 w-4 text-red-500" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>No project ID available - milestone creation may fail</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </CardTitle>
-              <CardDescription>
-                {editingMilestone ? 'Update milestone details' : 'Create a new programme milestone with timeline and dependencies'}
-              </CardDescription>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              {editingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
+            </CardTitle>
             <Button variant="ghost" size="sm" onClick={onCancel}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="milestone_name" className="flex items-center gap-1">
-                  Milestone Name *
-                  {validationErrors.milestone_name && (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <AlertCircle className="h-3 w-3 text-red-500" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{validationErrors.milestone_name}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </Label>
+                <Label htmlFor="milestone_name">Milestone Name *</Label>
                 <Input
                   id="milestone_name"
                   value={formData.milestone_name}
                   onChange={(e) => handleInputChange('milestone_name', e.target.value)}
-                  placeholder="e.g., Foundation Pour Complete"
+                  placeholder="Enter milestone name"
                   required
-                  className={validationErrors.milestone_name ? 'border-red-500' : ''}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select
+                <Input
+                  id="category"
                   value={formData.category}
-                  onValueChange={(value) => handleInputChange('category', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="structural">Structural</SelectItem>
-                    <SelectItem value="electrical">Electrical</SelectItem>
-                    <SelectItem value="plumbing">Plumbing</SelectItem>
-                    <SelectItem value="finishes">Finishes</SelectItem>
-                    <SelectItem value="external">External Works</SelectItem>
-                    <SelectItem value="handover">Handover</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  placeholder="e.g., Construction, Design, Approval"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="start_date_planned" className="flex items-center gap-1">
-                  Planned Start Date *
-                  {validationErrors.start_date_planned && (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <AlertCircle className="h-3 w-3 text-red-500" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{validationErrors.start_date_planned}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </Label>
+                <Label htmlFor="trade">Trade</Label>
+                <Input
+                  id="trade"
+                  value={formData.trade}
+                  onChange={(e) => handleInputChange('trade', e.target.value)}
+                  placeholder="e.g., Carpentry, Electrical, Plumbing"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reference_number">Reference Number</Label>
+                <Input
+                  id="reference_number"
+                  value={formData.reference_number}
+                  onChange={(e) => handleInputChange('reference_number', e.target.value)}
+                  placeholder="Link to Variation, Task, RFI, etc."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="start_date_planned">Start Date</Label>
                 <Input
                   id="start_date_planned"
                   type="date"
                   value={formData.start_date_planned}
                   onChange={(e) => handleInputChange('start_date_planned', e.target.value)}
-                  required
-                  className={validationErrors.start_date_planned ? 'border-red-500' : ''}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="end_date_planned">Planned End Date</Label>
+                <Label htmlFor="end_date_planned">End Date</Label>
                 <Input
                   id="end_date_planned"
                   type="date"
@@ -243,12 +175,9 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => handleInputChange('status', value as ProgrammeMilestone['status'])}
-                >
+                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="upcoming">Upcoming</SelectItem>
@@ -261,17 +190,29 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Select
-                  value={formData.priority}
-                  onValueChange={(value) => handleInputChange('priority', value as ProgrammeMilestone['priority'])}
-                >
+                <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="low">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-gray-500" />
+                        Low
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-yellow-500" />
+                        Medium
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="high">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-red-500" />
+                        High
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -283,32 +224,46 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Detailed description of the milestone and requirements..."
+                placeholder="Describe the milestone requirements and deliverables"
                 rows={3}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="completion_percentage">Completion %</Label>
-                <Input
-                  id="completion_percentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.completion_percentage}
-                  onChange={(e) => handleInputChange('completion_percentage', parseInt(e.target.value) || 0)}
-                  placeholder="0"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="completion_percentage">Completion Percentage</Label>
+              <Input
+                id="completion_percentage"
+                type="number"
+                min="0"
+                max="100"
+                value={formData.completion_percentage}
+                onChange={(e) => handleInputChange('completion_percentage', parseInt(e.target.value) || 0)}
+              />
+            </div>
 
-              <div className="flex items-center space-x-2 pt-8">
-                <Switch
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
                   id="critical_path"
                   checked={formData.critical_path}
                   onCheckedChange={(checked) => handleInputChange('critical_path', checked)}
                 />
-                <Label htmlFor="critical_path">Critical Path Item</Label>
+                <Label htmlFor="critical_path" className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  Critical Path
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="delay_risk_flag"
+                  checked={formData.delay_risk_flag}
+                  onCheckedChange={(checked) => handleInputChange('delay_risk_flag', checked)}
+                />
+                <Label htmlFor="delay_risk_flag" className="flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-orange-500" />
+                  Delay Risk
+                </Label>
               </div>
             </div>
 
@@ -318,33 +273,23 @@ const MilestoneForm: React.FC<MilestoneFormProps> = ({
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="Additional notes or requirements..."
+                placeholder="Additional notes or comments"
                 rows={2}
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="submit" disabled={isSubmitting || !projectId}>
-                    {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {isSubmitting ? 'Saving...' : editingMilestone ? 'Update Milestone' : 'Create Milestone'}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {!projectId ? 'No project selected - cannot create milestone' : 
-                   isSubmitting ? 'Creating milestone...' : 
-                   'Click to save milestone'}
-                </TooltipContent>
-              </Tooltip>
+              <Button type="submit">
+                {editingMilestone ? 'Update Milestone' : 'Create Milestone'}
+              </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    </TooltipProvider>
+    </div>
   );
 };
 
