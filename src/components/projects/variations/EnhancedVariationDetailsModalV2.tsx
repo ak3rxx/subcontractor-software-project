@@ -9,6 +9,7 @@ import { FileText, Edit, Check, X, Loader2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
+import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 import PermissionGate from '@/components/PermissionGate';
 import VariationDetailsTab from './VariationDetailsTab';
 import VariationCostTab from './VariationCostTab';
@@ -72,6 +73,16 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [currentVariation, setCurrentVariation] = useState<Variation | null>(variation);
   const [activeTab, setActiveTab] = useState('details');
+
+  // Initialize attachments hook
+  const {
+    attachments,
+    loading: attachmentsLoading,
+    uploadFiles,
+    downloadAttachment,
+    deleteAttachment,
+    refetch: refetchAttachments
+  } = useVariationAttachments(currentVariation?.id);
 
   // Update current variation when prop changes
   useEffect(() => {
@@ -159,8 +170,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         updated_at: new Date().toISOString()
       };
 
-      console.log('Saving variation with data:', updateData);
-      
       await onUpdate(currentVariation.id, updateData);
       
       // Log detailed audit entries for each changed field
@@ -169,8 +178,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         const newValue = editData[key];
         return oldValue !== newValue;
       });
-
-      console.log('Changed fields:', changedFields);
 
       for (const field of changedFields) {
         const oldValue = String(currentVariation[field as keyof Variation] || '');
@@ -229,6 +236,11 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const handleStatusChange = useCallback(async () => {
     console.log('Status change callback triggered');
     
+    // Refresh attachments when status changes
+    if (currentVariation?.id) {
+      await refetchAttachments();
+    }
+    
     // Notify parent component to refresh the variation data
     if (onVariationUpdate && currentVariation) {
       // Trigger a refresh by updating the variation with current timestamp
@@ -239,7 +251,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       onVariationUpdate(refreshedVariation);
       setCurrentVariation(refreshedVariation);
     }
-  }, [onVariationUpdate, currentVariation]);
+  }, [onVariationUpdate, currentVariation, refetchAttachments]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -272,6 +284,54 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       if (!confirmEdit) return;
     }
     handleEdit();
+  };
+
+  // File management handlers
+  const handleFileUpload = async (files: File[]) => {
+    try {
+      await uploadFiles(files);
+      toast({
+        title: "Success",
+        description: `${files.length} file(s) uploaded successfully`
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload files",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFileDownload = async (attachment: any) => {
+    try {
+      await downloadAttachment(attachment);
+    } catch (error) {
+      console.error('File download error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFileDelete = async (attachmentId: string) => {
+    try {
+      await deleteAttachment(attachmentId);
+      toast({
+        title: "Success",
+        description: "File deleted successfully"
+      });
+    } catch (error) {
+      console.error('File delete error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete file",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -374,7 +434,12 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               <TabsContent value="files" className="h-full overflow-y-auto">
                 <VariationFilesTab
                   variation={currentVariation}
-                  onUpdate={onUpdate || (() => Promise.resolve())}
+                  attachments={attachments || []}
+                  attachmentsLoading={attachmentsLoading}
+                  canEdit={canEditVariation && !isEditing}
+                  onUpload={handleFileUpload}
+                  onDownload={handleFileDownload}
+                  onDelete={handleFileDelete}
                 />
               </TabsContent>
               
