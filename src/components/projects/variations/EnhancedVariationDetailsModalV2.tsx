@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -78,10 +77,10 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const {
     attachments,
     loading: attachmentsLoading,
-    uploadFiles,
+    uploadAttachment,
     downloadAttachment,
     deleteAttachment,
-    refetch: refetchAttachments
+    fetchAttachments
   } = useVariationAttachments(currentVariation?.id);
 
   // Update current variation when prop changes
@@ -238,7 +237,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     
     // Refresh attachments when status changes
     if (currentVariation?.id) {
-      await refetchAttachments();
+      await fetchAttachments();
     }
     
     // Notify parent component to refresh the variation data
@@ -251,7 +250,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       onVariationUpdate(refreshedVariation);
       setCurrentVariation(refreshedVariation);
     }
-  }, [onVariationUpdate, currentVariation, refetchAttachments]);
+  }, [onVariationUpdate, currentVariation, fetchAttachments]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -289,7 +288,10 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   // File management handlers
   const handleFileUpload = async (files: File[]) => {
     try {
-      await uploadFiles(files);
+      // Upload files one by one since uploadAttachment handles single files
+      for (const file of files) {
+        await uploadAttachment(file);
+      }
       toast({
         title: "Success",
         description: `${files.length} file(s) uploaded successfully`
