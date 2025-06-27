@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,7 +41,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [showEditWarning, setShowEditWarning] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Force refresh trigger
 
   // Always get variationId (will be undefined if no variation)
   const variationId = variation?.id;
@@ -75,21 +75,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, uploadAttachment, fetchAttachments]);
 
-  // ENHANCED: Proper refresh after approval update with real-time sync and forced refresh
-  const handleUpdateFromModalEnhanced = useCallback(async (id: string, updates: any) => {
+  // Simplified update handler without forced refreshes
+  const handleUpdateFromModal = useCallback(async (id: string, updates: any) => {
     if (onUpdate) {
       try {
         console.log('Modal: Starting variation update with:', updates);
         
-        // Perform the update
         await onUpdate(id, updates);
         
         console.log('Modal: Update completed successfully');
         
-        // Force a refresh of the modal content by incrementing refresh key
-        setRefreshKey(prev => prev + 1);
-        
-        // If this is a status change, give immediate visual feedback
+        // Simple toast notification
         if (updates.status) {
           toast({
             title: "Status Updated",
@@ -127,7 +123,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, isOpen, fetchAttachments]);
 
-  // ENHANCED: Reset edit state with ALL fields including NOD/EOT and watch for refreshKey changes
+  // Reset edit state when variation changes - simplified without refreshKey
   useEffect(() => {
     if (variation && isOpen) {
       setEditData({
@@ -153,7 +149,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       setActiveTab('details');
       setShowEditWarning(false);
     }
-  }, [variation, isOpen, refreshKey]); // Include refreshKey to force updates
+  }, [variation?.id, isOpen]); // Only depend on variation.id and isOpen
 
   // Early return after all hooks are called
   if (!variation) return null;
@@ -213,7 +209,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         updates.request_date = new Date().toISOString().split('T')[0];
       }
       
-      await handleUpdateFromModalEnhanced(variation.id, updates);
+      await handleUpdateFromModal(variation.id, updates);
       
       // Log the edit action in audit trail
       if (user) {
@@ -391,7 +387,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                 <TabsContent value="approval" className="mt-0">
                   <EnhancedVariationApprovalTab
                     variation={variation}
-                    onUpdate={handleUpdateFromModalEnhanced}
+                    onUpdate={handleUpdateFromModal}
                     isBlocked={isApprovalBlocked}
                   />
                 </TabsContent>

@@ -61,11 +61,23 @@ const transformAuditEntry = (dbEntry: DatabaseAuditEntry): AuditTrailEntry => {
 export const useVariationAuditTrail = (variationId?: string) => {
   const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastFetch, setLastFetch] = useState<number>(0);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const fetchAuditTrail = async () => {
-    if (!variationId) return;
+    if (!variationId) {
+      setAuditTrail([]);
+      return;
+    }
+
+    // Debounce rapid successive calls
+    const now = Date.now();
+    if (now - lastFetch < 1000) {
+      console.log('Debouncing audit trail fetch');
+      return;
+    }
+    setLastFetch(now);
 
     setLoading(true);
     try {
@@ -81,6 +93,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
           description: "Failed to load approval history",
           variant: "destructive"
         });
+        setAuditTrail([]);
         return;
       }
 
@@ -94,12 +107,13 @@ export const useVariationAuditTrail = (variationId?: string) => {
       console.log('Transformed audit trail data:', transformedData);
       setAuditTrail(transformedData);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching audit trail:', error);
       toast({
         title: "Error",
         description: "Failed to load approval history",
         variant: "destructive"
       });
+      setAuditTrail([]);
     } finally {
       setLoading(false);
     }
@@ -119,7 +133,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
   ) => {
     if (!variationId || !user) {
       console.warn('Cannot log audit entry: missing variationId or user');
-      return;
+      return false;
     }
 
     try {
@@ -151,21 +165,26 @@ export const useVariationAuditTrail = (variationId?: string) => {
           description: "Failed to log approval history entry",
           variant: "destructive"
         });
+        return false;
       } else {
         console.log('Audit entry logged successfully:', data);
-        // Refresh the audit trail to show the new entry
-        setTimeout(() => fetchAuditTrail(), 500);
+        return true;
       }
     } catch (error) {
       console.error('Error logging audit entry:', error);
+      return false;
     }
   };
 
+  // Single useEffect with proper dependency management
   useEffect(() => {
     if (variationId) {
+      console.log('useEffect triggered for variationId:', variationId);
       fetchAuditTrail();
+    } else {
+      setAuditTrail([]);
     }
-  }, [variationId]);
+  }, [variationId]); // Only depend on variationId to prevent loops
 
   return {
     auditTrail,

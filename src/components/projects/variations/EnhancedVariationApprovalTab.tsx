@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,12 +54,13 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     );
   }, [auditTrail]);
 
-  // Refresh audit trail when variation changes
+  // Single useEffect for variation changes - no automatic refresh
   useEffect(() => {
-    if (variation?.id) {
+    if (variation?.id && auditTrail.length === 0 && !auditLoading) {
+      console.log('Initial audit trail fetch for variation:', variation.id);
       refetchAudit();
     }
-  }, [variation?.id, variation?.status, refetchAudit]);
+  }, [variation?.id]); // Only depend on variation.id
 
   const handleSubmitForApproval = async () => {
     if (!canSubmitForApproval || isBlocked) {
@@ -87,19 +87,19 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       // Call the update function and wait for completion
       await onUpdate(variation.id, updateData);
       
-      // Log the submission manually to ensure it's captured
-      if (user) {
-        await logAuditEntry('submit', {
-          statusFrom: 'draft',
-          statusTo: 'pending_approval',
-          comments: `Variation submitted for approval by ${userProfile?.full_name || user?.email}`
-        });
+      // Log the submission and wait for it to complete
+      const logSuccess = await logAuditEntry('submit', {
+        statusFrom: 'draft',
+        statusTo: 'pending_approval',
+        comments: `Variation submitted for approval by ${userProfile?.full_name || user?.email}`
+      });
+
+      if (logSuccess) {
+        // Manual refresh only if logging succeeded
+        setTimeout(() => refetchAudit(), 500);
       }
       
       console.log('Update completed successfully, variation should now be pending approval');
-      
-      // Refresh audit trail to show the new entry
-      setTimeout(() => refetchAudit(), 1000);
       
       toast({
         title: "Success",
@@ -150,17 +150,17 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       console.log('Processing approval decision:', updateData);
       await onUpdate(variation.id, updateData);
       
-      // Log the approval/rejection manually to ensure it's captured
-      if (user) {
-        await logAuditEntry(approved ? 'approve' : 'reject', {
-          statusFrom: 'pending_approval',
-          statusTo: approved ? 'approved' : 'rejected',
-          comments: approved ? approvalComments : rejectionReason
-        });
-      }
+      // Log the approval/rejection and wait for completion
+      const logSuccess = await logAuditEntry(approved ? 'approve' : 'reject', {
+        statusFrom: 'pending_approval',
+        statusTo: approved ? 'approved' : 'rejected',
+        comments: approved ? approvalComments : rejectionReason
+      });
       
-      // Refresh audit trail to show the new entry
-      setTimeout(() => refetchAudit(), 1000);
+      if (logSuccess) {
+        // Manual refresh only if logging succeeded
+        setTimeout(() => refetchAudit(), 500);
+      }
       
       toast({
         title: "Success",
@@ -203,7 +203,6 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
     setIsSubmitting(true);
     try {
-      const currentTime = new Date().toISOString();
       const unlockComment = `UNLOCKED by ${userProfile?.full_name || user?.email} on ${new Date().toLocaleDateString()}: ${unlockReason}`;
       const previousComment = variation.approval_comments ? `\n\nPrevious comments: ${variation.approval_comments}` : '';
       
@@ -216,17 +215,17 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
 
       await onUpdate(variation.id, updateData);
       
-      // Log the unlock manually to ensure it's captured
-      if (user) {
-        await logAuditEntry('unlock', {
-          statusFrom: variation.status,
-          statusTo: unlockTargetStatus,
-          comments: unlockComment
-        });
-      }
+      // Log the unlock and wait for completion
+      const logSuccess = await logAuditEntry('unlock', {
+        statusFrom: variation.status,
+        statusTo: unlockTargetStatus,
+        comments: unlockComment
+      });
       
-      // Refresh audit trail to show the new entry
-      setTimeout(() => refetchAudit(), 1000);
+      if (logSuccess) {
+        // Manual refresh only if logging succeeded
+        setTimeout(() => refetchAudit(), 500);
+      }
       
       toast({
         title: "Success",
