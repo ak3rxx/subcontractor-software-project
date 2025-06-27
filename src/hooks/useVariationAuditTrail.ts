@@ -160,7 +160,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
       } else {
         console.log('Audit entry logged successfully:', data);
         // Immediately refresh the audit trail after logging
-        fetchAuditTrail();
+        await fetchAuditTrail();
         return true;
       }
     } catch (error) {

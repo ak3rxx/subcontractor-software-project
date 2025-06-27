@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 
 export const useApprovalActions = (variation: any, onUpdate: (id: string, updates: any) => Promise<void>, onStatusChange: () => void) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin } = usePermissions();
+  const { logAuditEntry } = useVariationAuditTrail(variation?.id);
   
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -45,7 +47,18 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         updated_by: user?.id
       };
       
+      console.log('Submitting for approval with data:', updateData);
+      
       await onUpdate(variation.id, updateData);
+      
+      // Log audit entry for submission
+      if (user) {
+        await logAuditEntry('submit', {
+          statusFrom: 'draft',
+          statusTo: 'pending_approval',
+          comments: 'Variation submitted for approval'
+        });
+      }
       
       // Immediate callback to trigger refreshes
       onStatusChange();
@@ -97,16 +110,26 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         updated_by: user?.id
       };
 
-      console.log('Updating variation with:', updateData);
+      console.log('Updating variation approval with:', updateData);
 
       await onUpdate(variation.id, updateData);
       
-      // Immediate callback to trigger refreshes
+      // Log detailed audit entry for approval/rejection
+      if (user) {
+        await logAuditEntry(approved ? 'approve' : 'reject', {
+          statusFrom: 'pending_approval',
+          statusTo: approved ? 'approved' : 'rejected',
+          comments: updateData.approval_comments || (approved ? 'Variation approved' : 'Variation rejected')
+        });
+      }
+      
+      // Immediate callback to trigger refreshes across all components
       onStatusChange();
       
       toast({
         title: "Success",
-        description: `Variation ${approved ? 'approved' : 'rejected'} successfully`
+        description: `Variation ${approved ? 'approved' : 'rejected'} successfully`,
+        duration: 3000
       });
       
       // Clear form
@@ -156,14 +179,26 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
         updated_by: user?.id
       };
 
+      console.log('Unlocking variation with data:', updateData);
+
       await onUpdate(variation.id, updateData);
+      
+      // Log detailed audit entry for unlock
+      if (user) {
+        await logAuditEntry('unlock', {
+          statusFrom: variation.status,
+          statusTo: unlockTargetStatus,
+          comments: unlockReason
+        });
+      }
       
       // Immediate callback to trigger refreshes
       onStatusChange();
       
       toast({
         title: "Success",
-        description: `Variation unlocked and reverted to ${unlockTargetStatus}`
+        description: `Variation unlocked and reverted to ${unlockTargetStatus}`,
+        duration: 3000
       });
       
       // Clear form

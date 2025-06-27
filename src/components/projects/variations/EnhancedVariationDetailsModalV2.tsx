@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -86,7 +85,42 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, uploadAttachment, fetchAttachments]);
 
-  // Enhanced update handler with proper state management
+  // Helper function to get changed fields
+  const getChangedFields = useCallback((originalData: any, newData: any) => {
+    const changes: Array<{field: string, oldValue: any, newValue: any}> = [];
+    
+    const fieldsToCheck = [
+      'title', 'description', 'location', 'category', 'trade', 'priority',
+      'client_email', 'justification', 'time_impact', 'total_amount', 'gst_amount',
+      'requires_nod', 'requires_eot', 'nod_days', 'eot_days', 'cost_breakdown'
+    ];
+
+    fieldsToCheck.forEach(field => {
+      const oldValue = originalData[field];
+      const newValue = newData[field];
+      
+      // Handle different data types properly
+      if (field === 'cost_breakdown') {
+        if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+          changes.push({
+            field,
+            oldValue: JSON.stringify(oldValue || []),
+            newValue: JSON.stringify(newValue || [])
+          });
+        }
+      } else if (oldValue !== newValue) {
+        changes.push({
+          field,
+          oldValue: String(oldValue || ''),
+          newValue: String(newValue || '')
+        });
+      }
+    });
+
+    return changes;
+  }, []);
+
+  // Enhanced update handler with proper state management and audit trail
   const handleUpdateFromModal = useCallback(async (id: string, updates: any) => {
     if (onUpdate) {
       try {
@@ -109,12 +143,19 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         
         console.log('Modal: Update completed successfully');
         
-        // Simple toast notification
+        // Enhanced toast notification with status-specific messages
         if (updates.status) {
+          const statusMessages = {
+            'pending_approval': 'Variation submitted for approval',
+            'approved': 'Variation approved successfully',
+            'rejected': 'Variation rejected',
+            'draft': 'Variation unlocked and reverted to draft'
+          };
+          
           toast({
             title: "Status Updated",
-            description: `Variation status changed to ${updates.status.replace('_', ' ')}`,
-            duration: 2000
+            description: statusMessages[updates.status] || `Status changed to ${updates.status.replace('_', ' ')}`,
+            duration: 3000
           });
         }
         
@@ -125,10 +166,15 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [onUpdate, toast]);
 
-  // Handle status changes from approval tab
+  // Handle status changes from approval tab with immediate refresh
   const handleStatusChange = useCallback(() => {
-    console.log('Status change detected in modal, triggering refresh');
+    console.log('Status change detected in modal, triggering immediate refresh');
     setRefreshKey(prev => prev + 1);
+    
+    // Force a re-render of all tabs to show updated status
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 100);
   }, []);
 
   const getStatusBadge = useCallback((status: string) => {
@@ -196,9 +242,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     'manager'
   ].includes(userRole) || isFullAccessUser || isDeveloper() || canEdit('variations');
 
-  // Status-based edit restrictions
+  // Status-based edit restrictions - show warning for approved AND rejected variations
   const canStartEditing = canEditVariation && currentVariation.status !== 'pending_approval';
-  const isApproved = currentVariation.status === 'approved';
+  const needsConfirmation = ['approved', 'rejected'].includes(currentVariation.status);
 
   const handleEdit = () => {
     if (!canStartEditing) {
@@ -212,7 +258,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       return;
     }
 
-    if (isApproved) {
+    if (needsConfirmation) {
       setShowEditWarning(true);
     } else {
       setIsEditing(true);
@@ -228,10 +274,13 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     if (!onUpdate || !canEditVariation) return;
     
     try {
+      // Get changed fields for audit trail
+      const changedFields = getChangedFields(currentVariation, editData);
+      
       const updates = { ...editData };
       
-      // If variation was approved and is being edited, reset to pending approval
-      if (isApproved) {
+      // If variation was approved/rejected and is being edited, reset to pending approval
+      if (needsConfirmation) {
         updates.status = 'pending_approval';
         updates.approved_by = null;
         updates.approval_date = null;
@@ -242,21 +291,44 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       
       await handleUpdateFromModal(currentVariation.id, updates);
       
-      // Log the edit action in audit trail
-      if (user) {
+      // Log detailed field changes in audit trail
+      if (user && changedFields.length > 0) {
+        // Log status change if applicable
+        if (needsConfirmation) {
+          await logAuditEntry('edit', {
+            statusFrom: currentVariation.status,
+            statusTo: 'pending_approval',
+            comments: `Variation edited and resubmitted for approval. Original status: ${currentVariation.status}`
+          });
+        }
+        
+        // Log each field change
+        for (const change of changedFields) {
+          await logAuditEntry('edit', {
+            fieldName: change.field,
+            oldValue: change.oldValue,
+            newValue: change.newValue,
+            comments: `Field '${change.field}' updated`
+          });
+        }
+        
+        // Log general edit action
         await logAuditEntry('edit', {
-          comments: isApproved 
-            ? "Variation edited and resubmitted for approval" 
-            : "Variation details updated"
+          comments: needsConfirmation 
+            ? `Variation edited (${changedFields.length} fields changed) and resubmitted for approval`
+            : `Variation updated (${changedFields.length} fields changed)`
         });
       }
       
       setIsEditing(false);
       setHasUnsavedChanges(false);
       
+      // Trigger immediate refresh of all components
+      setRefreshKey(prev => prev + 1);
+      
       toast({
         title: "Success",
-        description: isApproved 
+        description: needsConfirmation 
           ? "Variation updated and submitted for approval"
           : "Variation updated successfully"
       });
@@ -270,6 +342,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   };
 
   const handleCancel = () => {
+    // ... keep existing code (reset edit state)
     setEditData({
       title: currentVariation.title,
       description: currentVariation.description || '',
@@ -386,7 +459,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div className="flex-1 overflow-y-auto mt-4">
               <TabsContent value="details" className="mt-0">
                 <VariationDetailsTab
-                  key={`details-${refreshKey}`}
+                  key={`details-${currentVariation.id}-${refreshKey}`}
                   variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
@@ -396,7 +469,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
               <TabsContent value="costs" className="mt-0">
                 <VariationCostTab
-                  key={`costs-${refreshKey}`}
+                  key={`costs-${currentVariation.id}-${refreshKey}`}
                   variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
@@ -406,7 +479,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
               <TabsContent value="files" className="mt-0">
                 <VariationFilesTab
-                  key={`files-${refreshKey}`}
+                  key={`files-${currentVariation.id}-${refreshKey}`}
                   variation={currentVariation}
                   attachments={attachments}
                   attachmentsLoading={attachmentsLoading}
@@ -420,7 +493,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               {canShowApprovalTab() && (
                 <TabsContent value="approval" className="mt-0">
                   <EnhancedVariationApprovalTab
-                    key={`approval-${refreshKey}`}
+                    key={`approval-${currentVariation.id}-${refreshKey}`}
                     variation={currentVariation}
                     onUpdate={handleUpdateFromModal}
                     onStatusChange={handleStatusChange}
@@ -433,19 +506,24 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         </DialogContent>
       </Dialog>
 
-      {/* Edit Warning Dialog for Approved Variations */}
+      {/* Enhanced Edit Warning Dialog for Approved/Rejected Variations */}
       <AlertDialog open={showEditWarning} onOpenChange={setShowEditWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              Edit Approved Variation
+              Edit {currentVariation.status === 'approved' ? 'Approved' : 'Rejected'} Variation
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This variation has been approved. Making changes will automatically resubmit it for approval and change its status to "Pending Approval". 
+              This variation has been {currentVariation.status}. Making changes will automatically resubmit it for approval and change its status to "Pending Approval". 
               
               <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
-                <strong>Important:</strong> The variation will lose its approved status and require re-approval before implementation.
+                <strong>Important:</strong> The variation will lose its {currentVariation.status} status and require re-approval before implementation.
+                {currentVariation.status === 'approved' && (
+                  <div className="mt-2 text-sm">
+                    Any approved budget impacts or programme adjustments may need to be reconsidered.
+                  </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

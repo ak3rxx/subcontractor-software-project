@@ -50,7 +50,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   }, [variation?.id, variation?.status, refreshTrigger, refetchAudit]);
 
   const handleStatusChange = () => {
-    console.log('Status change detected, triggering immediate refresh');
+    console.log('Status change detected, triggering immediate refresh sequence');
     
     // Immediate audit trail refresh
     if (variation?.id) {
@@ -60,10 +60,18 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     // Trigger a refresh of this component
     setRefreshTrigger(prev => prev + 1);
     
-    // Call parent callback if provided
+    // Call parent callback for cross-component refresh
     if (onStatusChange) {
       onStatusChange();
     }
+    
+    // Additional refresh after a short delay to catch any async updates
+    setTimeout(() => {
+      if (variation?.id) {
+        refetchAudit();
+      }
+      setRefreshTrigger(prev => prev + 1);
+    }, 500);
   };
 
   const canShowApprovalTab = () => {
