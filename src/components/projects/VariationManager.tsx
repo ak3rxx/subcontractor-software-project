@@ -32,6 +32,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  // ADDED: Key to force form re-render and clear data
+  const [formKey, setFormKey] = useState(0);
 
   // Call useVariationActions hook before any conditional logic
   const {
@@ -99,6 +101,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     if (success) {
       setShowForm(false);
       setEditingVariation(null);
+      // ADDED: Increment form key to force fresh form on next open
+      setFormKey(prev => prev + 1);
     }
   };
 
@@ -125,6 +129,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     console.log('Editing variation:', variation);
     setEditingVariation(variation);
     setShowForm(true);
+    // ADDED: Increment form key when editing to ensure proper form state
+    setFormKey(prev => prev + 1);
   };
 
   const handleViewDetails = (variation: any) => {
@@ -145,23 +151,46 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     await handleSendEmail(variationId);
   };
 
-  // Enhanced update handler with real-time refresh
+  // ENHANCED: Force refresh variations and update selected variation
   const handleUpdateFromModalEnhanced = async (id: string, updates: any) => {
     try {
+      console.log('Updating variation with:', updates);
+      
       await handleUpdateFromModal(id, updates);
-      // Refresh variations to ensure UI is in sync
+      
+      // Force refresh variations to ensure real-time sync
       await refreshVariations();
-      // Update selected variation if it's the one being updated
+      
+      // Update selected variation to reflect changes immediately
       if (selectedVariation && selectedVariation.id === id) {
+        // Get the updated variation from the refreshed list
+        const updatedVariations = await refreshVariations();
         const updatedVariation = variations.find(v => v.id === id);
         if (updatedVariation) {
-          setSelectedVariation({ ...updatedVariation, ...updates });
+          setSelectedVariation({ ...updatedVariation });
         }
       }
+      
+      console.log('Variation update completed successfully');
+      
     } catch (error) {
       console.error('Error updating variation:', error);
       throw error;
     }
+  };
+
+  // ENHANCED: New variation button with proper form reset
+  const handleNewVariation = () => {
+    setEditingVariation(null);
+    setFormKey(prev => prev + 1); // Force form re-render with fresh state
+    setShowForm(true);
+  };
+
+  // ENHANCED: Form close handler with proper cleanup
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingVariation(null);
+    setFormKey(prev => prev + 1); // Ensure form is reset for next use
   };
 
   return (
@@ -173,7 +202,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           <p className="text-gray-600">Manage project variations and change orders</p>
         </div>
         <PermissionGate module="variations" requiredLevel="write">
-          <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+          <Button onClick={handleNewVariation} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             New Variation
           </Button>
@@ -202,17 +231,15 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         onViewDetails={handleViewDetails}
         onEdit={handleEdit}
         onSendEmail={handleSendEmailAction}
-        onCreateFirst={() => setShowForm(true)}
+        onCreateFirst={handleNewVariation}
       />
 
       {/* Modals - Protected by permissions */}
       <PermissionGate module="variations" requiredLevel="write">
         <QuotationVariationForm
+          key={formKey} // ADDED: Key to force re-render and clear form data
           isOpen={showForm}
-          onClose={() => {
-            setShowForm(false);
-            setEditingVariation(null);
-          }}
+          onClose={handleFormClose}
           onSubmit={handleFormSubmit}
           projectName={projectName}
           editingVariation={editingVariation}

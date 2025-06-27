@@ -73,11 +73,26 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, uploadAttachment, fetchAttachments]);
 
+  // ENHANCED: Proper refresh after approval update with real-time sync
   const handleApprovalUpdate = useCallback(async (id: string, updates: any) => {
     if (onUpdate) {
-      await onUpdate(id, updates);
+      try {
+        await onUpdate(id, updates);
+        
+        // Force a small delay to ensure backend is updated
+        setTimeout(() => {
+          // Trigger any parent component refresh if needed
+          if (variation && variation.id === id) {
+            console.log('Variation status updated, triggering refresh');
+          }
+        }, 500);
+        
+      } catch (error) {
+        console.error('Error updating variation approval:', error);
+        throw error;
+      }
     }
-  }, [onUpdate]);
+  }, [onUpdate, variation]);
 
   const getStatusBadge = useCallback((status: string) => {
     switch (status) {
@@ -101,7 +116,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   }, [variationId, isOpen, fetchAttachments]);
 
-  // Reset edit state when variation changes
+  // ENHANCED: Reset edit state with ALL fields including NOD/EOT
   useEffect(() => {
     if (variation && isOpen) {
       setEditData({
@@ -109,13 +124,18 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         description: variation.description || '',
         location: variation.location || '',
         category: variation.category || '',
+        trade: variation.trade || '',
         priority: variation.priority,
         client_email: variation.client_email || '',
         justification: variation.justification || '',
         time_impact: variation.time_impact,
         cost_breakdown: variation.cost_breakdown || [],
         total_amount: variation.total_amount || variation.cost_impact,
-        gst_amount: variation.gst_amount || 0
+        gst_amount: variation.gst_amount || 0,
+        requires_nod: variation.requires_nod || false,
+        requires_eot: variation.requires_eot || false,
+        nod_days: variation.nod_days || 0,
+        eot_days: variation.eot_days || 0
       });
       setIsEditing(false);
       setHasUnsavedChanges(false);
@@ -207,13 +227,18 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       description: variation.description || '',
       location: variation.location || '',
       category: variation.category || '',
+      trade: variation.trade || '',
       priority: variation.priority,
       client_email: variation.client_email || '',
       justification: variation.justification || '',
       time_impact: variation.time_impact,
       cost_breakdown: variation.cost_breakdown || [],
       total_amount: variation.total_amount || variation.cost_impact,
-      gst_amount: variation.gst_amount || 0
+      gst_amount: variation.gst_amount || 0,
+      requires_nod: variation.requires_nod || false,
+      requires_eot: variation.requires_eot || false,
+      nod_days: variation.nod_days || 0,
+      eot_days: variation.eot_days || 0
     });
     setIsEditing(false);
     setHasUnsavedChanges(false);

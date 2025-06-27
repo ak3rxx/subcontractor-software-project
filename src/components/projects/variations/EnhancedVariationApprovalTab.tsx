@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -287,269 +286,274 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   };
 
   return (
-    <div className="space-y-6">
-      {/* Blocked Notice */}
-      {isBlocked && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              <div>
-                <h4 className="font-medium text-yellow-800">Approval Actions Blocked</h4>
-                <p className="text-sm text-yellow-700">
-                  Please save or cancel your changes before using the approval workflow.
-                </p>
+    <ScrollArea className="h-[calc(100vh-300px)]">
+      <div className="space-y-6 pr-4">
+        {/* Blocked Notice */}
+        {isBlocked && (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <div>
+                  <h4 className="font-medium text-yellow-800">Approval Actions Blocked</h4>
+                  <p className="text-sm text-yellow-700">
+                    Please save or cancel your changes before using the approval workflow.
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Current Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Current Status</span>
-            {getWorkflowStatusBadge(variation.status)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {variation.status !== 'draft' && (
-            <div className="space-y-3">
-              {variation.request_date && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className="font-medium">Submitted:</span>
-                  <span>{variation.request_date}</span>
-                </div>
-              )}
-              
-              {variation.approved_by && (
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="font-medium">Reviewed by:</span>
-                  <span>{variation.approved_by}</span>
-                </div>
-              )}
-              
-              {variation.approval_date && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className="font-medium">Decision date:</span>
-                  <span>{variation.approval_date}</span>
-                </div>
-              )}
-              
-              {variation.approval_comments && (
-                <div className="space-y-1">
-                  <span className="font-medium text-sm">Comments:</span>
-                  <div className="text-sm text-gray-700 bg-white p-3 rounded border max-h-32 overflow-y-auto">
-                    {variation.approval_comments}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Approval History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Approval History
-            {approvalHistory.length > 0 && (
-              <Badge variant="outline">{approvalHistory.length}</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {approvalHistory.length > 0 ? (
-            <ScrollArea className="h-48">
-              <div className="space-y-4">
-                {approvalHistory.map((item, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="mt-0.5">
-                      {getActionIcon(item.action)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">{item.action}</span>
-                        {getWorkflowStatusBadge(item.status)}
-                      </div>
-                      <div className="text-xs text-gray-600 mb-2">
-                        by {item.user} on {new Date(item.timestamp).toLocaleDateString()}
-                      </div>
-                      {(item.comments || item.reason) && (
-                        <div className="text-sm text-gray-700 bg-white p-2 rounded border">
-                          {item.comments || item.reason}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-center p-8 text-gray-500">
-              <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>No approval history available</p>
-              <p className="text-sm">Actions will appear here as the variation progresses</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Submit for Approval */}
-      {canSubmitForApproval && !isBlocked && (
+        {/* Current Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Submit for Approval</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Once submitted, this variation will be sent to the approval team for review. 
-              You will not be able to edit the variation while it's under review.
-            </p>
-            <Button 
-              onClick={handleSubmitForApproval}
-              disabled={isSubmitting}
-              className="flex items-center gap-2"
-            >
-              <Send className="h-4 w-4" />
-              {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Approval Actions */}
-      {showApprovalActions && !isBlocked && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Approval Decision</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Approval Comments */}
-              <div className="space-y-2">
-                <Label htmlFor="approval-comments">Approval Comments (Optional)</Label>
-                <Textarea
-                  id="approval-comments"
-                  value={approvalComments}
-                  onChange={(e) => setApprovalComments(e.target.value)}
-                  placeholder="Add any comments about this approval..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Rejection Reason */}
-              <div className="space-y-2">
-                <Label htmlFor="rejection-reason">Rejection Reason</Label>
-                <Textarea
-                  id="rejection-reason"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Explain why this variation is being rejected..."
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button 
-                onClick={() => handleApproval(true)}
-                disabled={isSubmitting}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Processing...' : 'Approve'}
-              </Button>
-              
-              <Button 
-                onClick={() => handleApproval(false)}
-                disabled={isSubmitting || !rejectionReason.trim()}
-                variant="destructive"
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Processing...' : 'Reject'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Unlock Section */}
-      {showUnlockActions && !isBlocked && (
-        <Card className="border-orange-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-700">
-              <Unlock className="h-5 w-5" />
-              Unlock Variation {isProjectManager && "(Project Manager Override)"}
+            <CardTitle className="flex items-center justify-between">
+              <span>Current Status</span>
+              {getWorkflowStatusBadge(variation.status)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-orange-50 p-3 rounded-lg">
-              <p className="text-sm text-orange-800">
-                <strong>Warning:</strong> This will unlock the variation and revert it to draft status. 
-                The variation can then be edited and resubmitted. This action creates an audit trail.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="unlock-target">Revert To</Label>
-                <Select value={unlockTargetStatus} onValueChange={(value: 'draft') => setUnlockTargetStatus(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft (Editable)</SelectItem>
-                  </SelectContent>
-                </Select>
+          <CardContent>
+            {variation.status !== 'draft' && (
+              <div className="space-y-3">
+                {variation.request_date && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Submitted:</span>
+                    <span>{variation.request_date}</span>
+                  </div>
+                )}
+                
+                {variation.approved_by && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Reviewed by:</span>
+                    <span>{variation.approved_by}</span>
+                  </div>
+                )}
+                
+                {variation.approval_date && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Decision date:</span>
+                    <span>{variation.approval_date}</span>
+                  </div>
+                )}
+                
+                {variation.approval_comments && (
+                  <div className="space-y-1">
+                    <span className="font-medium text-sm">Comments:</span>
+                    <ScrollArea className="h-32">
+                      <div className="text-sm text-gray-700 bg-white p-3 rounded border">
+                        {variation.approval_comments}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="unlock-reason">Unlock Reason *</Label>
-                <Textarea
-                  id="unlock-reason"
-                  value={unlockReason}
-                  onChange={(e) => setUnlockReason(e.target.value)}
-                  placeholder="Explain why you are unlocking this variation..."
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <Button 
-              onClick={handleUnlock}
-              disabled={isSubmitting || !unlockReason.trim()}
-              variant="outline"
-              className="border-orange-500 text-orange-700 hover:bg-orange-50"
-            >
-              <Unlock className="h-4 w-4 mr-2" />
-              {isSubmitting ? 'Processing...' : 'Unlock & Revert to Draft'}
-            </Button>
+            )}
           </CardContent>
         </Card>
-      )}
 
-      {/* Permission Info */}
-      <Card className="bg-blue-50">
-        <CardContent className="pt-6">
-          <h4 className="font-medium mb-2 text-blue-900">Your Permissions</h4>
-          <div className="text-sm text-blue-800 space-y-1">
-            <div>• Role: {userRole}</div>
-            {canSubmitForApproval && <div>• Can submit variations for approval</div>}
-            {canApprove && <div>• Can approve/reject variations</div>}
-            {canUnlock && <div>• Can unlock and revert approved/rejected variations</div>}
-            {isProjectManager && <div>• Project Manager override permissions enabled</div>}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        {/* Approval History */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Approval History
+              {approvalHistory.length > 0 && (
+                <Badge variant="outline">{approvalHistory.length}</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {approvalHistory.length > 0 ? (
+              <ScrollArea className="h-64">
+                <div className="space-y-4 pr-4">
+                  {approvalHistory.map((item, index) => (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="mt-0.5">
+                        {getActionIcon(item.action)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{item.action}</span>
+                          {getWorkflowStatusBadge(item.status)}
+                        </div>
+                        <div className="text-xs text-gray-600 mb-2">
+                          by {item.user} on {new Date(item.timestamp).toLocaleDateString()}
+                        </div>
+                        {(item.comments || item.reason) && (
+                          <div className="text-sm text-gray-700 bg-white p-2 rounded border">
+                            {item.comments || item.reason}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center p-8 text-gray-500">
+                <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No approval history available</p>
+                <p className="text-sm">Actions will appear here as the variation progresses</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Submit for Approval */}
+        {canSubmitForApproval && !isBlocked && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Submit for Approval</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Once submitted, this variation will be sent to the approval team for review. 
+                You will not be able to edit the variation while it's under review.
+              </p>
+              <Button 
+                onClick={handleSubmitForApproval}
+                disabled={isSubmitting}
+                className="flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" />
+                {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Approval Actions */}
+        {showApprovalActions && !isBlocked && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Approval Decision</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Approval Comments */}
+                <div className="space-y-2">
+                  <Label htmlFor="approval-comments">Approval Comments (Optional)</Label>
+                  <Textarea
+                    id="approval-comments"
+                    value={approvalComments}
+                    onChange={(e) => setApprovalComments(e.target.value)}
+                    placeholder="Add any comments about this approval..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Rejection Reason */}
+                <div className="space-y-2">
+                  <Label htmlFor="rejection-reason">Rejection Reason</Label>
+                  <Textarea
+                    id="rejection-reason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Explain why this variation is being rejected..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                <Button 
+                  onClick={() => handleApproval(true)}
+                  disabled={isSubmitting}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Processing...' : 'Approve'}
+                </Button>
+                
+                <Button 
+                  onClick={() => handleApproval(false)}
+                  disabled={isSubmitting || !rejectionReason.trim()}
+                  variant="destructive"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Processing...' : 'Reject'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Unlock Section - Now shows for both approved AND rejected */}
+        {showUnlockActions && !isBlocked && (
+          <Card className="border-orange-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-700">
+                <Unlock className="h-5 w-5" />
+                Unlock {variation.status === 'approved' ? 'Approved' : 'Rejected'} Variation 
+                {isProjectManager && " (Project Manager Override)"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-orange-50 p-3 rounded-lg">
+                <p className="text-sm text-orange-800">
+                  <strong>Warning:</strong> This will unlock the {variation.status} variation and revert it to draft status. 
+                  The variation can then be edited and resubmitted. This action creates an audit trail.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="unlock-target">Revert To</Label>
+                  <Select value={unlockTargetStatus} onValueChange={(value: 'draft') => setUnlockTargetStatus(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft (Editable)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="unlock-reason">Unlock Reason *</Label>
+                  <Textarea
+                    id="unlock-reason"
+                    value={unlockReason}
+                    onChange={(e) => setUnlockReason(e.target.value)}
+                    placeholder="Explain why you are unlocking this variation..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleUnlock}
+                disabled={isSubmitting || !unlockReason.trim()}
+                variant="outline"
+                className="border-orange-500 text-orange-700 hover:bg-orange-50"
+              >
+                <Unlock className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Processing...' : 'Unlock & Revert to Draft'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Permission Info */}
+        <Card className="bg-blue-50">
+          <CardContent className="pt-6">
+            <h4 className="font-medium mb-2 text-blue-900">Your Permissions</h4>
+            <div className="text-sm text-blue-800 space-y-1">
+              <div>• Role: {userRole}</div>
+              {canSubmitForApproval && <div>• Can submit variations for approval</div>}
+              {canApprove && <div>• Can approve/reject variations</div>}
+              {canUnlock && <div>• Can unlock and revert approved/rejected variations</div>}
+              {isProjectManager && <div>• Project Manager override permissions enabled</div>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </ScrollArea>
   );
 };
 
