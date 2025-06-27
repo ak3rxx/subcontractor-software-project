@@ -3,11 +3,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 import BasicInformation from './BasicInformation';
 import CostBreakdown from './CostBreakdown';
 import TimeImpact from './TimeImpact';
-import FileAttachments from './FileAttachments';
+import VariationFileUpload from './VariationFileUpload';
 import AdditionalInformation from './AdditionalInformation';
 
 interface CostBreakdownItem {
@@ -58,15 +57,7 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
   const [formData, setFormData] = useState(initialFormData);
   const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>(initialCostBreakdown);
   const [gstRate, setGstRate] = useState(10);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
-
-  const {
-    attachments,
-    uploadAttachment,
-    deleteAttachment,
-    downloadAttachment
-  } = useVariationAttachments(editingVariation?.id || null);
 
   // Memoized functions to prevent re-renders
   const handleInputChange = useCallback((field: string, value: any) => {
@@ -102,14 +93,12 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
         setCostBreakdown(editingVariation.cost_breakdown);
       }
 
-      setUploadedFiles([]);
       setIsInitialized(true);
     } else if (!editingVariation && isInitialized) {
       // Reset form for new variation
       setFormData(initialFormData);
       setCostBreakdown(initialCostBreakdown);
       setGstRate(10);
-      setUploadedFiles([]);
       setIsInitialized(false);
     }
   }, [editingVariation, isInitialized, initialFormData, initialCostBreakdown]);
@@ -144,33 +133,16 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
     try {
       await onSubmit(submissionData);
       
-      // Upload files if we have any and we're editing a variation
-      if (uploadedFiles.length > 0 && editingVariation && uploadAttachment) {
-        for (const file of uploadedFiles) {
-          try {
-            await uploadAttachment(file);
-          } catch (error) {
-            console.error('Error uploading file:', file.name, error);
-            toast({
-              title: "Warning",
-              description: `Failed to upload ${file.name}`,
-              variant: "destructive"
-            });
-          }
-        }
-      }
-      
       // Reset form
       setFormData(initialFormData);
       setCostBreakdown(initialCostBreakdown);
-      setUploadedFiles([]);
       setIsInitialized(false);
       
       onClose();
     } catch (error) {
       console.error('Error submitting variation:', error);
     }
-  }, [formData, costBreakdown, calculateTotals, onSubmit, uploadedFiles, editingVariation, uploadAttachment, toast, initialFormData, initialCostBreakdown, onClose]);
+  }, [formData, costBreakdown, calculateTotals, onSubmit, initialFormData, initialCostBreakdown, onClose]);
 
   const handleClose = useCallback(() => {
     setIsInitialized(false);
@@ -204,13 +176,8 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
             onInputChange={handleInputChange}
           />
 
-          <FileAttachments
-            editingVariation={editingVariation}
-            attachments={attachments}
-            uploadedFiles={uploadedFiles}
-            setUploadedFiles={setUploadedFiles}
-            onDeleteAttachment={deleteAttachment}
-            onDownloadAttachment={downloadAttachment}
+          <VariationFileUpload
+            variationId={editingVariation?.id}
           />
 
           <AdditionalInformation

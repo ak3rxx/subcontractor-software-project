@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Variation } from '@/hooks/useVariations';
+import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 import VariationApprovalWorkflow from '../VariationApprovalWorkflow';
 import CrossModuleIntegrationBar from './CrossModuleIntegrationBar';
 
@@ -34,6 +35,21 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
+
+  const {
+    attachments,
+    loading: attachmentsLoading,
+    fetchAttachments,
+    downloadAttachment,
+    deleteAttachment
+  } = useVariationAttachments(variation?.id);
+
+  // Fetch attachments when variation changes
+  useEffect(() => {
+    if (variation?.id && isOpen) {
+      fetchAttachments();
+    }
+  }, [variation?.id, isOpen, fetchAttachments]);
 
   if (!variation) return null;
 
@@ -56,7 +72,7 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
     'project_engineer',
     'admin',
     'manager'
-  ].includes(userRole) || isFullAccessUser || !userRole; // Allow if no role set for testing
+  ].includes(userRole) || isFullAccessUser || !userRole;
   
   // Allow approval for project managers, admins, or the full access user
   const canApprove = ['project_manager', 'admin', 'manager'].includes(userRole) || isFullAccessUser || !userRole; // Allow if no role set for testing
@@ -95,13 +111,32 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
     }
   };
 
-  const handleAttachmentView = (attachment: any) => {
-    // In a real implementation, this would open/download the attachment
-    console.log('Viewing attachment:', attachment);
-    toast({
-      title: "Attachment",
-      description: `Opening ${attachment.name}`,
-    });
+  const handleAttachmentDownload = async (attachment: any) => {
+    try {
+      await downloadAttachment(attachment);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAttachmentDelete = async (attachmentId: string) => {
+    try {
+      await deleteAttachment(attachmentId);
+      toast({
+        title: "Success",
+        description: "File deleted successfully"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete file",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -137,6 +172,14 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
       return `+$${amount.toLocaleString()}`;
     }
     return `-$${Math.abs(amount).toLocaleString()}`;
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType?.startsWith('image/')) return '🖼️';
+    if (fileType?.includes('pdf')) return '📄';
+    if (fileType?.includes('word')) return '📝';
+    if (fileType?.includes('excel') || fileType?.includes('spreadsheet')) return '📊';
+    return '📎';
   };
 
   return (
@@ -356,28 +399,46 @@ const EnhancedVariationDetailsModal: React.FC<EnhancedVariationDetailsModalProps
             </div>
 
             {/* Attachments */}
-            {variation.attachments && variation.attachments.length > 0 && (
+            {!attachmentsLoading && attachments && attachments.length > 0 && (
               <>
                 <Separator />
                 <div>
                   <h4 className="font-medium mb-2">Attachments</h4>
                   <div className="space-y-2">
-                    {variation.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                    {attachments.map((attachment) => (
+                      <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                         <div className="flex items-center gap-2">
-                          <Paperclip className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm font-medium">{attachment.name}</span>
-                          <span className="text-xs text-gray-500">
-                            ({(attachment.size / 1024 / 1024).toFixed(2)} MB)
-                          </span>
+                          <span className="text-lg">{getFileIcon(attachment.file_type)}</span>
+                          <div>
+                            <span className="text-sm font-medium">{attachment.file_name}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {(attachment.file_size / 1024 / 1024).toFixed(2)} MB
+                              </Badge>
+                              <span className="text-xs text-gray-500">
+                                {new Date(attachment.uploaded_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAttachmentView(attachment)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAttachmentDownload(attachment)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleAttachmentDelete(attachment.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

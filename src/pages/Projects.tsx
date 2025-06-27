@@ -1,11 +1,12 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Building2, Calendar, Users, Settings, Calculator } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import ProjectDashboard from '@/components/projects/ProjectDashboard';
 import VariationManager from '@/components/projects/VariationManager';
@@ -22,6 +23,55 @@ const Projects = () => {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Handle URL parameters for cross-module integration
+  useEffect(() => {
+    const projectId = searchParams.get('id');
+    const tab = searchParams.get('tab');
+    const action = searchParams.get('action');
+    const data = searchParams.get('data');
+
+    if (projectId && projects.length > 0) {
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        setSelectedProject(project);
+        if (tab) {
+          setActiveTab(tab);
+        }
+        
+        // Handle cross-module actions
+        if (action && data) {
+          try {
+            const parsedData = JSON.parse(decodeURIComponent(data));
+            handleCrossModuleAction(action, parsedData, tab);
+          } catch (error) {
+            console.error('Error parsing cross-module data:', error);
+          }
+        }
+      }
+    }
+  }, [searchParams, projects]);
+
+  const handleCrossModuleAction = (action: string, data: any, tab: string | null) => {
+    console.log('Cross-module action:', action, data, tab);
+    
+    // Show toast notification about the cross-module integration
+    if (data.fromVariation) {
+      toast({
+        title: "Cross-Module Integration",
+        description: `Data from variation ${data.variationNumber} has been pre-filled`,
+      });
+    }
+
+    // Clear the URL parameters after processing
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.delete('action');
+    newSearchParams.delete('data');
+    setSearchParams(newSearchParams);
+  };
 
   const handleCreateProject = async (projectData: any) => {
     const newProject = await createProject(projectData);
@@ -49,6 +99,12 @@ const Projects = () => {
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
+  };
+
+  const handleBackToProjects = () => {
+    setSelectedProject(null);
+    // Clear all search parameters
+    navigate('/projects');
   };
 
   if (loading) {
@@ -79,7 +135,7 @@ const Projects = () => {
             </div>
             <Button 
               variant="outline" 
-              onClick={() => setSelectedProject(null)}
+              onClick={handleBackToProjects}
             >
               ← Back to Projects
             </Button>
@@ -113,12 +169,16 @@ const Projects = () => {
           </TabsContent>
 
           <TabsContent value="tasks" className="mt-6">
-            <TaskManager projectName={selectedProject.name} />
+            <TaskManager 
+              projectName={selectedProject.name}
+              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
+            />
           </TabsContent>
 
           <TabsContent value="rfis" className="mt-6">
             <RFIManager 
               projectName={selectedProject.name}
+              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
             />
           </TabsContent>
 
@@ -133,12 +193,14 @@ const Projects = () => {
             <ProgrammeTracker 
               projectName={selectedProject.name}
               projectId={selectedProject.id}
+              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
             />
           </TabsContent>
 
           <TabsContent value="finance" className="mt-6">
             <FinanceManager 
               projectName={selectedProject.name}
+              crossModuleData={searchParams.get('data') ? JSON.parse(decodeURIComponent(searchParams.get('data') || '{}')) : null}
             />
           </TabsContent>
 
