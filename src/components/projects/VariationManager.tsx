@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -7,7 +6,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import PermissionGate from '@/components/PermissionGate';
 import QuotationVariationForm from './variations/QuotationVariationForm';
-import EnhancedVariationDetailsModal from './variations/EnhancedVariationDetailsModal';
+import EnhancedVariationDetailsModalV2 from './variations/EnhancedVariationDetailsModalV2';
 import VariationSummaryCards from './variations/VariationSummaryCards';
 import VariationFilters from './variations/VariationFilters';
 import VariationTable from './variations/VariationTable';
@@ -189,7 +188,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
         />
       </PermissionGate>
 
-      <EnhancedVariationDetailsModal
+      <EnhancedVariationDetailsModalV2
         variation={selectedVariation}
         isOpen={showDetailsModal}
         onClose={() => {
