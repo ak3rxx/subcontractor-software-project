@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Edit, Check, X, Loader2 } from 'lucide-react';
+import { FileText, Edit, Check, X, Loader2, AlertCircle } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
@@ -73,6 +72,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [currentVariation, setCurrentVariation] = useState<Variation | null>(variation);
   const [activeTab, setActiveTab] = useState('details');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Get stable variation ID for hooks - never conditionally call hooks
   const variationId = variation?.id || currentVariation?.id || '';
@@ -81,8 +81,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const { 
     auditTrail, 
     loading: auditLoading, 
-    logAuditEntry, 
-    refetch: refetchAudit 
+    logAuditEntry,
+    logBatchAuditEntries,
+    immediateRefresh: refetchAudit 
   } = useVariationAuditTrail(variationId);
   
   const {
@@ -104,6 +105,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       setIsEditing(false);
       setHasUnsavedChanges(false);
       setEditData({});
+      setSaveError(null);
     }
   }, [variation, isOpen]);
 
@@ -150,6 +152,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     initializeEditData();
     setIsEditing(true);
     setHasUnsavedChanges(false);
+    setSaveError(null);
   };
 
   const handleDataChange = (changes: any) => {
@@ -167,6 +170,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         setHasUnsavedChanges(true);
       }
       
+      setSaveError(null); // Clear any previous save errors
       return newData;
     });
   };
@@ -175,6 +179,8 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     if (!onUpdate || !canEditVariation || !currentVariation) return;
     
     setIsSaving(true);
+    setSaveError(null);
+    
     try {
       const updateData = {
         ...editData,
@@ -182,37 +188,37 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       };
 
       console.log('Saving variation updates:', updateData);
+      
+      // Update the variation first
       await onUpdate(currentVariation.id, updateData);
       
-      // Log audit entries for changed fields
+      // Prepare batch audit entries for changed fields
       const changedFields = Object.keys(editData).filter(key => {
         const oldValue = currentVariation[key as keyof Variation];
         const newValue = editData[key];
         return oldValue !== newValue;
       });
 
-      for (const field of changedFields) {
-        const oldValue = String(currentVariation[field as keyof Variation] || '');
-        const newValue = String(editData[field] || '');
-        
-        if (oldValue !== newValue) {
-          await logAuditEntry('edit', {
+      if (changedFields.length > 0) {
+        const auditEntries = changedFields.map(field => ({
+          actionType: 'edit' as const,
+          options: {
             fieldName: field,
-            oldValue,
-            newValue,
-            comments: `Field '${field}' updated from '${oldValue}' to '${newValue}'`
-          });
-        }
+            oldValue: String(currentVariation[field as keyof Variation] || ''),
+            newValue: String(editData[field] || ''),
+            comments: `Field '${field}' updated via edit mode`
+          }
+        }));
+
+        console.log('Logging batch audit entries for changed fields:', changedFields);
+        await logBatchAuditEntries(auditEntries);
       }
 
-      // Update the current variation state
+      // Update the current variation state immediately
       const updatedVariation = { ...currentVariation, ...updateData };
       setCurrentVariation(updatedVariation);
       
-      // Immediately refresh audit trail
-      await refetchAudit();
-      
-      // Notify parent component
+      // Notify parent component immediately
       if (onVariationUpdate) {
         console.log('Notifying parent of variation update');
         onVariationUpdate(updatedVariation);
@@ -225,11 +231,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         title: "Success",
         description: "Variation updated successfully"
       });
+      
+      console.log('Variation update completed successfully');
+      
     } catch (error) {
       console.error('Error saving variation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update variation';
+      setSaveError(errorMessage);
+      
       toast({
         title: "Error",
-        description: "Failed to update variation",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -245,25 +257,34 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     
     setIsEditing(false);
     setHasUnsavedChanges(false);
+    setSaveError(null);
     initializeEditData();
   };
 
-  // Handle status changes with immediate refresh
+  // Handle status changes with immediate refresh and better error handling
   const handleStatusChange = useCallback(async () => {
-    console.log('Status change callback triggered - refreshing audit trail');
+    console.log('Status change callback triggered - refreshing audit trail and attachments');
     
-    if (variationId) {
-      await refetchAudit();
-      await fetchAttachments();
-    }
-    
-    if (onVariationUpdate && currentVariation) {
-      const refreshedVariation = {
-        ...currentVariation,
-        updated_at: new Date().toISOString()
-      };
-      onVariationUpdate(refreshedVariation);
-      setCurrentVariation(refreshedVariation);
+    try {
+      if (variationId) {
+        await Promise.all([
+          refetchAudit(),
+          fetchAttachments()
+        ]);
+      }
+      
+      if (onVariationUpdate && currentVariation) {
+        const refreshedVariation = {
+          ...currentVariation,
+          updated_at: new Date().toISOString()
+        };
+        onVariationUpdate(refreshedVariation);
+        setCurrentVariation(refreshedVariation);
+      }
+      
+      console.log('Status change handling completed successfully');
+    } catch (error) {
+      console.error('Error in status change handling:', error);
     }
   }, [variationId, refetchAudit, fetchAttachments, onVariationUpdate, currentVariation]);
 
@@ -411,6 +432,12 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               <span className="text-sm font-medium text-blue-800">
                 Edit Mode {hasUnsavedChanges && "(Unsaved changes)"}
               </span>
+              {saveError && (
+                <div className="flex items-center gap-1 text-red-600">
+                  <AlertCircle className="h-3 w-3" />
+                  <span className="text-xs">{saveError}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <Button 

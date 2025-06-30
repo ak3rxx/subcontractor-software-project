@@ -5,17 +5,22 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 
-export const useApprovalActions = (variation: any, onUpdate: (id: string, updates: any) => Promise<void>, onStatusChange: () => void) => {
+export const useApprovalActions = (
+  variation: any, 
+  onUpdate: (id: string, updates: any) => Promise<void>, 
+  onStatusChange: () => void
+) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin } = usePermissions();
-  const { logAuditEntry } = useVariationAuditTrail(variation?.id);
+  const { logAuditEntry, immediateRefresh } = useVariationAuditTrail(variation?.id);
   
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [unlockReason, setUnlockReason] = useState('');
   const [unlockTargetStatus, setUnlockTargetStatus] = useState<'draft'>('draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastActionResult, setLastActionResult] = useState<{success: boolean; message: string} | null>(null);
 
   const userRole = user?.role || 'user';
   const isProjectManager = userRole === 'project_manager';
@@ -28,6 +33,51 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
     showUnlockActions: (isDeveloper() || canAdmin('variations') || isProjectManager) && ['approved', 'rejected'].includes(variation.status)
   };
 
+  // Enhanced action handler with better error handling and immediate feedback
+  const executeActionWithFeedback = async (
+    actionName: string,
+    actionFn: () => Promise<void>,
+    successMessage: string
+  ) => {
+    setIsSubmitting(true);
+    setLastActionResult(null);
+    
+    try {
+      console.log(`Starting ${actionName} action...`);
+      await actionFn();
+      
+      console.log(`${actionName} completed successfully`);
+      setLastActionResult({ success: true, message: successMessage });
+      
+      toast({
+        title: "Success",
+        description: successMessage,
+        duration: 3000
+      });
+
+      // Trigger immediate status change callback and audit refresh
+      console.log('Triggering status change callback and audit refresh...');
+      await Promise.all([
+        onStatusChange(),
+        immediateRefresh()
+      ]);
+      
+    } catch (error) {
+      console.error(`Error in ${actionName}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      setLastActionResult({ success: false, message: errorMessage });
+      
+      toast({
+        title: "Error",
+        description: `Failed to ${actionName.toLowerCase()}: ${errorMessage}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmitForApproval = async (isBlocked: boolean) => {
     if (!permissions.canSubmitForApproval || isBlocked) {
       toast({
@@ -38,48 +88,33 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const updateData = {
-        status: 'pending_approval' as const,
-        request_date: new Date().toISOString().split('T')[0],
-        requested_by: user?.id,
-        updated_by: user?.id,
-        updated_at: new Date().toISOString()
-      };
-      
-      console.log('Submitting for approval with data:', updateData);
-      
-      await onUpdate(variation.id, updateData);
-      
-      // Log audit entry for submission
-      if (user) {
-        await logAuditEntry('submit', {
-          statusFrom: 'draft',
-          statusTo: 'pending_approval',
-          comments: 'Variation submitted for approval'
-        });
-      }
-      
-      // Trigger immediate status change callback
-      await onStatusChange();
-      
-      toast({
-        title: "Success",
-        description: "Variation submitted for approval",
-        duration: 3000
-      });
-      
-    } catch (error) {
-      console.error('Error submitting for approval:', error);
-      toast({
-        title: "Error",
-        description: `Failed to submit variation for approval: ${error.message || 'Unknown error'}`,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    await executeActionWithFeedback(
+      'Submit for Approval',
+      async () => {
+        const updateData = {
+          status: 'pending_approval' as const,
+          request_date: new Date().toISOString().split('T')[0],
+          requested_by: user?.id,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('Submitting for approval with data:', updateData);
+        
+        // Update variation first
+        await onUpdate(variation.id, updateData);
+        
+        // Log audit entry
+        if (user) {
+          await logAuditEntry('submit', {
+            statusFrom: 'draft',
+            statusTo: 'pending_approval',
+            comments: 'Variation submitted for approval'
+          });
+        }
+      },
+      'Variation submitted for approval'
+    );
   };
 
   const handleApproval = async (approved: boolean, isBlocked: boolean) => {
@@ -101,52 +136,38 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const updateData = {
-        status: approved ? 'approved' : 'rejected',
-        approved_by: user?.id,
-        approval_date: new Date().toISOString().split('T')[0],
-        approval_comments: approved ? approvalComments : rejectionReason,
-        updated_by: user?.id,
-        updated_at: new Date().toISOString()
-      };
+    await executeActionWithFeedback(
+      approved ? 'Approve Variation' : 'Reject Variation',
+      async () => {
+        const updateData = {
+          status: approved ? 'approved' : 'rejected',
+          approved_by: user?.id,
+          approval_date: new Date().toISOString().split('T')[0],
+          approval_comments: approved ? approvalComments : rejectionReason,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString()
+        };
 
-      console.log('Updating variation approval with:', updateData);
+        console.log('Updating variation approval with:', updateData);
 
-      await onUpdate(variation.id, updateData);
-      
-      // Log detailed audit entry for approval/rejection
-      if (user) {
-        await logAuditEntry(approved ? 'approve' : 'reject', {
-          statusFrom: 'pending_approval',
-          statusTo: approved ? 'approved' : 'rejected',
-          comments: updateData.approval_comments || (approved ? 'Variation approved' : 'Variation rejected')
-        });
-      }
-      
-      // Trigger immediate status change callback
-      await onStatusChange();
-      
-      toast({
-        title: "Success",
-        description: `Variation ${approved ? 'approved' : 'rejected'} successfully`,
-        duration: 3000
-      });
-      
-      // Clear form
-      setApprovalComments('');
-      setRejectionReason('');
-    } catch (error) {
-      console.error('Error updating approval:', error);
-      toast({
-        title: "Error",
-        description: `Failed to update variation status: ${error.message || 'Unknown error'}`,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+        // Update variation first
+        await onUpdate(variation.id, updateData);
+        
+        // Log detailed audit entry for approval/rejection
+        if (user) {
+          await logAuditEntry(approved ? 'approve' : 'reject', {
+            statusFrom: 'pending_approval',
+            statusTo: approved ? 'approved' : 'rejected',
+            comments: updateData.approval_comments || (approved ? 'Variation approved' : 'Variation rejected')
+          });
+        }
+        
+        // Clear form
+        setApprovalComments('');
+        setRejectionReason('');
+      },
+      `Variation ${approved ? 'approved' : 'rejected'} successfully`
+    );
   };
 
   const handleUnlock = async (isBlocked: boolean) => {
@@ -168,54 +189,40 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const unlockComment = `UNLOCKED by ${user?.email || 'user'} on ${new Date().toLocaleDateString()}: ${unlockReason}`;
-      const previousComment = variation.approval_comments ? `\n\nPrevious comments: ${variation.approval_comments}` : '';
-      
-      const updateData = {
-        status: unlockTargetStatus,
-        approved_by: null,
-        approval_date: null,
-        approval_comments: unlockComment + previousComment,
-        updated_by: user?.id,
-        updated_at: new Date().toISOString()
-      };
+    await executeActionWithFeedback(
+      'Unlock Variation',
+      async () => {
+        const unlockComment = `UNLOCKED by ${user?.email || 'user'} on ${new Date().toLocaleDateString()}: ${unlockReason}`;
+        const previousComment = variation.approval_comments ? `\n\nPrevious comments: ${variation.approval_comments}` : '';
+        
+        const updateData = {
+          status: unlockTargetStatus,
+          approved_by: null,
+          approval_date: null,
+          approval_comments: unlockComment + previousComment,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString()
+        };
 
-      console.log('Unlocking variation with data:', updateData);
+        console.log('Unlocking variation with data:', updateData);
 
-      await onUpdate(variation.id, updateData);
-      
-      // Log detailed audit entry for unlock
-      if (user) {
-        await logAuditEntry('unlock', {
-          statusFrom: variation.status,
-          statusTo: unlockTargetStatus,
-          comments: unlockReason
-        });
-      }
-      
-      // Trigger immediate status change callback
-      await onStatusChange();
-      
-      toast({
-        title: "Success",
-        description: `Variation unlocked and reverted to ${unlockTargetStatus}`,
-        duration: 3000
-      });
-      
-      // Clear form
-      setUnlockReason('');
-    } catch (error) {
-      console.error('Error unlocking variation:', error);
-      toast({
-        title: "Error",
-        description: `Failed to unlock variation: ${error.message || 'Unknown error'}`,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+        // Update variation first
+        await onUpdate(variation.id, updateData);
+        
+        // Log detailed audit entry for unlock
+        if (user) {
+          await logAuditEntry('unlock', {
+            statusFrom: variation.status,
+            statusTo: unlockTargetStatus,
+            comments: unlockReason
+          });
+        }
+        
+        // Clear form
+        setUnlockReason('');
+      },
+      `Variation unlocked and reverted to ${unlockTargetStatus}`
+    );
   };
 
   return {
@@ -229,6 +236,7 @@ export const useApprovalActions = (variation: any, onUpdate: (id: string, update
     unlockTargetStatus,
     setUnlockTargetStatus,
     isSubmitting,
+    lastActionResult,
     
     // Permissions
     permissions,
