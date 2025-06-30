@@ -13,7 +13,7 @@ export const useApprovalActions = (
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin } = usePermissions();
-  const { logAuditEntry, immediateRefresh } = useVariationAuditTrail(variation?.id);
+  const { logAuditEntry, refetch } = useVariationAuditTrail(variation?.id);
   
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -59,7 +59,7 @@ export const useApprovalActions = (
       console.log('Triggering status change callback and audit refresh...');
       await Promise.all([
         onStatusChange(),
-        immediateRefresh()
+        refetch()
       ]);
       
     } catch (error) {

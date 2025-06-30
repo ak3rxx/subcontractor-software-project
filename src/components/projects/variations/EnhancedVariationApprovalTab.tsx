@@ -31,7 +31,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     loading: auditLoading, 
     refreshing,
     error: auditError,
-    immediateRefresh,
+    refetch,
     debouncedRefresh
   } = useVariationAuditTrail(variation?.id);
 
@@ -65,7 +65,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
       // Immediate audit trail refresh
       if (variation?.id) {
         console.log('Triggering immediate audit trail refresh...');
-        await immediateRefresh();
+        await refetch();
       }
       
       // Call parent callback for cross-component refresh

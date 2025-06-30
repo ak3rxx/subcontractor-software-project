@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -83,7 +84,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     loading: auditLoading, 
     logAuditEntry,
     logBatchAuditEntries,
-    immediateRefresh: refetchAudit 
+    refetch: refetchAudit 
   } = useVariationAuditTrail(variationId);
   
   const {
