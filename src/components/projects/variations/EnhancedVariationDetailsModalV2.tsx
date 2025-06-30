@@ -63,7 +63,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   onUpdate,
   onVariationUpdate
 }) => {
-  // All hooks must be called at the top level - never conditionally
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
   
@@ -74,11 +74,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [currentVariation, setCurrentVariation] = useState<Variation | null>(variation);
   const [activeTab, setActiveTab] = useState('details');
 
-  // Initialize hooks with stable IDs - these must always be called
-  const variationId = currentVariation?.id || variation?.id;
-  const { logAuditEntry } = useVariationAuditTrail(variationId);
+  // Get stable variation ID for hooks - never conditionally call hooks
+  const variationId = variation?.id || currentVariation?.id || '';
   
-  // Initialize attachments hook
+  // Initialize hooks with stable IDs - these must ALWAYS be called
+  const { 
+    auditTrail, 
+    loading: auditLoading, 
+    logAuditEntry, 
+    refetch: refetchAudit 
+  } = useVariationAuditTrail(variationId);
+  
   const {
     attachments,
     loading: attachmentsLoading,
@@ -90,56 +96,46 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 
   // Update current variation when prop changes
   useEffect(() => {
-    if (variation) {
-      console.log('Updating current variation:', variation.id, variation.status);
+    if (variation && isOpen) {
+      console.log('Setting current variation:', variation.id, variation.status);
       setCurrentVariation(variation);
+      
+      // Reset editing state when variation changes
+      setIsEditing(false);
+      setHasUnsavedChanges(false);
+      setEditData({});
     }
-  }, [variation]);
+  }, [variation, isOpen]);
 
-  // Handle case where no variation exists - AFTER all hooks are called
-  if (!currentVariation && !variation) {
-    return null;
-  }
-
-  // Use the most current variation data
-  const workingVariation = currentVariation || variation;
-  if (!workingVariation) {
-    return null;
-  }
-
-  const canEditVariation = isDeveloper() || canEdit('variations');
-
-  console.log('EnhancedVariationDetailsModalV2 permissions:', {
-    isDeveloper: isDeveloper(),
-    canEdit: canEdit('variations'),
-    canEditVariation,
-    variationStatus: workingVariation.status,
-    variationId: workingVariation.id
-  });
-
+  // Initialize edit data when entering edit mode
   const initializeEditData = useCallback(() => {
-    if (!workingVariation) return;
+    if (!currentVariation) return;
     
-    setEditData({
-      title: workingVariation.title,
-      description: workingVariation.description || '',
-      location: workingVariation.location || '',
-      cost_impact: workingVariation.cost_impact,
-      time_impact: workingVariation.time_impact,
-      category: workingVariation.category || '',
-      priority: workingVariation.priority,
-      client_email: workingVariation.client_email || '',
-      justification: workingVariation.justification || '',
-      trade: workingVariation.trade || '',
-      requires_nod: workingVariation.requires_nod || false,
-      requires_eot: workingVariation.requires_eot || false,
-      nod_days: workingVariation.nod_days || 0,
-      eot_days: workingVariation.eot_days || 0,
-      total_amount: workingVariation.total_amount || 0,
-      gst_amount: workingVariation.gst_amount || 0,
-      cost_breakdown: workingVariation.cost_breakdown || []
-    });
-  }, [workingVariation]);
+    const newEditData = {
+      title: currentVariation.title || '',
+      description: currentVariation.description || '',
+      location: currentVariation.location || '',
+      cost_impact: currentVariation.cost_impact || 0,
+      time_impact: currentVariation.time_impact || 0,
+      category: currentVariation.category || '',
+      priority: currentVariation.priority || 'medium',
+      client_email: currentVariation.client_email || '',
+      justification: currentVariation.justification || '',
+      trade: currentVariation.trade || '',
+      requires_nod: currentVariation.requires_nod || false,
+      requires_eot: currentVariation.requires_eot || false,
+      nod_days: currentVariation.nod_days || 0,
+      eot_days: currentVariation.eot_days || 0,
+      total_amount: currentVariation.total_amount || 0,
+      gst_amount: currentVariation.gst_amount || 0,
+      cost_breakdown: currentVariation.cost_breakdown || []
+    };
+    
+    setEditData(newEditData);
+  }, [currentVariation]);
+
+  // Enhanced permissions check
+  const canEditVariation = isDeveloper() || canEdit('variations');
 
   const handleEdit = () => {
     if (!canEditVariation) {
@@ -162,7 +158,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
       
       // Check if there are actual changes
       const hasChanges = Object.keys(changes).some(key => {
-        const currentValue = workingVariation[key as keyof Variation];
+        const currentValue = currentVariation?.[key as keyof Variation];
         const newValue = newData[key];
         return currentValue !== newValue;
       });
@@ -176,29 +172,27 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   };
 
   const handleSave = async () => {
-    if (!onUpdate || !canEditVariation || !workingVariation) return;
+    if (!onUpdate || !canEditVariation || !currentVariation) return;
     
     setIsSaving(true);
     try {
-      // Prepare update data with updated_at timestamp
       const updateData = {
         ...editData,
         updated_at: new Date().toISOString()
       };
 
       console.log('Saving variation updates:', updateData);
-      await onUpdate(workingVariation.id, updateData);
+      await onUpdate(currentVariation.id, updateData);
       
-      // Log detailed audit entries for each changed field
+      // Log audit entries for changed fields
       const changedFields = Object.keys(editData).filter(key => {
-        const oldValue = workingVariation[key as keyof Variation];
+        const oldValue = currentVariation[key as keyof Variation];
         const newValue = editData[key];
         return oldValue !== newValue;
       });
 
-      console.log('Changed fields:', changedFields);
       for (const field of changedFields) {
-        const oldValue = String(workingVariation[field as keyof Variation] || '');
+        const oldValue = String(currentVariation[field as keyof Variation] || '');
         const newValue = String(editData[field] || '');
         
         if (oldValue !== newValue) {
@@ -211,11 +205,14 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
         }
       }
 
-      // Update the current variation state with new data
-      const updatedVariation = { ...workingVariation, ...updateData };
+      // Update the current variation state
+      const updatedVariation = { ...currentVariation, ...updateData };
       setCurrentVariation(updatedVariation);
       
-      // Notify parent component of the update immediately
+      // Immediately refresh audit trail
+      await refetchAudit();
+      
+      // Notify parent component
       if (onVariationUpdate) {
         console.log('Notifying parent of variation update');
         onVariationUpdate(updatedVariation);
@@ -251,28 +248,24 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     initializeEditData();
   };
 
-  // Handle status changes from approval tab with immediate refresh
+  // Handle status changes with immediate refresh
   const handleStatusChange = useCallback(async () => {
-    console.log('Status change callback triggered - forcing immediate refresh');
+    console.log('Status change callback triggered - refreshing audit trail');
     
-    // Force immediate refresh of attachments if variation ID exists
-    if (workingVariation?.id) {
-      console.log('Refreshing attachments for variation:', workingVariation.id);
+    if (variationId) {
+      await refetchAudit();
       await fetchAttachments();
     }
     
-    // Notify parent component to refresh the variation data immediately
-    if (onVariationUpdate && workingVariation) {
-      console.log('Triggering parent refresh for variation:', workingVariation.id);
-      // Create a refreshed variation with current timestamp to force update
+    if (onVariationUpdate && currentVariation) {
       const refreshedVariation = {
-        ...workingVariation,
+        ...currentVariation,
         updated_at: new Date().toISOString()
       };
       onVariationUpdate(refreshedVariation);
       setCurrentVariation(refreshedVariation);
     }
-  }, [onVariationUpdate, workingVariation, fetchAttachments]);
+  }, [variationId, refetchAudit, fetchAttachments, onVariationUpdate, currentVariation]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -290,17 +283,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   };
 
   const canEditInCurrentStatus = () => {
-    return workingVariation.status === 'draft' || isDeveloper();
+    return currentVariation?.status === 'draft' || isDeveloper();
   };
 
   const shouldShowEditConfirmation = () => {
-    return workingVariation.status !== 'draft' && !isDeveloper();
+    return currentVariation?.status !== 'draft' && !isDeveloper();
   };
 
   const handleEditWithConfirmation = () => {
     if (shouldShowEditConfirmation()) {
       const confirmEdit = window.confirm(
-        `This variation is currently ${workingVariation.status}. Editing will require administrative review. Are you sure you want to proceed?`
+        `This variation is currently ${currentVariation?.status}. Editing will require administrative review. Are you sure you want to proceed?`
       );
       if (!confirmEdit) return;
     }
@@ -310,7 +303,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   // File management handlers
   const handleFileUpload = async (files: File[]) => {
     try {
-      // Upload files one by one since uploadAttachment handles single files
       for (const file of files) {
         await uploadAttachment(file);
       }
@@ -358,6 +350,26 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     }
   };
 
+  // CONDITIONAL RENDERING - Only after all hooks are called
+  if (!isOpen) {
+    return null;
+  }
+
+  if (!currentVariation) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>No Variation Selected</DialogTitle>
+            <DialogDescription>
+              Please select a variation to view details.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
@@ -366,14 +378,14 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Variation {workingVariation.variation_number}
+                Variation {currentVariation.variation_number}
               </DialogTitle>
               <DialogDescription>
-                {workingVariation.title}
+                {currentVariation.title}
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusBadge(workingVariation.status)}
+              {getStatusBadge(currentVariation.status)}
               <PermissionGate module="variations" requiredLevel="write">
                 {!isEditing && canEditVariation && (
                   <Button 
@@ -439,7 +451,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div className="flex-1 overflow-hidden">
               <TabsContent value="details" className="h-full overflow-y-auto">
                 <VariationDetailsTab
-                  variation={workingVariation}
+                  variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
@@ -448,7 +460,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               <TabsContent value="costs" className="h-full overflow-y-auto">
                 <VariationCostTab
-                  variation={workingVariation}
+                  variation={currentVariation}
                   editData={editData}
                   isEditing={isEditing}
                   onDataChange={handleDataChange}
@@ -457,7 +469,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               <TabsContent value="files" className="h-full overflow-y-auto">
                 <VariationFilesTab
-                  variation={workingVariation}
+                  variation={currentVariation}
                   attachments={attachments || []}
                   attachmentsLoading={attachmentsLoading}
                   canEdit={canEditVariation && !isEditing}
@@ -469,7 +481,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               <TabsContent value="approval" className="h-full overflow-y-auto">
                 <EnhancedVariationApprovalTab 
-                  variation={workingVariation}
+                  variation={currentVariation}
                   onUpdate={onUpdate || (() => Promise.resolve())}
                   onStatusChange={handleStatusChange}
                   isBlocked={isEditing && hasUnsavedChanges}

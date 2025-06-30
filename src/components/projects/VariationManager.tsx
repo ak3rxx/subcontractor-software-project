@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -32,7 +31,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  // ADDED: Key to force form re-render and clear data
   const [formKey, setFormKey] = useState(0);
 
   // Call useVariationActions hook before any conditional logic
@@ -101,13 +99,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     if (success) {
       setShowForm(false);
       setEditingVariation(null);
-      // ADDED: Increment form key to force fresh form on next open
       setFormKey(prev => prev + 1);
     }
   };
 
   const handleEdit = (variation: any) => {
-    // Check if variation is in pending approval status
     if (variation.status === 'pending_approval') {
       toast({
         title: "Cannot Edit",
@@ -129,7 +125,6 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     console.log('Editing variation:', variation);
     setEditingVariation(variation);
     setShowForm(true);
-    // ADDED: Increment form key when editing to ensure proper form state
     setFormKey(prev => prev + 1);
   };
 
@@ -151,25 +146,15 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     await handleSendEmail(variationId);
   };
 
-  // ENHANCED: Force refresh variations and update selected variation
+  // Enhanced update handler with immediate state sync
   const handleUpdateFromModalEnhanced = async (id: string, updates: any) => {
     try {
       console.log('Updating variation with:', updates);
       
       await handleUpdateFromModal(id, updates);
       
-      // Force refresh variations to ensure real-time sync
+      // Force refresh variations immediately
       await refreshVariations();
-      
-      // Update selected variation to reflect changes immediately
-      if (selectedVariation && selectedVariation.id === id) {
-        // Get the updated variation from the refreshed list
-        const updatedVariations = await refreshVariations();
-        const updatedVariation = variations.find(v => v.id === id);
-        if (updatedVariation) {
-          setSelectedVariation({ ...updatedVariation });
-        }
-      }
       
       console.log('Variation update completed successfully');
       
@@ -179,18 +164,29 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     }
   };
 
-  // ENHANCED: New variation button with proper form reset
+  // Enhanced variation update handler that syncs with modal
+  const handleVariationUpdate = (updatedVariation: any) => {
+    console.log('Handling variation update in manager:', updatedVariation.id);
+    
+    // Update the selected variation if it matches
+    if (selectedVariation && selectedVariation.id === updatedVariation.id) {
+      setSelectedVariation(updatedVariation);
+    }
+    
+    // Trigger a refresh to ensure data consistency
+    refreshVariations();
+  };
+
   const handleNewVariation = () => {
     setEditingVariation(null);
-    setFormKey(prev => prev + 1); // Force form re-render with fresh state
+    setFormKey(prev => prev + 1);
     setShowForm(true);
   };
 
-  // ENHANCED: Form close handler with proper cleanup
   const handleFormClose = () => {
     setShowForm(false);
     setEditingVariation(null);
-    setFormKey(prev => prev + 1); // Ensure form is reset for next use
+    setFormKey(prev => prev + 1);
   };
 
   return (
@@ -237,7 +233,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
       {/* Modals - Protected by permissions */}
       <PermissionGate module="variations" requiredLevel="write">
         <QuotationVariationForm
-          key={formKey} // ADDED: Key to force re-render and clear form data
+          key={formKey}
           isOpen={showForm}
           onClose={handleFormClose}
           onSubmit={handleFormSubmit}
@@ -254,6 +250,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
           setSelectedVariation(null);
         }}
         onUpdate={handleUpdateFromModalEnhanced}
+        onVariationUpdate={handleVariationUpdate}
       />
     </div>
   );
