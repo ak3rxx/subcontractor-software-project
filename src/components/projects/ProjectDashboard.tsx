@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import DocumentManager from './DocumentManager';
 import VariationManager from './VariationManager';
 import RFIManager from './RFIManager';
 import ProgrammeTracker from './ProgrammeTracker';
-import FinanceManager from './finance/FinanceManager';
+import ProjectFinanceTab from './ProjectFinanceTab';
 import PaymentScheduleManager from './payment-schedules/PaymentScheduleManager';
 
 interface ProjectDashboardProps {
@@ -255,7 +254,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="finance" className="space-y-6">
-          <FinanceManager projectName={projectData.name} />
+          <ProjectFinanceTab projectName={projectData.name} projectId={projectData.id} />
         </TabsContent>
 
         <TabsContent value="variations" className="space-y-6">

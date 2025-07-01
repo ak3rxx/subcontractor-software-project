@@ -17,6 +17,7 @@ const TopNav = () => {
   const navigationItems = [
     { name: 'Dashboard', path: '/dashboard', module: null },
     { name: 'Projects', path: '/projects', module: 'projects' as const },
+    { name: 'Finance', path: '/finance', module: 'finance' as const },
     { name: 'Tasks', path: '/tasks', module: 'tasks' as const },
   ];
 

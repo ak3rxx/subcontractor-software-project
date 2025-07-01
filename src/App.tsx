@@ -5,6 +5,7 @@ import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import Projects from '@/pages/Projects';
+import Finance from '@/pages/Finance';
 import SubcontractorOnboarding from '@/pages/SubcontractorOnboarding';
 import AdminPanel from '@/pages/AdminPanel';
 import DeveloperAdmin from '@/pages/DeveloperAdmin';
@@ -36,6 +37,13 @@ function App() {
               <ProtectedRoute>
                 <RoleProtectedRoute module="projects">
                   <Projects />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/finance" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute module="finance">
+                  <Finance />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
