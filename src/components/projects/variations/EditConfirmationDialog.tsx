@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, ArrowDown } from 'lucide-react';
 
 interface EditConfirmationDialogProps {
   isOpen: boolean;
@@ -96,32 +96,65 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="understand"
-              checked={understood}
-              onCheckedChange={(checked) => setUnderstood(checked as boolean)}
-            />
-            <label
-              htmlFor="understand"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              I understand the consequences and want to proceed
-            </label>
+          {/* Enhanced Confirmation Section */}
+          <div className={`border-2 rounded-lg p-4 transition-all duration-300 ${
+            understood 
+              ? 'border-green-200 bg-green-50' 
+              : 'border-blue-200 bg-blue-50 animate-pulse'
+          }`}>
+            <div className="flex items-start space-x-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="understand"
+                  checked={understood}
+                  onCheckedChange={(checked) => setUnderstood(checked as boolean)}
+                  className={`transition-all duration-200 ${
+                    !understood ? 'border-blue-500 data-[state=unchecked]:border-blue-500' : ''
+                  }`}
+                />
+                {!understood && (
+                  <ArrowDown className="h-4 w-4 text-blue-500 animate-bounce" />
+                )}
+              </div>
+              <div className="flex-1">
+                <label
+                  htmlFor="understand"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  I understand the consequences and want to proceed
+                </label>
+                {!understood && (
+                  <p className="text-xs text-blue-600 mt-1 font-medium">
+                    ← Please check this box to enable the confirm button
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!understood}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            Proceed with Edit
-          </Button>
+          <div className="relative">
+            <Button
+              onClick={handleConfirm}
+              disabled={!understood}
+              className={`transition-all duration-300 ${
+                understood 
+                  ? 'bg-amber-600 hover:bg-amber-700 scale-105 shadow-lg' 
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
+            >
+              {understood ? '✓ ' : '⏳ '}Proceed with Edit
+            </Button>
+            {!understood && (
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                Check the confirmation box first
+              </div>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
