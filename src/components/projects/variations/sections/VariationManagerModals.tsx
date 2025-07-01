@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Variation } from '@/types/variations';
-import VariationForm from '../VariationForm';
+import QuotationVariationForm from '../QuotationVariationForm';
 import VariationDetailsModalManager from '../modal/VariationDetailsModalManager';
 
 interface VariationManagerModalsProps {
@@ -35,13 +35,13 @@ const VariationManagerModals: React.FC<VariationManagerModalsProps> = ({
     <>
       {/* Variation Form Modal */}
       {showForm && (
-        <VariationForm
+        <QuotationVariationForm
           key={formKey}
           projectName={projectName}
           onSubmit={onFormSubmit}
-          onCancel={onFormClose}
-          initialData={editingVariation}
-          isEditing={!!editingVariation}
+          onClose={onFormClose}
+          editingVariation={editingVariation}
+          isOpen={true}
         />
       )}
 
