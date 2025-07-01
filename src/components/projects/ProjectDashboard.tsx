@@ -9,7 +9,7 @@ import QAITPForm from './QAITPForm';
 import TaskManager from './TaskManager';
 import TeamNotes from './TeamNotes';
 import DocumentManager from './DocumentManager';
-import VariationManagerRefactored from './VariationManagerRefactored';
+import VariationManager from './variations/VariationManager';
 import RFIManager from './RFIManager';
 import ProgrammeTracker from './ProgrammeTracker';
 import ProjectFinanceTab from './ProjectFinanceTab';
@@ -258,7 +258,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
         </TabsContent>
 
         <TabsContent value="variations" className="space-y-6">
-          <VariationManagerRefactored projectName={projectData.name} projectId={projectData.id} />
+          <VariationManager projectName={projectData.name} projectId={projectData.id} />
         </TabsContent>
 
         <TabsContent value="rfi" className="space-y-6">

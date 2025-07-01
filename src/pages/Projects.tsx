@@ -12,7 +12,7 @@ import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 import TopNav from '@/components/TopNav';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import ProjectDashboard from '@/components/projects/ProjectDashboard';
-import VariationManagerRefactored from '@/components/projects/VariationManagerRefactored';
+import VariationManager from '@/components/projects/variations/VariationManager';
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
 import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
@@ -182,7 +182,7 @@ const Projects = () => {
               </TabsContent>
 
               <TabsContent value="variations" className="mt-6">
-                <VariationManagerRefactored
+                <VariationManager
                   projectName={selectedProject.name}
                   projectId={selectedProject.id}
                 />
