@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Variation, VariationFormData } from '@/types/variations';
 
 // Mock data generators
@@ -82,54 +80,83 @@ export const createMockFormData = (overrides: Partial<VariationFormData> = {}): 
   };
 };
 
-// Test wrapper
-export const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false }
-    }
-  });
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+// Test data generators
+export const generateMockVariations = (count: number): Variation[] => {
+  return Array.from({ length: count }, (_, index) => 
+    createMockVariation({
+      id: `var-${index + 1}`,
+      variation_number: `VAR-${String(index + 1).padStart(3, '0')}`,
+      title: `Test Variation ${index + 1}`,
+      cost_impact: (index + 1) * 1000,
+      status: ['draft', 'pending_approval', 'approved', 'rejected'][index % 4] as any,
+      priority: ['high', 'medium', 'low'][index % 3] as any
+    })
   );
 };
 
-// Common test utilities
-export const variationTestUtils = {
-  // Render with test wrapper
-  renderWithWrapper: (component: React.ReactElement) => {
-    return render(component, { wrapper: TestWrapper });
-  },
+// Validation utilities
+export const validateVariationData = (variation: Variation): boolean => {
+  return !!(
+    variation.id &&
+    variation.project_id &&
+    variation.variation_number &&
+    variation.title &&
+    variation.status &&
+    variation.priority
+  );
+};
 
-  // Wait for async operations
-  waitForLoadingToFinish: async () => {
-    await waitFor(() => {
-      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
-    });
-  },
+// Test helper functions
+export const variationTestHelpers = {
+  // Create test scenarios
+  createDraftVariation: () => createMockVariation({ status: 'draft' }),
+  createPendingVariation: () => createMockVariation({ status: 'pending_approval' }),
+  createApprovedVariation: () => createMockVariation({ status: 'approved' }),
+  createRejectedVariation: () => createMockVariation({ status: 'rejected' }),
+  
+  // Create variations with specific properties
+  createHighPriorityVariation: () => createMockVariation({ priority: 'high' }),
+  createLowCostVariation: () => createMockVariation({ cost_impact: 100 }),
+  createHighCostVariation: () => createMockVariation({ cost_impact: 10000 }),
+  
+  // Validation helpers
+  isValidVariation: validateVariationData,
+  
+  // Filter test data
+  filterByStatus: (variations: Variation[], status: string) => 
+    variations.filter(v => v.status === status),
+  
+  filterByPriority: (variations: Variation[], priority: string) => 
+    variations.filter(v => v.priority === priority),
+    
+  // Calculate test summaries
+  calculateTestSummary: (variations: Variation[]) => ({
+    total: variations.length,
+    totalCost: variations.reduce((sum, v) => sum + v.cost_impact, 0),
+    averageTime: variations.length > 0 
+      ? variations.reduce((sum, v) => sum + v.time_impact, 0) / variations.length 
+      : 0
+  })
+};
 
-  // Fire events
-  clickButton: (buttonText: string) => {
-    const button = screen.getByRole('button', { name: new RegExp(buttonText, 'i') });
-    fireEvent.click(button);
+// Console-based testing utilities (for development)
+export const consoleTestUtils = {
+  logVariationSummary: (variations: Variation[]) => {
+    console.log('=== Variation Test Summary ===');
+    console.log(`Total variations: ${variations.length}`);
+    console.log(`Draft: ${variations.filter(v => v.status === 'draft').length}`);
+    console.log(`Pending: ${variations.filter(v => v.status === 'pending_approval').length}`);
+    console.log(`Approved: ${variations.filter(v => v.status === 'approved').length}`);
+    console.log(`Rejected: ${variations.filter(v => v.status === 'rejected').length}`);
   },
-
-  // Form helpers
-  fillInput: (labelText: string, value: string) => {
-    const input = screen.getByLabelText(new RegExp(labelText, 'i'));
-    fireEvent.change(input, { target: { value } });
-  },
-
-  // Assertions
-  expectElementToBeVisible: (text: string) => {
-    expect(screen.getByText(new RegExp(text, 'i'))).toBeInTheDocument();
-  },
-
-  expectElementNotToBeVisible: (text: string) => {
-    expect(screen.queryByText(new RegExp(text, 'i'))).not.toBeInTheDocument();
+  
+  logValidationResults: (variations: Variation[]) => {
+    const valid = variations.filter(validateVariationData);
+    const invalid = variations.filter(v => !validateVariationData(v));
+    console.log(`Valid variations: ${valid.length}`);
+    console.log(`Invalid variations: ${invalid.length}`);
+    if (invalid.length > 0) {
+      console.log('Invalid variations:', invalid);
+    }
   }
 };
