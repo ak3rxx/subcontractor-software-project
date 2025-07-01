@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -187,6 +186,7 @@ export const useVariations = (projectId: string) => {
         description: variationData.description,
         location: variationData.location,
         requested_by: user.id,
+        updated_by: user.id, // Ensure updated_by is set for triggers
         cost_impact: parseFloat(variationData.costImpact) || variationData.total_amount || 0,
         time_impact: parseInt(variationData.timeImpact) || 0,
         priority: variationData.priority || 'medium',
@@ -301,8 +301,9 @@ export const useVariations = (projectId: string) => {
       if (updates.linked_tasks !== undefined) dbUpdates.linked_tasks = updates.linked_tasks;
       if (updates.linked_qa_items !== undefined) dbUpdates.linked_qa_items = updates.linked_qa_items;
 
-      // Always update the updated_at timestamp
+      // Always update the updated_at timestamp and set updated_by for triggers
       dbUpdates.updated_at = new Date().toISOString();
+      dbUpdates.updated_by = user.id;
 
       console.log('Sending database update:', dbUpdates);
 
@@ -325,23 +326,6 @@ export const useVariations = (projectId: string) => {
       }
 
       console.log('Database update successful:', data);
-
-      // Log field-level changes for non-status updates
-      if (!updates.status) {
-        for (const [field, newValue] of Object.entries(updates)) {
-          if (field !== 'status' && currentVariation[field] !== newValue) {
-            await supabase.rpc('log_variation_change', {
-              p_variation_id: id,
-              p_user_id: user.id,
-              p_action_type: 'edit',
-              p_field_name: field,
-              p_old_value: String(currentVariation[field] || ''),
-              p_new_value: String(newValue || ''),
-              p_comments: `Field ${field} updated`
-            });
-          }
-        }
-      }
 
       // Transform and update local state
       const transformedData = transformDatabaseItem(data);

@@ -3,7 +3,7 @@ import { AuditTrailEntry, DatabaseAuditEntry } from '@/types/auditTrail';
 
 // Helper function to validate and transform database response
 export const transformAuditEntry = (dbEntry: DatabaseAuditEntry): AuditTrailEntry => {
-  const validActionTypes = ['create', 'edit', 'submit', 'approve', 'reject', 'unlock', 'email_sent'];
+  const validActionTypes = ['create', 'edit', 'submit', 'approve', 'reject', 'unlock', 'email_sent', 'file_upload', 'file_delete', 'file_update'];
   const actionType = validActionTypes.includes(dbEntry.action_type) 
     ? dbEntry.action_type as AuditTrailEntry['action_type']
     : 'edit'; // fallback to 'edit' for invalid types

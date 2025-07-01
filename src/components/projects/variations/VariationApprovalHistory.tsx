@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   CheckCircle, XCircle, Clock, Send, MessageSquare, FileText, 
-  Unlock, History, Loader2 
+  Unlock, History, Loader2, Upload, Trash2, Edit3
 } from 'lucide-react';
 
 interface VariationApprovalHistoryProps {
@@ -31,12 +31,18 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
         return <Unlock className="h-4 w-4 text-orange-600" />;
       case 'email_sent':
         return <Send className="h-4 w-4 text-purple-600" />;
+      case 'file_upload':
+        return <Upload className="h-4 w-4 text-green-600" />;
+      case 'file_delete':
+        return <Trash2 className="h-4 w-4 text-red-600" />;
+      case 'file_update':
+        return <Edit3 className="h-4 w-4 text-blue-600" />;
       default:
         return <FileText className="h-4 w-4 text-gray-600" />;
     }
   };
 
-  const formatActionType = (actionType: string) => {
+  const formatActionType = (actionType: string, fieldName?: string) => {
     switch (actionType) {
       case 'create': return 'Created';
       case 'submit': return 'Submitted for Approval';
@@ -44,6 +50,14 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
       case 'reject': return 'Rejected';
       case 'unlock': return 'Unlocked';
       case 'email_sent': return 'Email Sent';
+      case 'file_upload': return 'File Uploaded';
+      case 'file_delete': return 'File Deleted';
+      case 'file_update': return 'File Updated';
+      case 'edit': 
+        if (fieldName) {
+          return `Updated ${fieldName.replace(/_/g, ' ')}`;
+        }
+        return 'Updated';
       default: return actionType;
     }
   };
@@ -65,19 +79,46 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
     }
   };
 
-  // Filter audit trail to show only approval-related events
-  const approvalHistory = auditTrail.filter(entry => 
-    ['create', 'submit', 'approve', 'reject', 'unlock', 'email_sent'].includes(entry.action_type)
-  );
+  const formatFieldChange = (entry: any) => {
+    if (!entry.field_name || !entry.old_value || !entry.new_value) return null;
+    
+    const fieldName = entry.field_name.replace(/_/g, ' ');
+    
+    // Special formatting for specific fields
+    if (entry.field_name === 'cost_impact' || entry.field_name === 'total_amount' || entry.field_name === 'gst_amount') {
+      return (
+        <div className="text-sm text-gray-700 bg-blue-50 p-2 rounded border">
+          <span className="font-medium">{fieldName}:</span> ${entry.old_value} → ${entry.new_value}
+        </div>
+      );
+    }
+    
+    if (entry.field_name === 'requires_eot' || entry.field_name === 'requires_nod') {
+      return (
+        <div className="text-sm text-gray-700 bg-blue-50 p-2 rounded border">
+          <span className="font-medium">{fieldName}:</span> {entry.old_value === 'true' ? 'Yes' : 'No'} → {entry.new_value === 'true' ? 'Yes' : 'No'}
+        </div>
+      );
+    }
+    
+    return (
+      <div className="text-sm text-gray-700 bg-blue-50 p-2 rounded border">
+        <span className="font-medium">{fieldName}:</span> {entry.old_value} → {entry.new_value}
+      </div>
+    );
+  };
+
+  // Show all audit trail entries, not just approval-related ones
+  const displayableEntries = auditTrail;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <History className="h-5 w-5" />
-          Approval History
-          {approvalHistory.length > 0 && (
-            <Badge variant="outline">{approvalHistory.length}</Badge>
+          Change History
+          {displayableEntries.length > 0 && (
+            <Badge variant="outline">{displayableEntries.length}</Badge>
           )}
         </CardTitle>
       </CardHeader>
@@ -85,19 +126,19 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
         {loading ? (
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-600">Loading approval history...</span>
+            <span className="ml-2 text-gray-600">Loading change history...</span>
           </div>
-        ) : approvalHistory.length > 0 ? (
+        ) : displayableEntries.length > 0 ? (
           <ScrollArea className="h-80">
             <div className="space-y-4 pr-4">
-              {approvalHistory.map((entry, index) => (
+              {displayableEntries.map((entry, index) => (
                 <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="mt-0.5">
                     {getActionIcon(entry.action_type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">{formatActionType(entry.action_type)}</span>
+                      <span className="font-medium text-sm">{formatActionType(entry.action_type, entry.field_name)}</span>
                       {entry.status_to && getStatusBadge(entry.status_to)}
                     </div>
                     <div className="text-xs text-gray-600 mb-2">
@@ -112,9 +153,12 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
                       </div>
                     )}
                     
+                    {/* Field changes */}
+                    {formatFieldChange(entry)}
+                    
                     {/* Comments */}
                     {entry.comments && (
-                      <div className="text-sm text-gray-700 bg-white p-2 rounded border">
+                      <div className="text-sm text-gray-700 bg-white p-2 rounded border mt-2">
                         {entry.comments}
                       </div>
                     )}
@@ -126,8 +170,8 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
         ) : (
           <div className="text-center p-8 text-gray-500">
             <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No approval history available</p>
-            <p className="text-sm">Actions will appear here as the variation progresses through approval</p>
+            <p>No change history available</p>
+            <p className="text-sm">Changes will appear here as the variation is modified</p>
           </div>
         )}
       </CardContent>
