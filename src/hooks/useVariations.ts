@@ -1,131 +1,9 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-export interface CostBreakdownItem {
-  id: string;
-  description: string;
-  quantity: number;
-  rate: number;
-  subtotal: number;
-}
-
-export interface TimeImpactDetails {
-  requiresNoticeOfDelay: boolean;
-  requiresExtensionOfTime: boolean;
-  noticeOfDelayDays?: number;
-  extensionOfTimeDays?: number;
-}
-
-export interface Variation {
-  id: string;
-  project_id: string;
-  variation_number: string;
-  title: string;
-  description?: string;
-  location?: string;
-  requested_by?: string;
-  request_date: string;
-  cost_impact: number;
-  time_impact: number;
-  status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
-  category?: string;
-  trade?: string;
-  priority: 'high' | 'medium' | 'low';
-  client_email?: string;
-  justification?: string;
-  attachments: any[];
-  approved_by?: string;
-  approval_date?: string;
-  approval_comments?: string;
-  email_sent?: boolean;
-  email_sent_date?: string;
-  email_sent_by?: string;
-  cost_breakdown: CostBreakdownItem[];
-  time_impact_details: TimeImpactDetails;
-  gst_amount: number;
-  total_amount: number;
-  created_at: string;
-  updated_at: string;
-  requires_eot: boolean;
-  requires_nod: boolean;
-  eot_days: number;
-  nod_days: number;
-  linked_milestones: string[];
-  linked_tasks: string[];
-  linked_qa_items: string[];
-  originating_rfi_id?: string;
-}
-
-// Helper function to safely parse cost breakdown
-const parseCostBreakdown = (data: any): CostBreakdownItem[] => {
-  if (!data) return [];
-  if (Array.isArray(data)) {
-    return data.map((item: any) => ({
-      id: item?.id || '',
-      description: item?.description || '',
-      quantity: Number(item?.quantity) || 0,
-      rate: Number(item?.rate) || 0,
-      subtotal: Number(item?.subtotal) || 0,
-    }));
-  }
-  return [];
-};
-
-// Helper function to safely parse time impact details
-const parseTimeImpactDetails = (data: any): TimeImpactDetails => {
-  if (!data || typeof data !== 'object') {
-    return { requiresNoticeOfDelay: false, requiresExtensionOfTime: false };
-  }
-  return {
-    requiresNoticeOfDelay: Boolean(data.requiresNoticeOfDelay),
-    requiresExtensionOfTime: Boolean(data.requiresExtensionOfTime),
-    noticeOfDelayDays: data.noticeOfDelayDays ? Number(data.noticeOfDelayDays) : undefined,
-    extensionOfTimeDays: data.extensionOfTimeDays ? Number(data.extensionOfTimeDays) : undefined,
-  };
-};
-
-// Helper function to transform database item to Variation interface
-const transformDatabaseItem = (item: any): Variation => ({
-  id: item.id,
-  project_id: item.project_id,
-  variation_number: item.variation_number,
-  title: item.title,
-  description: item.description,
-  location: item.location || '',
-  requested_by: item.requested_by,
-  request_date: item.request_date || item.created_at.split('T')[0],
-  cost_impact: item.cost_impact || 0,
-  time_impact: item.time_impact || 0,
-  status: item.status as 'draft' | 'pending_approval' | 'approved' | 'rejected',
-  category: item.category || '',
-  trade: item.trade || undefined,
-  priority: (item.priority as 'high' | 'medium' | 'low') || 'medium',
-  client_email: item.client_email || '',
-  justification: item.justification || '',
-  attachments: [],
-  approved_by: item.approved_by,
-  approval_date: item.approval_date,
-  approval_comments: item.approval_comments || '',
-  email_sent: item.email_sent || false,
-  email_sent_date: item.email_sent_date,
-  email_sent_by: item.email_sent_by,
-  cost_breakdown: parseCostBreakdown(item.cost_breakdown),
-  time_impact_details: parseTimeImpactDetails(item.time_impact_details),
-  gst_amount: item.gst_amount || 0,
-  total_amount: item.total_amount || 0,
-  requires_eot: item.requires_eot || false,
-  requires_nod: item.requires_nod || false,
-  eot_days: item.eot_days || 0,
-  nod_days: item.nod_days || 0,
-  linked_milestones: item.linked_milestones || [],
-  linked_tasks: item.linked_tasks || [],
-  linked_qa_items: item.linked_qa_items || [],
-  originating_rfi_id: item.originating_rfi_id,
-  created_at: item.created_at,
-  updated_at: item.updated_at
-});
+import { Variation, VariationStatus, VariationPriority, VariationCategory } from '@/types/variations';
 
 export const useVariations = (projectId: string) => {
   const [variations, setVariations] = useState<Variation[]>([]);
@@ -133,51 +11,85 @@ export const useVariations = (projectId: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchVariations = async () => {
+  const transformDatabaseVariation = (item: any): Variation => ({
+    id: item.id,
+    project_id: item.project_id,
+    variation_number: item.variation_number,
+    title: item.title,
+    description: item.description || '',
+    location: item.location || '',
+    requested_by: item.requested_by,
+    request_date: item.request_date || item.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+    cost_impact: item.cost_impact || 0,
+    time_impact: item.time_impact || 0,
+    status: item.status as VariationStatus,
+    category: (item.category as VariationCategory) || 'other',
+    trade: item.trade,
+    priority: (item.priority as VariationPriority) || 'medium',
+    client_email: item.client_email || '',
+    justification: item.justification || '',
+    attachments: [],
+    approved_by: item.approved_by,
+    approval_date: item.approval_date,
+    approval_comments: item.approval_comments || '',
+    email_sent: item.email_sent || false,
+    email_sent_date: item.email_sent_date,
+    email_sent_by: item.email_sent_by,
+    cost_breakdown: item.cost_breakdown || [],
+    time_impact_details: item.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
+    gst_amount: item.gst_amount || 0,
+    total_amount: item.total_amount || 0,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    requires_eot: item.requires_eot || false,
+    requires_nod: item.requires_nod || false,
+    eot_days: item.eot_days || 0,
+    nod_days: item.nod_days || 0,
+    linked_milestones: item.linked_milestones || [],
+    linked_tasks: item.linked_tasks || [],
+    linked_qa_items: item.linked_qa_items || [],
+    originating_rfi_id: item.originating_rfi_id,
+    updated_by: item.updated_by
+  });
+
+  const fetchVariations = useCallback(async () => {
     if (!projectId) return;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('variations')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching variations:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch variations",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (error) throw error;
 
-      const transformedData = (data || []).map(transformDatabaseItem);
-      setVariations(transformedData);
+      const transformedVariations = (data || []).map(transformDatabaseVariation);
+      setVariations(transformedVariations);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching variations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch variations",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, toast]);
 
-  const createVariation = async (variationData: any) => {
-    if (!user || !projectId) return null;
+  const createVariation = useCallback(async (variationData: any): Promise<Variation> => {
+    if (!user || !projectId) {
+      throw new Error('User not authenticated or project ID missing');
+    }
 
     try {
+      // Generate variation number
       const { data: numberData, error: numberError } = await supabase
         .rpc('generate_variation_number', { project_uuid: projectId });
 
-      if (numberError) {
-        console.error('Error generating variation number:', numberError);
-        toast({
-          title: "Error",
-          description: "Failed to generate variation number",
-          variant: "destructive"
-        });
-        return null;
-      }
+      if (numberError) throw numberError;
 
       const insertData = {
         project_id: projectId,
@@ -186,9 +98,8 @@ export const useVariations = (projectId: string) => {
         description: variationData.description,
         location: variationData.location,
         requested_by: user.id,
-        updated_by: user.id, // Ensure updated_by is set for triggers
-        cost_impact: parseFloat(variationData.costImpact) || variationData.total_amount || 0,
-        time_impact: parseInt(variationData.timeImpact) || 0,
+        cost_impact: parseFloat(variationData.costImpact?.toString() || '0'),
+        time_impact: parseInt(variationData.timeImpact?.toString() || '0'),
         priority: variationData.priority || 'medium',
         status: 'draft',
         category: variationData.category,
@@ -198,7 +109,7 @@ export const useVariations = (projectId: string) => {
         cost_breakdown: variationData.cost_breakdown || [],
         time_impact_details: variationData.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
         gst_amount: variationData.gst_amount || 0,
-        total_amount: variationData.total_amount || 0,
+        total_amount: variationData.total_amount || variationData.costImpact || 0,
         requires_eot: variationData.requires_eot || false,
         requires_nod: variationData.requires_nod || false,
         eot_days: variationData.eot_days || 0,
@@ -214,211 +125,86 @@ export const useVariations = (projectId: string) => {
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating variation:', error);
-        toast({
-          title: "Error",
-          description: `Failed to create variation: ${error.message}`,
-          variant: "destructive"
-        });
-        return null;
-      }
+      if (error) throw error;
 
-      // Log creation in audit trail
-      await supabase.rpc('log_variation_change', {
-        p_variation_id: data.id,
-        p_user_id: user.id,
-        p_action_type: 'create',
-        p_comments: `Variation ${data.variation_number} created`,
-        p_metadata: { variation_number: data.variation_number }
-      });
-
-      toast({
-        title: "Success",
-        description: `Variation ${data.variation_number} created successfully`
-      });
-
-      const transformedData = transformDatabaseItem(data);
-      setVariations(prev => [transformedData, ...prev]);
-      return transformedData;
+      const newVariation = transformDatabaseVariation(data);
+      setVariations(prev => [newVariation, ...prev]);
+      
+      return newVariation;
     } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create variation",
-        variant: "destructive"
-      });
-      return null;
+      console.error('Error creating variation:', error);
+      throw error;
     }
-  };
+  }, [user, projectId]);
 
-  const updateVariation = async (id: string, updates: Partial<Variation>) => {
+  const updateVariation = useCallback(async (id: string, updates: Partial<Variation>): Promise<Variation> => {
     if (!user) {
-      console.error('No user found for variation update');
       throw new Error('User not authenticated');
     }
 
     try {
-      console.log('Starting variation update:', { id, updates });
-      
-      // Get current variation for comparison
-      const currentVariation = variations.find(v => v.id === id);
-      if (!currentVariation) {
-        throw new Error('Variation not found');
-      }
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id
+      };
 
-      const dbUpdates: any = {};
-      
-      // Map all possible update fields
-      if (updates.status !== undefined) dbUpdates.status = updates.status;
-      if (updates.title !== undefined) dbUpdates.title = updates.title;
-      if (updates.description !== undefined) dbUpdates.description = updates.description;
-      if (updates.location !== undefined) dbUpdates.location = updates.location;
-      if (updates.cost_impact !== undefined) dbUpdates.cost_impact = updates.cost_impact;
-      if (updates.time_impact !== undefined) dbUpdates.time_impact = updates.time_impact;
-      if (updates.category !== undefined) dbUpdates.category = updates.category;
-      if (updates.trade !== undefined) dbUpdates.trade = updates.trade;
-      if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
-      if (updates.client_email !== undefined) dbUpdates.client_email = updates.client_email;
-      if (updates.justification !== undefined) dbUpdates.justification = updates.justification;
-      if (updates.approved_by !== undefined) dbUpdates.approved_by = updates.approved_by;
-      if (updates.approval_date !== undefined) dbUpdates.approval_date = updates.approval_date;
-      if (updates.approval_comments !== undefined) dbUpdates.approval_comments = updates.approval_comments;
-      if (updates.email_sent !== undefined) dbUpdates.email_sent = updates.email_sent;
-      if (updates.email_sent_date !== undefined) dbUpdates.email_sent_date = updates.email_sent_date;
-      if (updates.email_sent_by !== undefined) dbUpdates.email_sent_by = updates.email_sent_by;
-      if (updates.requested_by !== undefined) dbUpdates.requested_by = updates.requested_by;
-      if (updates.request_date !== undefined) dbUpdates.request_date = updates.request_date;
-      if (updates.cost_breakdown !== undefined) dbUpdates.cost_breakdown = updates.cost_breakdown;
-      if (updates.time_impact_details !== undefined) dbUpdates.time_impact_details = updates.time_impact_details;
-      if (updates.gst_amount !== undefined) dbUpdates.gst_amount = updates.gst_amount;
-      if (updates.total_amount !== undefined) dbUpdates.total_amount = updates.total_amount;
-      if (updates.requires_eot !== undefined) dbUpdates.requires_eot = updates.requires_eot;
-      if (updates.requires_nod !== undefined) dbUpdates.requires_nod = updates.requires_nod;
-      if (updates.eot_days !== undefined) dbUpdates.eot_days = updates.eot_days;
-      if (updates.nod_days !== undefined) dbUpdates.nod_days = updates.nod_days;
-      if (updates.linked_milestones !== undefined) dbUpdates.linked_milestones = updates.linked_milestones;
-      if (updates.linked_tasks !== undefined) dbUpdates.linked_tasks = updates.linked_tasks;
-      if (updates.linked_qa_items !== undefined) dbUpdates.linked_qa_items = updates.linked_qa_items;
-
-      // Always update the updated_at timestamp and set updated_by for triggers
-      dbUpdates.updated_at = new Date().toISOString();
-      dbUpdates.updated_by = user.id;
-
-      console.log('Sending database update:', dbUpdates);
-
-      // Perform the database update with explicit error handling
       const { data, error } = await supabase
         .from('variations')
-        .update(dbUpdates)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        console.error('Database update error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      if (!data) {
-        console.error('No data returned from update');
-        throw new Error('Update succeeded but no data was returned');
-      }
-
-      console.log('Database update successful:', data);
-
-      // Transform and update local state
-      const transformedData = transformDatabaseItem(data);
+      const updatedVariation = transformDatabaseVariation(data);
       setVariations(prev => 
         prev.map(variation => 
-          variation.id === id ? transformedData : variation
+          variation.id === id ? updatedVariation : variation
         )
       );
-
-      console.log('Local state updated successfully');
-      return transformedData;
-
+      
+      return updatedVariation;
     } catch (error) {
-      console.error('Error in updateVariation:', error);
-      toast({
-        title: "Error",
-        description: `Failed to update variation: ${error.message || 'Unknown error'}`,
-        variant: "destructive"
-      });
+      console.error('Error updating variation:', error);
       throw error;
     }
-  };
+  }, [user]);
 
-  const sendVariationEmail = async (variationId: string) => {
-    if (!user) return false;
+  const sendVariationEmail = useCallback(async (variationId: string): Promise<boolean> => {
+    const variation = variations.find(v => v.id === variationId);
+    if (!variation?.client_email) {
+      throw new Error('No client email found for this variation');
+    }
 
     try {
-      const variation = variations.find(v => v.id === variationId);
-      if (!variation || !variation.client_email) {
-        toast({
-          title: "Error",
-          description: "No client email found for this variation",
-          variant: "destructive"
-        });
-        return false;
-      }
-
-      const { data, error } = await supabase.functions.invoke('send-variation-email', {
+      const { error } = await supabase.functions.invoke('send-variation-email', {
         body: {
           variation: variation,
           recipientEmail: variation.client_email
         }
       });
 
-      if (error) {
-        console.error('Error sending email:', error);
-        toast({
-          title: "Error",
-          description: "Failed to send variation email",
-          variant: "destructive"
-        });
-        return false;
-      }
+      if (error) throw error;
 
-      // Update variation and log email action
-      const updateResult = await updateVariation(variationId, {
+      // Update variation with email sent status
+      await updateVariation(variationId, {
         email_sent: true,
         email_sent_date: new Date().toISOString(),
-        email_sent_by: user.id
+        email_sent_by: user?.id
       });
 
-      if (updateResult) {
-        // Log email action
-        await supabase.rpc('log_variation_change', {
-          p_variation_id: variationId,
-          p_user_id: user.id,
-          p_action_type: 'email_sent',
-          p_comments: `Variation email sent to ${variation.client_email}`,
-          p_metadata: { recipient_email: variation.client_email }
-        });
-
-        toast({
-          title: "Success",
-          description: `Variation email sent to ${variation.client_email}`,
-        });
-        return true;
-      }
-
-      return false;
+      return true;
     } catch (error) {
       console.error('Error sending variation email:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send variation email",
-        variant: "destructive"
-      });
-      return false;
+      throw error;
     }
-  };
+  }, [variations, updateVariation, user]);
 
   useEffect(() => {
     fetchVariations();
-  }, [projectId]);
+  }, [fetchVariations]);
 
   return {
     variations,

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 import TopNav from '@/components/TopNav';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import ProjectDashboard from '@/components/projects/ProjectDashboard';
-import VariationManager from '@/components/projects/VariationManager';
+import VariationManagerRefactored from '@/components/projects/VariationManagerRefactored';
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
 import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
@@ -181,7 +182,7 @@ const Projects = () => {
               </TabsContent>
 
               <TabsContent value="variations" className="mt-6">
-                <VariationManager
+                <VariationManagerRefactored
                   projectName={selectedProject.name}
                   projectId={selectedProject.id}
                 />
