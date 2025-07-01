@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { VariationManagerLogic } from './VariationManagerLogic';
-import { VariationManagerActions } from './VariationManagerActions';
+import { useVariationActionHandlers } from '@/hooks/variations/useVariationActionHandlers';
 import VariationManagerHeader from './sections/VariationManagerHeader';
 import VariationSummaryCards from './VariationSummaryCards';
 import VariationManagerFilters from './sections/VariationManagerFilters';
@@ -56,6 +56,23 @@ const VariationManager: React.FC<VariationManagerProps> = ({
           setActiveTab
         } = logicProps;
 
+        const actionHandlers = useVariationActionHandlers({
+          variations,
+          canEditVariations,
+          canSendEmails,
+          canCreateVariations,
+          createVariation,
+          updateVariation,
+          sendVariationEmail,
+          refreshVariations,
+          setShowForm,
+          setEditingVariation,
+          setFormKey,
+          setSelectedVariation,
+          setShowDetailsModal,
+          formKey
+        });
+
         // Handle loading state
         if (loading) {
           return (
@@ -74,106 +91,75 @@ const VariationManager: React.FC<VariationManagerProps> = ({
           );
         }
 
+        const handleFormSubmit = async (data: any) => {
+          const success = editingVariation 
+            ? await actionHandlers.handleUpdateVariation(editingVariation.id, data)
+            : await actionHandlers.handleCreateVariation(data);
+          
+          if (success) {
+            setShowForm(false);
+            setEditingVariation(null);
+            setFormKey(formKey + 1);
+          }
+        };
+
         return (
-          <VariationManagerActions
-            variations={variations}
-            canEditVariations={canEditVariations}
-            canSendEmails={canSendEmails}
-            canCreateVariations={canCreateVariations}
-            createVariation={createVariation}
-            updateVariation={updateVariation}
-            sendVariationEmail={sendVariationEmail}
-            refreshVariations={refreshVariations}
-            setShowForm={setShowForm}
-            setEditingVariation={setEditingVariation}
-            setFormKey={setFormKey}
-            setSelectedVariation={setSelectedVariation}
-            setShowDetailsModal={setShowDetailsModal}
-            formKey={formKey}
-          >
-            {(actions) => {
-              const {
-                handleNewVariation,
-                handleFormClose,
-                handleEdit,
-                handleViewDetails,
-                handleSendEmailAction,
-                handleUpdateFromModalEnhanced,
-                handleVariationUpdate
-              } = actions;
-
-              const handleFormSubmit = async (data: any) => {
-                const success = editingVariation 
-                  ? await actions.handleUpdateVariation(editingVariation.id, data)
-                  : await actions.handleCreateVariation(data);
+          <div className="space-y-6">
+            <VariationManagerHeader 
+              onNewVariation={actionHandlers.handleNewVariation}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+            
+            <VariationSummaryCards 
+              variations={variations} 
+              summary={summary}
+              statusCounts={statusCounts}
+              priorityCounts={priorityCounts}
+            />
+            
+            {activeTab === 'list' && (
+              <>
+                <VariationManagerFilters
+                  filters={filters}
+                  onFilterChange={updateFilter}
+                  onFiltersChange={setFilters}
+                />
                 
-                if (success) {
-                  setShowForm(false);
-                  setEditingVariation(null);
-                  setFormKey(formKey + 1);
-                }
-              };
+                <VariationTable
+                  variations={filteredVariations}
+                  canEditVariations={canEditVariations}
+                  canSendEmails={canSendEmails}
+                  canCreateVariations={canCreateVariations}
+                  onViewDetails={actionHandlers.handleViewDetails}
+                  onEdit={actionHandlers.handleEdit}
+                  onSendEmail={actionHandlers.handleSendEmail}
+                  onCreateFirst={actionHandlers.handleNewVariation}
+                />
+              </>
+            )}
 
-              return (
-                <div className="space-y-6">
-                  <VariationManagerHeader 
-                    onNewVariation={handleNewVariation}
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                  />
-                  
-                  <VariationSummaryCards 
-                    variations={variations} 
-                    summary={summary}
-                    statusCounts={statusCounts}
-                    priorityCounts={priorityCounts}
-                  />
-                  
-                  {activeTab === 'list' && (
-                    <>
-                      <VariationManagerFilters
-                        filters={filters}
-                        onFilterChange={updateFilter}
-                        onFiltersChange={setFilters}
-                      />
-                      
-                      <VariationTable
-                        variations={filteredVariations}
-                        canEditVariations={canEditVariations}
-                        canSendEmails={canSendEmails}
-                        canCreateVariations={canCreateVariations}
-                        onViewDetails={handleViewDetails}
-                        onEdit={handleEdit}
-                        onSendEmail={handleSendEmailAction}
-                        onCreateFirst={handleNewVariation}
-                      />
-                    </>
-                  )}
+            {activeTab === 'analytics' && (
+              <VariationAnalytics variations={variations} />
+            )}
 
-                  {activeTab === 'analytics' && (
-                    <VariationAnalytics variations={variations} />
-                  )}
-
-                  <VariationManagerModals
-                    showForm={showForm}
-                    onFormClose={handleFormClose}
-                    onFormSubmit={handleFormSubmit}
-                    projectName={projectName}
-                    editingVariation={editingVariation}
-                    formKey={formKey}
-                    selectedVariation={selectedVariation}
-                    showDetailsModal={showDetailsModal}
-                    onDetailsModalClose={() => {
-                      setShowDetailsModal(false);
-                      setSelectedVariation(null);
-                    }}
-                    onUpdateFromModal={handleUpdateFromModalEnhanced}
-                    onVariationUpdate={handleVariationUpdate}
-                  />
-                </div>
-              );
-            }}
-          </VariationManagerActions>
+            <VariationManagerModals
+              showForm={showForm}
+              onFormClose={actionHandlers.handleFormClose}
+              onFormSubmit={handleFormSubmit}
+              projectName={projectName}
+              editingVariation={editingVariation}
+              formKey={formKey}
+              selectedVariation={selectedVariation}
+              showDetailsModal={showDetailsModal}
+              onDetailsModalClose={() => {
+                setShowDetailsModal(false);
+                setSelectedVariation(null);
+              }}
+              onUpdateFromModal={actionHandlers.handleUpdateFromModal}
+              onVariationUpdate={() => refreshVariations()}
+            />
+          </div>
         );
       }}
     </VariationManagerLogic>
