@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, Download, Trash2, Loader2 } from 'lucide-react';
-import { useVariationFiles } from '@/hooks/useVariationFiles';
+import { useVariationFileManagement } from '@/hooks/useVariationFileManagement';
 import { usePermissions } from '@/hooks/usePermissions';
 
 interface VariationFilesTabProps {
@@ -19,41 +19,49 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
   isEditing,
   isBlocked = false
 }) => {
-  const { attachments, loading, uploading, fetchAttachments, uploadFile, deleteFile } = useVariationFiles(variation?.id);
-  const { isDeveloper, canEdit } = usePermissions();
+  const { 
+    fetchFiles, 
+    uploadFile, 
+    deleteFile, 
+    getFiles, 
+    uploading 
+  } = useVariationFileManagement();
   
+  const { isDeveloper, canEdit } = usePermissions();
   const canUploadFiles = (isDeveloper() || canEdit('variations')) && !isBlocked;
+
+  const { files, loading } = getFiles(variation?.id);
 
   useEffect(() => {
     if (variation?.id) {
-      fetchAttachments();
+      fetchFiles(variation.id);
     }
-  }, [variation?.id, fetchAttachments]);
+  }, [variation?.id, fetchFiles]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (isBlocked) {
-      console.log('File upload blocked due to variation status');
+    if (isBlocked || !variation?.id) {
+      console.log('File upload blocked due to variation status or missing ID');
       return;
     }
 
-    const files = Array.from(event.target.files || []);
+    const fileList = Array.from(event.target.files || []);
     
-    for (const file of files) {
-      await uploadFile(file);
+    for (const file of fileList) {
+      await uploadFile(variation.id, file);
     }
     
     // Reset input
     event.target.value = '';
   };
 
-  const handleDeleteFile = async (attachmentId: string) => {
-    if (isBlocked) {
+  const handleDeleteFile = async (fileId: string) => {
+    if (isBlocked || !variation?.id) {
       console.log('File deletion blocked due to variation status');
       return;
     }
 
     if (window.confirm('Are you sure you want to delete this file?')) {
-      await deleteFile(attachmentId);
+      await deleteFile(variation.id, fileId);
     }
   };
 
@@ -110,8 +118,8 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Attached Files
-            {attachments.length > 0 && (
-              <Badge variant="outline">{attachments.length}</Badge>
+            {files.length > 0 && (
+              <Badge variant="outline">{files.length}</Badge>
             )}
           </CardTitle>
         </CardHeader>
@@ -121,17 +129,17 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
               <span className="ml-2 text-gray-600">Loading files...</span>
             </div>
-          ) : attachments.length > 0 ? (
+          ) : files.length > 0 ? (
             <div className="space-y-3">
-              {attachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-lg">
+              {files.map((file) => (
+                <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-gray-500" />
                     <div>
-                      <div className="font-medium">{attachment.file_name}</div>
+                      <div className="font-medium">{file.file_name}</div>
                       <div className="text-sm text-gray-500">
-                        {formatFileSize(attachment.file_size)} • 
-                        Uploaded {new Date(attachment.created_at).toLocaleDateString()}
+                        {formatFileSize(file.file_size)} • 
+                        Uploaded {new Date(file.created_at).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
@@ -140,8 +148,7 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        // In a real implementation, you'd download from storage
-                        console.log('Download file:', attachment.file_name);
+                        console.log('Download file:', file.file_name);
                       }}
                     >
                       <Download className="h-4 w-4" />
@@ -150,7 +157,7 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteFile(attachment.id)}
+                        onClick={() => handleDeleteFile(file.id)}
                         disabled={isBlocked}
                       >
                         <Trash2 className="h-4 w-4" />

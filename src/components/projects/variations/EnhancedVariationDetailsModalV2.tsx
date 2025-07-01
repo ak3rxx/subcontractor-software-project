@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Edit, Check, X, Save, AlertTriangle, Lock } from 'lucide-react';
+import { FileText, Edit, X, Save, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
+import { useAuditTrailManager } from '@/hooks/useAuditTrailManager';
+import { useLoadingStateManager } from '@/hooks/useLoadingStateManager';
 import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 import PermissionGate from '@/components/PermissionGate';
 import VariationDetailsTab from './VariationDetailsTab';
@@ -31,7 +33,8 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   onVariationUpdate
 }) => {
   const { toast } = useToast();
-  const { debouncedRefresh } = useVariationAuditTrail(variation?.id);
+  const { debouncedRefresh, immediateRefresh } = useAuditTrailManager();
+  const { executeWithLoading, getState } = useLoadingStateManager();
   const {
     canEditVariation,
     isPendingApproval,
@@ -45,6 +48,8 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [originalData, setOriginalData] = useState<any>({});
   const [pendingChanges, setPendingChanges] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
+
+  const { loading: saveLoading } = getState(`variation-save-${variation?.id}`);
 
   // Reset state when variation changes
   useEffect(() => {
@@ -104,50 +109,59 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setShowConfirmDialog(false);
   };
 
-  // Simplified save handler - database trigger handles all audit logging
+  // Optimized save handler with loading state management
   const handleSave = async () => {
-    if (!onUpdate || !canEditVariation) return;
+    if (!onUpdate || !canEditVariation || !variation?.id) return;
     
-    try {
-      // Prepare update data with status change if needed
-      let updatePayload = { 
-        ...editData,
-        updated_by: variation?.updated_by, // Ensure updated_by is set for trigger
-        updated_at: new Date().toISOString()
-      };
-      
-      if (isStatusLocked) {
-        updatePayload.status = 'pending_approval';
+    const success = await executeWithLoading(
+      `variation-save-${variation.id}`,
+      'saving',
+      async () => {
+        // Prepare update data with status change if needed
+        let updatePayload = { 
+          ...editData,
+          updated_by: variation?.updated_by,
+          updated_at: new Date().toISOString()
+        };
+        
+        if (isStatusLocked) {
+          updatePayload.status = 'pending_approval';
+        }
+
+        console.log('Saving variation changes:', updatePayload);
+
+        // Update the variation
+        await onUpdate(variation.id, updatePayload);
+
+        // Notify parent component
+        if (onVariationUpdate) {
+          onVariationUpdate({ ...variation, ...updatePayload });
+        }
+
+        // Trigger audit trail refresh
+        debouncedRefresh(variation.id, 500);
+
+        return updatePayload;
+      },
+      {
+        errorAutoClearMs: 5000,
+        onSuccess: () => {
+          setIsEditing(false);
+          setPendingChanges({});
+          toast({
+            title: "Success",
+            description: "Variation updated successfully" + (isStatusLocked ? " (status reverted to pending approval)" : "")
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to update variation",
+            variant: "destructive"
+          });
+        }
       }
-
-      console.log('Saving variation changes:', updatePayload);
-
-      // Update the variation - database trigger will handle all audit logging automatically
-      await onUpdate(variation.id, updatePayload);
-
-      // Notify parent component
-      if (onVariationUpdate) {
-        onVariationUpdate({ ...variation, ...updatePayload });
-      }
-
-      // Trigger audit trail refresh after update
-      debouncedRefresh(500, true);
-
-      setIsEditing(false);
-      setPendingChanges({});
-      
-      toast({
-        title: "Success",
-        description: "Variation updated successfully" + (isStatusLocked ? " (status reverted to pending approval)" : "")
-      });
-    } catch (error) {
-      console.error('Error saving variation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update variation",
-        variant: "destructive"
-      });
-    }
+    );
   };
 
   const handleCancel = () => {
@@ -287,13 +301,13 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
               
               {isEditing && canEditVariation && (
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={handleCancel}>
+                  <Button variant="outline" onClick={handleCancel} disabled={saveLoading}>
                     <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
-                  <Button onClick={handleSave}>
+                  <Button onClick={handleSave} disabled={saveLoading}>
                     <Save className="h-4 w-4 mr-2" />
-                    Save Changes
+                    {saveLoading ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               )}
