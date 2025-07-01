@@ -1,26 +1,51 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, BarChart3, List } from 'lucide-react';
 import PermissionGate from '@/components/PermissionGate';
 
 interface VariationManagerHeaderProps {
   onNewVariation: () => void;
+  activeTab?: 'list' | 'analytics';
+  onTabChange?: (tab: 'list' | 'analytics') => void;
 }
 
-const VariationManagerHeader: React.FC<VariationManagerHeaderProps> = ({ onNewVariation }) => {
+const VariationManagerHeader: React.FC<VariationManagerHeaderProps> = ({
+  onNewVariation,
+  activeTab = 'list',
+  onTabChange
+}) => {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Variations</h2>
+        <h1 className="text-2xl font-bold text-gray-900">Variations</h1>
         <p className="text-gray-600">Manage project variations and change orders</p>
       </div>
-      <PermissionGate module="variations" requiredLevel="write">
-        <Button onClick={onNewVariation} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          New Variation
-        </Button>
-      </PermissionGate>
+      
+      <div className="flex items-center gap-4">
+        {onTabChange && (
+          <Tabs value={activeTab} onValueChange={onTabChange as (value: string) => void}>
+            <TabsList>
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                List
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+        
+        <PermissionGate module="variations" requiredLevel="write">
+          <Button onClick={onNewVariation}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Variation
+          </Button>
+        </PermissionGate>
+      </div>
     </div>
   );
 };

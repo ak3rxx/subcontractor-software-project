@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { useVariations } from '@/hooks/useVariations';
+import { useVariationsRefactored } from '@/hooks/variations/useVariationsRefactored';
+import { useVariationOptimizations } from '@/hooks/variations/useVariationOptimizations';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationActions } from '@/hooks/useVariationActions';
@@ -11,6 +12,7 @@ import VariationSummaryCards from './variations/VariationSummaryCards';
 import VariationManagerFilters from './variations/sections/VariationManagerFilters';
 import VariationManagerTable from './variations/sections/VariationManagerTable';
 import VariationManagerModals from './variations/sections/VariationManagerModals';
+import VariationAnalytics from '../variations/analytics/VariationAnalytics';
 
 interface VariationManagerRefactoredProps {
   projectName: string;
@@ -23,7 +25,31 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
   projectId, 
   crossModuleData 
 }) => {
-  const { variations, loading, createVariation, updateVariation, sendVariationEmail, refetch: refreshVariations } = useVariations(projectId);
+  // Use refactored hooks
+  const {
+    variations,
+    filteredVariations,
+    loading,
+    error,
+    summary,
+    createVariation,
+    updateVariation,
+    sendVariationEmail,
+    refetch: refreshVariations,
+    filters,
+    updateFilter,
+    setFilters
+  } = useVariationsRefactored(projectId);
+
+  // Performance optimizations
+  const {
+    variationMap,
+    statusCounts,
+    priorityCounts,
+    getVariationById,
+    getVariationsByStatus
+  } = useVariationOptimizations(variations);
+
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin, canAccess } = usePermissions();
   
@@ -31,22 +57,8 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingVariation, setEditingVariation] = useState<Variation | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
   const [formKey, setFormKey] = useState(0);
-
-  const {
-    handleCreateVariation,
-    handleUpdateVariation,
-    handleSendEmail,
-    handleUpdateFromModal
-  } = useVariationActions({
-    variations,
-    createVariation,
-    updateVariation,
-    sendVariationEmail
-  });
+  const [activeTab, setActiveTab] = useState<'list' | 'analytics'>('list');
 
   // Enhanced permission checks using the permission system
   const canCreateVariations = isDeveloper() || canEdit('variations');
@@ -72,15 +84,6 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
     );
   }
 
-  const filteredVariations = variations.filter(variation => {
-    const matchesSearch = variation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         variation.variation_number.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || variation.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || variation.priority === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
-
   const handleFormSubmit = async (data: any) => {
     const success = editingVariation 
       ? await handleUpdateVariation(editingVariation.id, data)
@@ -91,6 +94,16 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
       setEditingVariation(null);
       setFormKey(prev => prev + 1);
     }
+  };
+
+  const handleUpdateVariation = async (id: string, data: any) => {
+    const result = await updateVariation(id, data);
+    return result !== null;
+  };
+
+  const handleCreateVariation = async (data: any) => {
+    const result = await createVariation(data);
+    return result !== null;
   };
 
   const handleEdit = (variation: Variation) => {
@@ -131,7 +144,7 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
       });
       return;
     }
-    await handleSendEmail(variationId);
+    await sendVariationEmail(variationId);
   };
 
   const handleUpdateFromModalEnhanced = async (id: string, updates: any) => {
@@ -141,7 +154,7 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
         updated_at: new Date().toISOString()
       };
       
-      await handleUpdateFromModal(id, updatePayload);
+      await updateVariation(id, updatePayload);
       await refreshVariations();
     } catch (error) {
       console.error('Error updating variation:', error);
@@ -170,29 +183,43 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
 
   return (
     <div className="space-y-6">
-      <VariationManagerHeader onNewVariation={handleNewVariation} />
-      
-      <VariationSummaryCards variations={variations} />
-      
-      <VariationManagerFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        priorityFilter={priorityFilter}
-        setPriorityFilter={setPriorityFilter}
+      <VariationManagerHeader 
+        onNewVariation={handleNewVariation}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
       
-      <VariationManagerTable
-        variations={filteredVariations}
-        canEditVariations={canEditVariations}
-        canSendEmails={canSendEmails}
-        canCreateVariations={canCreateVariations}
-        onViewDetails={handleViewDetails}
-        onEdit={handleEdit}
-        onSendEmail={handleSendEmailAction}
-        onCreateFirst={handleNewVariation}
+      <VariationSummaryCards 
+        variations={variations} 
+        summary={summary}
+        statusCounts={statusCounts}
+        priorityCounts={priorityCounts}
       />
+      
+      {activeTab === 'list' && (
+        <>
+          <VariationManagerFilters
+            filters={filters}
+            onFilterChange={updateFilter}
+            onFiltersChange={setFilters}
+          />
+          
+          <VariationManagerTable
+            variations={filteredVariations}
+            canEditVariations={canEditVariations}
+            canSendEmails={canSendEmails}
+            canCreateVariations={canCreateVariations}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEdit}
+            onSendEmail={handleSendEmailAction}
+            onCreateFirst={handleNewVariation}
+          />
+        </>
+      )}
+
+      {activeTab === 'analytics' && (
+        <VariationAnalytics variations={variations} />
+      )}
 
       <VariationManagerModals
         showForm={showForm}
