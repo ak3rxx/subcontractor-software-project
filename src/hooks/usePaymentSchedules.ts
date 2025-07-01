@@ -139,14 +139,36 @@ export const usePaymentSchedules = (projectId?: string) => {
 
   const createSchedule = async (scheduleData: Omit<PaymentSchedule, 'id' | 'created_at' | 'updated_at' | 'schedule_number' | 'legal_deadline'>) => {
     try {
+      // Get the schedule number first
       const scheduleNumber = await generateScheduleNumber(scheduleData.project_id);
       
+      // Prepare the data for insertion, excluding auto-generated fields
+      const insertData = {
+        payment_claim_id: scheduleData.payment_claim_id,
+        project_id: scheduleData.project_id,
+        schedule_number: scheduleNumber,
+        respondent_company_name: scheduleData.respondent_company_name,
+        respondent_abn: scheduleData.respondent_abn,
+        respondent_acn: scheduleData.respondent_acn,
+        respondent_address: scheduleData.respondent_address,
+        respondent_suburb: scheduleData.respondent_suburb,
+        respondent_postcode: scheduleData.respondent_postcode,
+        respondent_email: scheduleData.respondent_email,
+        scheduled_amount: scheduleData.scheduled_amount,
+        withheld_amount: scheduleData.withheld_amount,
+        withholding_reasons: scheduleData.withholding_reasons,
+        contract_clauses: scheduleData.contract_clauses,
+        supporting_evidence: scheduleData.supporting_evidence,
+        service_method: scheduleData.service_method,
+        service_proof: scheduleData.service_proof,
+        service_date: scheduleData.service_date,
+        status: scheduleData.status,
+        created_by: scheduleData.created_by
+      };
+
       const { data, error } = await supabase
         .from('payment_schedules')
-        .insert({
-          ...scheduleData,
-          schedule_number: scheduleNumber
-        })
+        .insert(insertData)
         .select()
         .single();
 
