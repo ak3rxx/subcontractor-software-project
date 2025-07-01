@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -98,7 +97,19 @@ const PaymentScheduleForm: React.FC<PaymentScheduleFormProps> = ({
 
       const newSchedule = await createSchedule(scheduleData);
       if (onSuccess && newSchedule) {
-        onSuccess(newSchedule);
+        // Transform the response to match our interface
+        const transformedSchedule: PaymentSchedule = {
+          ...newSchedule,
+          withholding_reasons: Array.isArray(newSchedule.withholding_reasons) 
+            ? newSchedule.withholding_reasons 
+            : newSchedule.withholding_reasons ? JSON.parse(newSchedule.withholding_reasons as string) : [],
+          supporting_evidence: Array.isArray(newSchedule.supporting_evidence) 
+            ? newSchedule.supporting_evidence 
+            : newSchedule.supporting_evidence ? JSON.parse(newSchedule.supporting_evidence as string) : [],
+          service_method: (newSchedule.service_method as 'email' | 'post' | 'in-person') || 'email',
+          status: (newSchedule.status as 'draft' | 'sent' | 'delivered') || 'draft'
+        };
+        onSuccess(transformedSchedule);
       }
       onClose();
     } catch (error) {

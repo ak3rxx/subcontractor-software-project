@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -63,7 +62,15 @@ const PaymentClaimForm: React.FC<PaymentClaimFormProps> = ({
 
       const newClaim = await createClaim(claimData);
       if (onSuccess && newClaim) {
-        onSuccess(newClaim);
+        // Transform the response to match our interface
+        const transformedClaim: PaymentClaim = {
+          ...newClaim,
+          supporting_documents: Array.isArray(newClaim.supporting_documents) 
+            ? newClaim.supporting_documents 
+            : newClaim.supporting_documents ? JSON.parse(newClaim.supporting_documents as string) : [],
+          status: (newClaim.status as 'received' | 'responded' | 'overdue') || 'received'
+        };
+        onSuccess(transformedClaim);
       }
       onClose();
     } catch (error) {

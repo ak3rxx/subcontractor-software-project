@@ -66,13 +66,36 @@ export const usePaymentSchedules = (projectId?: string) => {
       
       // Transform the data to match our interface
       const transformedData = data?.map(item => ({
-        ...item,
+        id: item.id,
+        payment_claim_id: item.payment_claim_id,
+        project_id: item.project_id,
+        schedule_number: item.schedule_number,
+        respondent_company_name: item.respondent_company_name,
+        respondent_abn: item.respondent_abn,
+        respondent_acn: item.respondent_acn,
+        respondent_address: item.respondent_address,
+        respondent_suburb: item.respondent_suburb,
+        respondent_postcode: item.respondent_postcode,
+        respondent_email: item.respondent_email,
+        scheduled_amount: item.scheduled_amount,
+        withheld_amount: item.withheld_amount,
         withholding_reasons: Array.isArray(item.withholding_reasons) 
           ? item.withholding_reasons 
           : item.withholding_reasons ? JSON.parse(item.withholding_reasons as string) : [],
+        contract_clauses: item.contract_clauses,
         supporting_evidence: Array.isArray(item.supporting_evidence) 
           ? item.supporting_evidence 
-          : item.supporting_evidence ? JSON.parse(item.supporting_evidence as string) : []
+          : item.supporting_evidence ? JSON.parse(item.supporting_evidence as string) : [],
+        service_method: (item.service_method as 'email' | 'post' | 'in-person') || 'email',
+        service_proof: item.service_proof,
+        service_date: item.service_date,
+        pdf_path: item.pdf_path,
+        word_path: item.word_path,
+        legal_deadline: item.legal_deadline,
+        status: (item.status as 'draft' | 'sent' | 'delivered') || 'draft',
+        created_by: item.created_by,
+        created_at: item.created_at,
+        updated_at: item.updated_at
       })) || [];
       
       setSchedules(transformedData);
@@ -118,13 +141,10 @@ export const usePaymentSchedules = (projectId?: string) => {
     try {
       const scheduleNumber = await generateScheduleNumber(scheduleData.project_id);
       
-      // Remove schedule_number from the data since it will be generated
-      const { schedule_number, legal_deadline, ...dataToInsert } = scheduleData as any;
-      
       const { data, error } = await supabase
         .from('payment_schedules')
         .insert({
-          ...dataToInsert,
+          ...scheduleData,
           schedule_number: scheduleNumber
         })
         .select()
