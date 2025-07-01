@@ -10,9 +10,10 @@ export const useAuditTrailFetch = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Refs for debouncing and preventing duplicate requests
-  const isRefreshingRef = useRef(false);
+  // Enhanced refs for better concurrency control
+  const fetchInProgressRef = useRef(false);
   const lastFetchIdRef = useRef<string | null>(null);
+  const lastFetchTimestampRef = useRef<number>(0);
 
   const fetchAuditTrail = useCallback(async (
     variationId: string, 
@@ -25,20 +26,26 @@ export const useAuditTrailFetch = () => {
       return;
     }
 
-    // Prevent duplicate requests
-    if (isRefreshingRef.current && !forceRefresh) {
-      console.log('Audit trail fetch already in progress, skipping...');
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTimestampRef.current;
+
+    // Enhanced duplicate request prevention
+    if (fetchInProgressRef.current) {
+      console.log('Fetch already in progress, skipping...');
       return;
     }
 
-    // Skip if this is the same variation and we just fetched it
-    if (!forceRefresh && lastFetchIdRef.current === variationId) {
-      console.log('Audit trail already fetched for this variation, skipping...');
+    // Skip if this is the same variation and we just fetched it recently (within 2 seconds)
+    if (!forceRefresh && 
+        lastFetchIdRef.current === variationId && 
+        timeSinceLastFetch < 2000) {
+      console.log('Recent fetch for same variation, skipping...', { timeSinceLastFetch });
       return;
     }
 
-    isRefreshingRef.current = true;
+    fetchInProgressRef.current = true;
     lastFetchIdRef.current = variationId;
+    lastFetchTimestampRef.current = now;
     
     if (showRefreshingState) {
       setRefreshing(true);
@@ -51,12 +58,12 @@ export const useAuditTrailFetch = () => {
     try {
       console.log('Fetching audit trail for variation:', variationId);
       
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .rpc('get_variation_audit_history', { p_variation_id: variationId });
 
-      if (error) {
-        console.error('Error fetching audit trail:', error);
-        setError(error.message || 'Failed to load audit trail');
+      if (fetchError) {
+        console.error('Error fetching audit trail:', fetchError);
+        setError(fetchError.message || 'Failed to load audit trail');
         setAuditTrail([]);
         return;
       }
@@ -79,12 +86,14 @@ export const useAuditTrailFetch = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
-      isRefreshingRef.current = false;
+      fetchInProgressRef.current = false;
     }
   }, []);
 
   const resetFetchState = useCallback(() => {
     lastFetchIdRef.current = null;
+    lastFetchTimestampRef.current = 0;
+    fetchInProgressRef.current = false;
   }, []);
 
   return {

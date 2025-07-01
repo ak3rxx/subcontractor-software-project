@@ -1,10 +1,13 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuditTrailFetch } from './useAuditTrailFetch';
 import { useAuditTrailRefresh } from './useAuditTrailRefresh';
 import { useEmailLogging } from './useEmailLogging';
 
 export const useVariationAuditTrail = (variationId?: string) => {
+  const lastVariationIdRef = useRef<string | null>(null);
+  const lastStatusRef = useRef<string | null>(null);
+  
   const {
     auditTrail,
     loading,
@@ -34,22 +37,23 @@ export const useVariationAuditTrail = (variationId?: string) => {
     
     const success = await logEmail(variationId, comments);
     if (success) {
-      // Immediate refresh after logging
-      await immediateRefresh();
+      // Use debounced refresh after logging to prevent loops
+      debouncedRefresh(500, true);
     }
     return success;
   };
 
-  // Fetch audit trail when variationId changes
+  // Initial fetch when variationId changes
   useEffect(() => {
-    if (variationId) {
-      console.log('useEffect triggered for variationId:', variationId);
-      resetFetchState(); // Reset to allow fresh fetch
+    if (variationId && variationId !== lastVariationIdRef.current) {
+      console.log('New variation ID, fetching audit trail:', variationId);
+      lastVariationIdRef.current = variationId;
+      resetFetchState();
       fetchAuditTrail(variationId, false, false);
     }
   }, [variationId, fetchAuditTrail, resetFetchState]);
 
-  // Cleanup function
+  // Cleanup on unmount
   useEffect(() => {
     return cleanup;
   }, [cleanup]);
@@ -61,7 +65,7 @@ export const useVariationAuditTrail = (variationId?: string) => {
     error,
     refetch: immediateRefresh,
     debouncedRefresh,
-    logEmailSent // Only keep email logging, everything else is handled by DB trigger
+    logEmailSent
   };
 };
 

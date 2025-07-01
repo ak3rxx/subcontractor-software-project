@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,82 +36,72 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   } = useVariationAuditTrail(variation?.id);
 
   const [refreshCount, setRefreshCount] = useState(0);
-  const [lastVariationUpdate, setLastVariationUpdate] = useState<string>('');
+  const lastUpdateTimestampRef = useRef<string>('');
+  const statusChangeInProgressRef = useRef(false);
 
   // Enhanced permission checks
   const userRole = user?.role || 'user';
   const userEmail = user?.email || '';
   const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
   const isProjectManager = userRole === 'project_manager';
-  const canEditVariation = [
-    'project_manager', 
-    'contract_administrator', 
-    'project_engineer',
-    'admin',
-    'manager'
-  ].includes(userRole) || isFullAccessUser || isDeveloper() || canEdit('variations');
 
-  // Enhanced status change handler with immediate feedback
+  // Optimized status change handler - prevents cascading refreshes
   const handleStatusChange = async () => {
-    console.log('Status change detected, triggering comprehensive refresh sequence');
+    if (statusChangeInProgressRef.current) {
+      console.log('Status change already in progress, skipping...');
+      return;
+    }
+
+    statusChangeInProgressRef.current = true;
+    console.log('Status change detected, triggering controlled refresh');
     
     try {
-      // Increment refresh counter for UI feedback
       setRefreshCount(prev => prev + 1);
       
-      // Update last variation update timestamp
-      setLastVariationUpdate(new Date().toISOString());
+      // Only refresh audit trail after a brief delay to let DB triggers complete
+      setTimeout(async () => {
+        try {
+          await refetch();
+          if (onStatusChange) {
+            onStatusChange();
+          }
+        } catch (error) {
+          console.error('Error in delayed status change handling:', error);
+        } finally {
+          statusChangeInProgressRef.current = false;
+        }
+      }, 1000);
       
-      // Immediate audit trail refresh
-      if (variation?.id) {
-        console.log('Triggering immediate audit trail refresh...');
-        await refetch();
-      }
-      
-      // Call parent callback for cross-component refresh
-      if (onStatusChange) {
-        console.log('Calling parent status change callback...');
-        onStatusChange();
-      }
-      
-      console.log('Status change handling completed successfully');
+      console.log('Status change handling initiated successfully');
     } catch (error) {
       console.error('Error in status change handling:', error);
+      statusChangeInProgressRef.current = false;
     }
   };
 
-  // Enhanced effect to refresh audit trail when variation changes
+  // Controlled effect for variation updates - only refresh when truly necessary
   useEffect(() => {
-    if (variation?.id && variation?.updated_at) {
-      console.log('Variation updated, refreshing audit trail:', {
+    if (!variation?.id || !variation?.updated_at) return;
+
+    const currentTimestamp = variation.updated_at;
+    
+    // Only refresh if the timestamp actually changed and we're not in a status change
+    if (currentTimestamp !== lastUpdateTimestampRef.current && !statusChangeInProgressRef.current) {
+      console.log('Variation timestamp changed, scheduling refresh:', {
         id: variation.id,
         status: variation.status,
-        updated_at: variation.updated_at
+        old_timestamp: lastUpdateTimestampRef.current,
+        new_timestamp: currentTimestamp
       });
       
-      // Use debounced refresh to avoid excessive API calls
-      debouncedRefresh(300, true);
+      lastUpdateTimestampRef.current = currentTimestamp;
+      
+      // Use debounced refresh to prevent rapid successive calls
+      debouncedRefresh(1500, false);
     }
-  }, [variation?.id, variation?.status, variation?.updated_at, debouncedRefresh]);
+  }, [variation?.id, variation?.updated_at, variation?.status, debouncedRefresh]);
 
-  // Auto-refresh audit trail periodically for active variations
-  useEffect(() => {
-    if (!variation?.id || variation.status === 'draft') return;
-    
-    const interval = setInterval(() => {
-      console.log('Periodic audit trail refresh');
-      debouncedRefresh(100, false);
-    }, 30000); // Refresh every 30 seconds for active variations
-    
-    return () => clearInterval(interval);
-  }, [variation?.id, variation?.status, debouncedRefresh]);
-
-  const canShowApprovalTab = () => {
-    // Show approval tab if variation is not in draft or if user can edit
-    return variation.status !== 'draft' || canEditVariation;
-  };
-
-  // Enhanced status indicator
+  // Enhanced status indicator with better error handling
   const getStatusIndicator = () => {
     if (refreshing) {
       return (
@@ -156,9 +146,9 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                 </Badge>
               )}
             </div>
-            {lastVariationUpdate && (
+            {lastUpdateTimestampRef.current && (
               <div className="text-xs text-gray-500 mt-1">
-                Last update: {new Date(lastVariationUpdate).toLocaleTimeString()}
+                Last update: {new Date(lastUpdateTimestampRef.current).toLocaleTimeString()}
               </div>
             )}
           </CardContent>
@@ -200,7 +190,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
             <h4 className="font-medium mb-2 text-blue-900">Your Permissions</h4>
             <div className="text-sm text-blue-800 space-y-1">
               <div>• Role: {userRole}</div>
-              {canEditVariation && <div>• Can submit variations for approval</div>}
+              {(isDeveloper() || canEdit('variations') || isProjectManager) && <div>• Can submit variations for approval</div>}
               {(isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager) && <div>• Can approve/reject variations</div>}
               {(isDeveloper() || canAdmin('variations') || isProjectManager) && <div>• Can unlock and revert approved/rejected variations</div>}
               {isProjectManager && <div>• Project Manager override permissions enabled</div>}
@@ -221,6 +211,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
                 <div>Loading: {auditLoading ? 'Yes' : 'No'}</div>
                 <div>Refreshing: {refreshing ? 'Yes' : 'No'}</div>
                 <div>Error: {auditError || 'None'}</div>
+                <div>Status Change in Progress: {statusChangeInProgressRef.current ? 'Yes' : 'No'}</div>
               </div>
             </CardContent>
           </Card>
