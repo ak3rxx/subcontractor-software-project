@@ -1,5 +1,5 @@
 
-import { Module } from '@/hooks/usePermissions';
+import { Module } from '@/permissions/types';
 
 export interface NavigationItem {
   name: string;

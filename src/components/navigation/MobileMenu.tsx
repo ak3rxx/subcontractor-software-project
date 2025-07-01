@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { usePermissions } from '@/hooks/usePermissions';
-import PermissionGate from '@/components/PermissionGate';
+import { usePermissionChecks } from '@/permissions';
+import { PermissionGate } from '@/permissions';
 import { navigationItems } from './NavigationItems';
 
 interface MobileMenuProps {
@@ -11,7 +11,7 @@ interface MobileMenuProps {
 }
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
-  const { isDeveloper, isOrgAdmin } = usePermissions();
+  const { isDeveloper, isOrgAdmin } = usePermissionChecks();
 
   if (!isOpen) return null;
 

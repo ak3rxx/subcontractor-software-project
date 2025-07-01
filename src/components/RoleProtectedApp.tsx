@@ -2,6 +2,7 @@
 import React from 'react';
 import { useRoleValidation } from '@/hooks/useRoleValidation';
 import { useAuth } from '@/contexts/AuthContext';
+import { PermissionDataProvider } from '@/permissions';
 import RestrictedUserLayout from '@/components/RestrictedUserLayout';
 
 interface RoleProtectedAppProps {
@@ -29,9 +30,13 @@ const RoleProtectedApp: React.FC<RoleProtectedAppProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // If user has valid role, show normal app
+  // If user has valid role, show normal app with permission context
   if (isValid) {
-    return <>{children}</>;
+    return (
+      <PermissionDataProvider>
+        {children}
+      </PermissionDataProvider>
+    );
   }
 
   // If user needs role assignment, show restricted layout
@@ -39,8 +44,12 @@ const RoleProtectedApp: React.FC<RoleProtectedAppProps> = ({ children }) => {
     return <RestrictedUserLayout />;
   }
 
-  // Default to showing normal app
-  return <>{children}</>;
+  // Default to showing normal app with permission context
+  return (
+    <PermissionDataProvider>
+      {children}
+    </PermissionDataProvider>
+  );
 };
 
 export default RoleProtectedApp;

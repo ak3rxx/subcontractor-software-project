@@ -1,8 +1,8 @@
 
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissionChecks } from '@/permissions';
 
 export const useVariationEditPermissions = (variation: any) => {
-  const { isDeveloper, canEdit, canAdmin, isProjectManager } = usePermissions();
+  const { isDeveloper, canEdit, canAdmin, isProjectManager } = usePermissionChecks();
 
   // Users who can edit during pending approval (have approval workflow access)
   const canEditDuringPendingApproval = isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager();

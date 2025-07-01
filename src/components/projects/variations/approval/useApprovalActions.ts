@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissionChecks } from '@/permissions';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 
 export const useApprovalActions = (
@@ -12,7 +11,7 @@ export const useApprovalActions = (
 ) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isDeveloper, canEdit, canAdmin } = usePermissions();
+  const { isDeveloper, canEdit, canAdmin, isProjectManager } = usePermissionChecks();
   const { refetch } = useVariationAuditTrail(variation?.id);
   
   const [approvalComments, setApprovalComments] = useState('');
@@ -23,14 +22,13 @@ export const useApprovalActions = (
   const [lastActionResult, setLastActionResult] = useState<{success: boolean; message: string} | null>(null);
 
   const userRole = user?.role || 'user';
-  const isProjectManager = userRole === 'project_manager';
 
   const permissions = {
-    canApprove: isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager,
-    canUnlock: isDeveloper() || canAdmin('variations') || isProjectManager,
-    canSubmitForApproval: variation.status === 'draft' && (isDeveloper() || canEdit('variations') || isProjectManager),
-    showApprovalActions: (isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager) && variation.status === 'pending_approval',
-    showUnlockActions: (isDeveloper() || canAdmin('variations') || isProjectManager) && ['approved', 'rejected'].includes(variation.status)
+    canApprove: isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager(),
+    canUnlock: isDeveloper() || canAdmin('variations') || isProjectManager(),
+    canSubmitForApproval: variation.status === 'draft' && (isDeveloper() || canEdit('variations') || isProjectManager()),
+    showApprovalActions: (isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager()) && variation.status === 'pending_approval',
+    showUnlockActions: (isDeveloper() || canAdmin('variations') || isProjectManager()) && ['approved', 'rejected'].includes(variation.status)
   };
 
   // Enhanced action handler with better error handling and immediate feedback
@@ -55,7 +53,6 @@ export const useApprovalActions = (
         duration: 3000
       });
 
-      // Trigger immediate status change callback and audit refresh
       console.log('Triggering status change callback and audit refresh...');
       await Promise.all([
         onStatusChange(),
@@ -100,8 +97,6 @@ export const useApprovalActions = (
         };
         
         console.log('Submitting for approval with data:', updateData);
-        
-        // Database trigger will handle audit logging automatically
         await onUpdate(variation.id, updateData);
       },
       'Variation submitted for approval'
@@ -140,11 +135,8 @@ export const useApprovalActions = (
         };
 
         console.log('Updating variation approval with:', updateData);
-
-        // Database trigger will handle audit logging automatically
         await onUpdate(variation.id, updateData);
         
-        // Clear form
         setApprovalComments('');
         setRejectionReason('');
       },
@@ -187,11 +179,8 @@ export const useApprovalActions = (
         };
 
         console.log('Unlocking variation with data:', updateData);
-
-        // Database trigger will handle audit logging automatically
         await onUpdate(variation.id, updateData);
         
-        // Clear form
         setUnlockReason('');
       },
       `Variation unlocked and reverted to ${unlockTargetStatus}`
@@ -213,7 +202,7 @@ export const useApprovalActions = (
     
     // Permissions
     permissions,
-    isProjectManager,
+    isProjectManager: isProjectManager(),
     
     // Actions
     handleSubmitForApproval,

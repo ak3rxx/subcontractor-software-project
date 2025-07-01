@@ -6,11 +6,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { NavLink } from 'react-router-dom';
 import { LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissionChecks } from '@/permissions';
 
 const UserMenu = () => {
   const { user, signOut } = useAuth();
-  const { isDeveloper, isOrgAdmin } = usePermissions();
+  const { isDeveloper, isOrgAdmin } = usePermissionChecks();
 
   const getUserInitials = () => {
     if (user?.email) {
