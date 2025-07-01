@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,19 +20,23 @@ interface VariationCostTabProps {
   editData: any;
   isEditing: boolean;
   onDataChange: (data: any) => void;
+  isBlocked?: boolean;
 }
 
 const VariationCostTab: React.FC<VariationCostTabProps> = ({
   variation,
   editData,
   isEditing,
-  onDataChange
+  onDataChange,
+  isBlocked = false
 }) => {
   const handleInputChange = (field: string, value: any) => {
+    if (isBlocked) return;
     onDataChange({ [field]: value });
   };
 
   const handleCostBreakdownChange = (index: number, field: string, value: any) => {
+    if (isBlocked) return;
     const updatedBreakdown = [...(editData.cost_breakdown || [])];
     updatedBreakdown[index] = {
       ...updatedBreakdown[index],
@@ -59,6 +62,7 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
   };
 
   const addCostBreakdownItem = () => {
+    if (isBlocked) return;
     const newItem: CostBreakdownItem = {
       id: Date.now().toString(),
       description: '',
@@ -72,6 +76,7 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
   };
 
   const removeCostBreakdownItem = (index: number) => {
+    if (isBlocked) return;
     const updatedBreakdown = editData.cost_breakdown.filter((_: any, i: number) => i !== index);
     
     // Recalculate total
@@ -91,10 +96,11 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
     return `$${amount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const costBreakdown = isEditing ? editData.cost_breakdown || [] : variation.cost_breakdown || [];
-  const costImpact = isEditing ? editData.cost_impact || 0 : variation.cost_impact || 0;
-  const gstAmount = isEditing ? editData.gst_amount || 0 : variation.gst_amount || 0;
-  const totalAmount = isEditing ? editData.total_amount || 0 : variation.total_amount || 0;
+  const effectiveIsEditing = isEditing && !isBlocked;
+  const costBreakdown = effectiveIsEditing ? editData.cost_breakdown || [] : variation.cost_breakdown || [];
+  const costImpact = effectiveIsEditing ? editData.cost_impact || 0 : variation.cost_impact || 0;
+  const gstAmount = effectiveIsEditing ? editData.gst_amount || 0 : variation.gst_amount || 0;
+  const totalAmount = effectiveIsEditing ? editData.total_amount || 0 : variation.total_amount || 0;
 
   return (
     <ScrollArea className="h-[calc(100vh-400px)] pr-4">
@@ -145,12 +151,13 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Time Impact (days)</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Input
                     type="number"
                     value={editData.time_impact || 0}
                     onChange={(e) => handleInputChange('time_impact', parseInt(e.target.value) || 0)}
                     placeholder="Enter time impact in days"
+                    disabled={isBlocked}
                   />
                 ) : (
                   <div className="p-3 bg-gray-50 rounded-md">
@@ -182,13 +189,14 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
                 <Calculator className="h-5 w-5" />
                 Cost Breakdown
               </div>
-              {isEditing && (
+              {effectiveIsEditing && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={addCostBreakdownItem}
                   className="flex items-center gap-1"
+                  disabled={isBlocked}
                 >
                   <Plus className="h-4 w-4" />
                   Add Item
@@ -199,7 +207,7 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
           <CardContent>
             {costBreakdown.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                {isEditing ? 'No cost breakdown items. Click "Add Item" to get started.' : 'No cost breakdown available.'}
+                {effectiveIsEditing ? 'No cost breakdown items. Click "Add Item" to get started.' : 'No cost breakdown available.'}
               </div>
             ) : (
               <div className="space-y-4">
@@ -207,11 +215,12 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
                   <div key={item.id || index} className="grid grid-cols-12 gap-2 items-end p-4 border rounded-lg">
                     <div className="col-span-5">
                       <Label className="text-xs">Description</Label>
-                      {isEditing ? (
+                      {effectiveIsEditing ? (
                         <Input
                           value={item.description}
                           onChange={(e) => handleCostBreakdownChange(index, 'description', e.target.value)}
                           placeholder="Item description"
+                          disabled={isBlocked}
                         />
                       ) : (
                         <div className="p-2 bg-gray-50 rounded text-sm">{item.description}</div>
@@ -220,13 +229,14 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
                     
                     <div className="col-span-2">
                       <Label className="text-xs">Quantity</Label>
-                      {isEditing ? (
+                      {effectiveIsEditing ? (
                         <Input
                           type="number"
                           value={item.quantity}
                           onChange={(e) => handleCostBreakdownChange(index, 'quantity', e.target.value)}
                           step="0.01"
                           min="0"
+                          disabled={isBlocked}
                         />
                       ) : (
                         <div className="p-2 bg-gray-50 rounded text-sm text-right">{item.quantity}</div>
@@ -235,13 +245,14 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
                     
                     <div className="col-span-2">
                       <Label className="text-xs">Rate ($)</Label>
-                      {isEditing ? (
+                      {effectiveIsEditing ? (
                         <Input
                           type="number"
                           value={item.rate}
                           onChange={(e) => handleCostBreakdownChange(index, 'rate', e.target.value)}
                           step="0.01"
                           min="0"
+                          disabled={isBlocked}
                         />
                       ) : (
                         <div className="p-2 bg-gray-50 rounded text-sm text-right">{formatCurrency(item.rate)}</div>
@@ -255,7 +266,7 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
                       </div>
                     </div>
                     
-                    {isEditing && (
+                    {effectiveIsEditing && (
                       <div className="col-span-1">
                         <Button
                           type="button"
@@ -263,6 +274,7 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
                           size="sm"
                           onClick={() => removeCostBreakdownItem(index)}
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                          disabled={isBlocked}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

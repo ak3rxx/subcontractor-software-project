@@ -3,16 +3,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Edit, Check, X, Save, AlertTriangle } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
+import { FileText, Edit, Check, X, Save, AlertTriangle, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
+import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 import PermissionGate from '@/components/PermissionGate';
 import VariationDetailsTab from './VariationDetailsTab';
 import VariationCostTab from './VariationCostTab';
 import VariationFilesTab from './VariationFilesTab';
 import EnhancedVariationApprovalTab from './EnhancedVariationApprovalTab';
 import EditConfirmationDialog from './EditConfirmationDialog';
+import StatusBlockedMessage from './approval/StatusBlockedMessage';
 
 interface EnhancedVariationDetailsModalV2Props {
   variation: any | null;
@@ -30,8 +31,13 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   onVariationUpdate
 }) => {
   const { toast } = useToast();
-  const { isDeveloper, canEdit } = usePermissions();
   const { debouncedRefresh } = useVariationAuditTrail(variation?.id);
+  const {
+    canEditVariation,
+    isPendingApproval,
+    isStatusLocked,
+    editBlockedReason
+  } = useVariationEditPermissions(variation);
   
   const [isEditing, setIsEditing] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -39,10 +45,6 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
   const [originalData, setOriginalData] = useState<any>({});
   const [pendingChanges, setPendingChanges] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
-
-  // Enhanced permission checks
-  const canEditVariation = isDeveloper() || canEdit('variations');
-  const isStatusLocked = ['approved', 'rejected'].includes(variation?.status);
 
   // Reset state when variation changes
   useEffect(() => {
@@ -79,18 +81,18 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setPendingChanges(prev => ({ ...prev, ...changes }));
   }, []);
 
-  // Enhanced edit handler with confirmation for locked statuses
+  // Enhanced edit handler with status-based blocking
   const handleEdit = () => {
     if (!canEditVariation) {
       toast({
-        title: "Access Denied",
-        description: "You don't have permission to edit variations",
+        title: "Edit Blocked",
+        description: editBlockedReason || "You cannot edit this variation",
         variant: "destructive"
       });
       return;
     }
 
-    if (isStatusLocked) {
+    if (isStatusLocked || isPendingApproval) {
       setShowConfirmDialog(true);
     } else {
       setIsEditing(true);
@@ -188,8 +190,8 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                 <DialogTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
                   Variation {variation.variation_number}
-                  {isStatusLocked && (
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  {(isStatusLocked || isPendingApproval) && (
+                    <Lock className="h-4 w-4 text-amber-500" />
                   )}
                 </DialogTitle>
                 <DialogDescription>
@@ -208,6 +210,15 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             </div>
           </DialogHeader>
 
+          {/* Status Blocked Message */}
+          {!canEditVariation && editBlockedReason && (
+            <StatusBlockedMessage
+              reason={editBlockedReason}
+              isPendingApproval={isPendingApproval}
+              isStatusLocked={isStatusLocked}
+            />
+          )}
+
           <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
               <TabsList className="flex-shrink-0 grid w-full grid-cols-4">
@@ -222,8 +233,9 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                   <VariationDetailsTab
                     variation={variation}
                     editData={editData}
-                    isEditing={isEditing}
+                    isEditing={isEditing && canEditVariation}
                     onDataChange={handleDataChange}
+                    isBlocked={!canEditVariation}
                   />
                 </TabsContent>
 
@@ -231,15 +243,17 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
                   <VariationCostTab
                     variation={variation}
                     editData={editData}
-                    isEditing={isEditing}
+                    isEditing={isEditing && canEditVariation}
                     onDataChange={handleDataChange}
+                    isBlocked={!canEditVariation}
                   />
                 </TabsContent>
 
                 <TabsContent value="files" className="h-full mt-4">
                   <VariationFilesTab
                     variation={variation}
-                    isEditing={isEditing}
+                    isEditing={isEditing && canEditVariation}
+                    isBlocked={!canEditVariation}
                   />
                 </TabsContent>
 
@@ -260,14 +274,18 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
             <div className="flex-shrink-0 border-t pt-4">
               {!isEditing && activeTab !== 'approval' && (
                 <div className="flex justify-end">
-                  <Button variant="outline" onClick={handleEdit}>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleEdit}
+                    disabled={!canEditVariation}
+                  >
                     <Edit className="h-4 w-4 mr-2" />
-                    Edit Variation
+                    {!canEditVariation ? 'Edit Blocked' : 'Edit Variation'}
                   </Button>
                 </div>
               )}
               
-              {isEditing && (
+              {isEditing && canEditVariation && (
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={handleCancel}>
                     <X className="h-4 w-4 mr-2" />

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,15 +14,18 @@ interface VariationDetailsTabProps {
   editData: any;
   isEditing: boolean;
   onDataChange: (data: any) => void;
+  isBlocked?: boolean;
 }
 
 const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
   variation,
   editData,
   isEditing,
-  onDataChange
+  onDataChange,
+  isBlocked = false
 }) => {
   const handleInputChange = (field: string, value: any) => {
+    if (isBlocked) return;
     onDataChange({ [field]: value });
   };
 
@@ -40,6 +42,8 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
     }
   };
 
+  const effectiveIsEditing = isEditing && !isBlocked;
+
   return (
     <ScrollArea className="h-[calc(100vh-400px)] pr-4">
       <div className="space-y-6">
@@ -52,11 +56,12 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="title">Title</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Input
                     id="title"
                     value={editData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
+                    disabled={isBlocked}
                   />
                 ) : (
                   <div className="p-2 bg-gray-50 rounded-md">{variation.title}</div>
@@ -65,10 +70,11 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
               
               <div>
                 <Label>Priority</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Select 
                     value={editData.priority} 
                     onValueChange={(value) => handleInputChange('priority', value)}
+                    disabled={isBlocked}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -90,10 +96,11 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Location</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Input
                     value={editData.location}
                     onChange={(e) => handleInputChange('location', e.target.value)}
+                    disabled={isBlocked}
                   />
                 ) : (
                   <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
@@ -105,10 +112,11 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
 
               <div>
                 <Label>Category</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Select 
                     value={editData.category} 
                     onValueChange={(value) => handleInputChange('category', value)}
+                    disabled={isBlocked}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -133,10 +141,11 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
 
               <div>
                 <Label>Trade</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Select 
                     value={editData.trade || ''} 
                     onValueChange={(value) => handleInputChange('trade', value)}
+                    disabled={isBlocked}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select trade" />
@@ -165,11 +174,12 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Client Email</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Input
                     type="email"
                     value={editData.client_email}
                     onChange={(e) => handleInputChange('client_email', e.target.value)}
+                    disabled={isBlocked}
                   />
                 ) : (
                   <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
@@ -181,11 +191,12 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
 
               <div>
                 <Label>Time Impact (days)</Label>
-                {isEditing ? (
+                {effectiveIsEditing ? (
                   <Input
                     type="number"
                     value={editData.time_impact}
                     onChange={(e) => handleInputChange('time_impact', parseInt(e.target.value) || 0)}
+                    disabled={isBlocked}
                   />
                 ) : (
                   <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
@@ -213,11 +224,12 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
-                  {isEditing ? (
+                  {effectiveIsEditing ? (
                     <Checkbox
                       id="requires_nod"
                       checked={editData.requires_nod || false}
                       onCheckedChange={(checked) => handleInputChange('requires_nod', checked)}
+                      disabled={isBlocked}
                     />
                   ) : (
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
@@ -231,15 +243,16 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
                   </Label>
                 </div>
                 
-                {(isEditing ? editData.requires_nod : variation.requires_nod) && (
+                {(effectiveIsEditing ? editData.requires_nod : variation.requires_nod) && (
                   <div>
                     <Label>NOD Days</Label>
-                    {isEditing ? (
+                    {effectiveIsEditing ? (
                       <Input
                         type="number"
                         value={editData.nod_days || 0}
                         onChange={(e) => handleInputChange('nod_days', parseInt(e.target.value) || 0)}
                         placeholder="Enter NOD days"
+                        disabled={isBlocked}
                       />
                     ) : (
                       <div className="p-2 bg-blue-50 rounded-md">
@@ -252,11 +265,12 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
 
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
-                  {isEditing ? (
+                  {effectiveIsEditing ? (
                     <Checkbox
                       id="requires_eot"
                       checked={editData.requires_eot || false}
                       onCheckedChange={(checked) => handleInputChange('requires_eot', checked)}
+                      disabled={isBlocked}
                     />
                   ) : (
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
@@ -270,15 +284,16 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
                   </Label>
                 </div>
                 
-                {(isEditing ? editData.requires_eot : variation.requires_eot) && (
+                {(effectiveIsEditing ? editData.requires_eot : variation.requires_eot) && (
                   <div>
                     <Label>EOT Days</Label>
-                    {isEditing ? (
+                    {effectiveIsEditing ? (
                       <Input
                         type="number"
                         value={editData.eot_days || 0}
                         onChange={(e) => handleInputChange('eot_days', parseInt(e.target.value) || 0)}
                         placeholder="Enter EOT days"
+                        disabled={isBlocked}
                       />
                     ) : (
                       <div className="p-2 bg-green-50 rounded-md">
@@ -298,12 +313,13 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
             <CardTitle>Description</CardTitle>
           </CardHeader>
           <CardContent>
-            {isEditing ? (
+            {effectiveIsEditing ? (
               <Textarea
                 value={editData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={4}
                 placeholder="Enter variation description..."
+                disabled={isBlocked}
               />
             ) : (
               <div className="p-3 bg-gray-50 rounded-md">
@@ -319,12 +335,13 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
             <CardTitle>Justification</CardTitle>
           </CardHeader>
           <CardContent>
-            {isEditing ? (
+            {effectiveIsEditing ? (
               <Textarea
                 value={editData.justification}
                 onChange={(e) => handleInputChange('justification', e.target.value)}
                 rows={3}
                 placeholder="Enter justification for this variation..."
+                disabled={isBlocked}
               />
             ) : (
               <div className="p-3 bg-gray-50 rounded-md">

@@ -11,16 +11,18 @@ import { usePermissions } from '@/hooks/usePermissions';
 interface VariationFilesTabProps {
   variation: any;
   isEditing: boolean;
+  isBlocked?: boolean;
 }
 
 const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
   variation,
-  isEditing
+  isEditing,
+  isBlocked = false
 }) => {
   const { attachments, loading, uploading, fetchAttachments, uploadFile, deleteFile } = useVariationFiles(variation?.id);
   const { isDeveloper, canEdit } = usePermissions();
   
-  const canUploadFiles = isDeveloper() || canEdit('variations');
+  const canUploadFiles = (isDeveloper() || canEdit('variations')) && !isBlocked;
 
   useEffect(() => {
     if (variation?.id) {
@@ -29,6 +31,11 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
   }, [variation?.id, fetchAttachments]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isBlocked) {
+      console.log('File upload blocked due to variation status');
+      return;
+    }
+
     const files = Array.from(event.target.files || []);
     
     for (const file of files) {
@@ -40,6 +47,11 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
   };
 
   const handleDeleteFile = async (attachmentId: string) => {
+    if (isBlocked) {
+      console.log('File deletion blocked due to variation status');
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this file?')) {
       await deleteFile(attachmentId);
     }
@@ -71,13 +83,18 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
                 multiple
                 onChange={handleFileUpload}
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.xlsx,.xls"
-                disabled={uploading}
+                disabled={uploading || isBlocked}
               />
               {uploading && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Uploading files...
                 </div>
+              )}
+              {isBlocked && (
+                <p className="text-xs text-amber-600">
+                  File uploads are restricted while the variation is in its current status.
+                </p>
               )}
               <p className="text-xs text-gray-500">
                 Supported formats: PDF, Word documents, Images, Excel files
@@ -134,6 +151,7 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteFile(attachment.id)}
+                        disabled={isBlocked}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -146,7 +164,12 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
             <div className="text-center p-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>No files attached</p>
-              <p className="text-sm">Upload files to support this variation</p>
+              <p className="text-sm">
+                {isBlocked 
+                  ? 'File uploads are restricted for this variation status' 
+                  : 'Upload files to support this variation'
+                }
+              </p>
             </div>
           )}
         </CardContent>
@@ -162,6 +185,11 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
           <p>• Ensure file names are descriptive and professional</p>
           <p>• Maximum file size: 10MB per file</p>
           <p>• All uploaded files will be logged in the audit trail</p>
+          {isBlocked && (
+            <p className="text-amber-600 font-medium">
+              • File operations are currently restricted due to variation status
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
