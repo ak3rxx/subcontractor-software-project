@@ -89,6 +89,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({
             setFormKey={setFormKey}
             setSelectedVariation={setSelectedVariation}
             setShowDetailsModal={setShowDetailsModal}
+            formKey={formKey}
           >
             {(actions) => {
               const {
@@ -109,7 +110,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({
                 if (success) {
                   setShowForm(false);
                   setEditingVariation(null);
-                  setFormKey(prev => prev + 1);
+                  setFormKey(formKey + 1);
                 }
               };
 

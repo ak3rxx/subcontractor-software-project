@@ -17,6 +17,7 @@ interface VariationManagerActionsProps {
   setFormKey: (key: number) => void;
   setSelectedVariation: (variation: Variation | null) => void;
   setShowDetailsModal: (show: boolean) => void;
+  formKey: number;
   children: (actions: {
     handleFormSubmit: (data: any) => Promise<void>;
     handleUpdateVariation: (id: string, data: any) => Promise<boolean>;
@@ -45,6 +46,7 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
   setFormKey,
   setSelectedVariation,
   setShowDetailsModal,
+  formKey,
   children
 }) => {
   const { toast } = useToast();
@@ -84,7 +86,7 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
     
     setEditingVariation(variation);
     setShowForm(true);
-    setFormKey(prev => prev + 1);
+    setFormKey(formKey + 1);
   };
 
   const handleViewDetails = (variation: Variation) => {
@@ -125,14 +127,14 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
 
   const handleNewVariation = () => {
     setEditingVariation(null);
-    setFormKey(prev => prev + 1);
+    setFormKey(formKey + 1);
     setShowForm(true);
   };
 
   const handleFormClose = () => {
     setShowForm(false);
     setEditingVariation(null);
-    setFormKey(prev => prev + 1);
+    setFormKey(formKey + 1);
   };
 
   return (
