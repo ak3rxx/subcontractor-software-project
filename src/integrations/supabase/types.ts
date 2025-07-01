@@ -548,6 +548,239 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_claims: {
+        Row: {
+          claim_amount: number
+          claim_description: string | null
+          claim_number: string
+          claim_received_date: string
+          claimant_abn: string
+          claimant_acn: string | null
+          claimant_address: string
+          claimant_company_name: string
+          claimant_email: string
+          claimant_postcode: string
+          claimant_suburb: string
+          contract_number: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          project_id: string | null
+          status: string
+          supporting_documents: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          claim_amount?: number
+          claim_description?: string | null
+          claim_number: string
+          claim_received_date: string
+          claimant_abn: string
+          claimant_acn?: string | null
+          claimant_address: string
+          claimant_company_name: string
+          claimant_email: string
+          claimant_postcode: string
+          claimant_suburb: string
+          contract_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          project_id?: string | null
+          status?: string
+          supporting_documents?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          claim_amount?: number
+          claim_description?: string | null
+          claim_number?: string
+          claim_received_date?: string
+          claimant_abn?: string
+          claimant_acn?: string | null
+          claimant_address?: string
+          claimant_company_name?: string
+          claimant_email?: string
+          claimant_postcode?: string
+          claimant_suburb?: string
+          contract_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          project_id?: string | null
+          status?: string
+          supporting_documents?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_claims_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_schedule_audit_trail: {
+        Row: {
+          action_description: string | null
+          action_timestamp: string | null
+          action_type: string
+          days_remaining: number | null
+          deadline_status: string | null
+          id: string
+          metadata: Json | null
+          payment_claim_id: string | null
+          payment_schedule_id: string | null
+          risk_level: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_description?: string | null
+          action_timestamp?: string | null
+          action_type: string
+          days_remaining?: number | null
+          deadline_status?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_claim_id?: string | null
+          payment_schedule_id?: string | null
+          risk_level?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_description?: string | null
+          action_timestamp?: string | null
+          action_type?: string
+          days_remaining?: number | null
+          deadline_status?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_claim_id?: string | null
+          payment_schedule_id?: string | null
+          risk_level?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_schedule_audit_trail_payment_claim_id_fkey"
+            columns: ["payment_claim_id"]
+            isOneToOne: false
+            referencedRelation: "payment_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_schedule_audit_trail_payment_schedule_id_fkey"
+            columns: ["payment_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_schedules: {
+        Row: {
+          contract_clauses: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          legal_deadline: string
+          payment_claim_id: string | null
+          pdf_path: string | null
+          project_id: string | null
+          respondent_abn: string
+          respondent_acn: string | null
+          respondent_address: string
+          respondent_company_name: string
+          respondent_email: string
+          respondent_postcode: string
+          respondent_suburb: string
+          schedule_number: string
+          scheduled_amount: number
+          service_date: string | null
+          service_method: string
+          service_proof: string | null
+          status: string
+          supporting_evidence: Json | null
+          updated_at: string | null
+          withheld_amount: number
+          withholding_reasons: Json | null
+          word_path: string | null
+        }
+        Insert: {
+          contract_clauses?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          legal_deadline: string
+          payment_claim_id?: string | null
+          pdf_path?: string | null
+          project_id?: string | null
+          respondent_abn: string
+          respondent_acn?: string | null
+          respondent_address: string
+          respondent_company_name: string
+          respondent_email: string
+          respondent_postcode: string
+          respondent_suburb: string
+          schedule_number: string
+          scheduled_amount?: number
+          service_date?: string | null
+          service_method?: string
+          service_proof?: string | null
+          status?: string
+          supporting_evidence?: Json | null
+          updated_at?: string | null
+          withheld_amount?: number
+          withholding_reasons?: Json | null
+          word_path?: string | null
+        }
+        Update: {
+          contract_clauses?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          legal_deadline?: string
+          payment_claim_id?: string | null
+          pdf_path?: string | null
+          project_id?: string | null
+          respondent_abn?: string
+          respondent_acn?: string | null
+          respondent_address?: string
+          respondent_company_name?: string
+          respondent_email?: string
+          respondent_postcode?: string
+          respondent_suburb?: string
+          schedule_number?: string
+          scheduled_amount?: number
+          service_date?: string | null
+          service_method?: string
+          service_proof?: string | null
+          status?: string
+          supporting_evidence?: Json | null
+          updated_at?: string | null
+          withheld_amount?: number
+          withholding_reasons?: Json | null
+          word_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_schedules_payment_claim_id_fkey"
+            columns: ["payment_claim_id"]
+            isOneToOne: false
+            referencedRelation: "payment_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_schedules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company: string | null
@@ -1795,6 +2028,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      calculate_business_days: {
+        Args: { start_date: string; days_to_add: number }
+        Returns: string
+      }
       calculate_project_variation_impact: {
         Args: { project_uuid: string }
         Returns: {
@@ -1805,6 +2042,10 @@ export type Database = {
       }
       generate_inspection_number: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_payment_schedule_number: {
+        Args: { project_uuid: string }
         Returns: string
       }
       generate_project_number: {
@@ -1852,6 +2093,15 @@ export type Database = {
           comments: string
           metadata: Json
           action_timestamp: string
+        }[]
+      }
+      get_withholding_suggestions: {
+        Args: { project_uuid: string }
+        Returns: {
+          reason: string
+          suggestion_type: string
+          evidence_count: number
+          confidence_score: number
         }[]
       }
       log_variation_change: {

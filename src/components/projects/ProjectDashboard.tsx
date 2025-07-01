@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, FileText, Users, Calendar, DollarSign, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle, Plus, List, CheckSquare } from 'lucide-react';
+import { Building2, FileText, Users, Calendar, DollarSign, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle, Plus, List, CheckSquare, Gavel } from 'lucide-react';
 import QAITPTracker from './qa-itp/QAITPTracker';
 import QAITPForm from './QAITPForm';
 import TaskManager from './TaskManager';
@@ -14,6 +14,7 @@ import VariationManager from './VariationManager';
 import RFIManager from './RFIManager';
 import ProgrammeTracker from './ProgrammeTracker';
 import FinanceManager from './finance/FinanceManager';
+import PaymentScheduleManager from './payment-schedules/PaymentScheduleManager';
 
 interface ProjectDashboardProps {
   projectData: {
@@ -91,7 +92,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
       {/* Project Management Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9">
+        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
           <TabsTrigger value="overview" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -127,6 +128,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
           <TabsTrigger value="rfi" className="flex items-center gap-1">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">RFI</span>
+          </TabsTrigger>
+          <TabsTrigger value="payment-schedules" className="flex items-center gap-1">
+            <Gavel className="h-4 w-4" />
+            <span className="hidden sm:inline">Payment Schedules</span>
           </TabsTrigger>
         </TabsList>
 
@@ -259,6 +264,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
         <TabsContent value="rfi" className="space-y-6">
           <RFIManager projectName={projectData.name} />
+        </TabsContent>
+
+        <TabsContent value="payment-schedules" className="space-y-6">
+          <PaymentScheduleManager projectName={projectData.name} projectId={projectData.id} />
         </TabsContent>
       </Tabs>
     </div>
