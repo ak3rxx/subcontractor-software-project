@@ -142,7 +142,7 @@ export const usePaymentSchedules = (projectId?: string) => {
       // Get the schedule number first
       const scheduleNumber = await generateScheduleNumber(scheduleData.project_id);
       
-      // Prepare the data for insertion, excluding auto-generated fields
+      // Prepare the data for insertion, including a temporary legal_deadline that will be overwritten by the trigger
       const insertData = {
         payment_claim_id: scheduleData.payment_claim_id,
         project_id: scheduleData.project_id,
@@ -163,7 +163,8 @@ export const usePaymentSchedules = (projectId?: string) => {
         service_proof: scheduleData.service_proof,
         service_date: scheduleData.service_date,
         status: scheduleData.status,
-        created_by: scheduleData.created_by
+        created_by: scheduleData.created_by,
+        legal_deadline: new Date().toISOString().split('T')[0] // Temporary value, will be overwritten by trigger
       };
 
       const { data, error } = await supabase
