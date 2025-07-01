@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { VariationFilters } from '@/types/variations';
+import { VariationFilters as IVariationFilters } from '@/types/variations';
 import VariationFilters from '../VariationFilters';
 
 interface VariationManagerFiltersProps {
-  filters?: VariationFilters;
-  onFilterChange?: (key: keyof VariationFilters, value: any) => void;
-  onFiltersChange?: React.Dispatch<React.SetStateAction<VariationFilters>>;
+  filters?: IVariationFilters;
+  onFilterChange?: (key: keyof IVariationFilters, value: any) => void;
+  onFiltersChange?: React.Dispatch<React.SetStateAction<IVariationFilters>>;
   // Legacy props for backward compatibility
   searchTerm?: string;
   setSearchTerm?: (term: string) => void;
