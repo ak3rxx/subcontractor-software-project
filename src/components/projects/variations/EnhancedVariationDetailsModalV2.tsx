@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +31,7 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
 }) => {
   const { toast } = useToast();
   const { isDeveloper, canEdit } = usePermissions();
-  const { logBatchAuditEntries } = useVariationAuditTrail(variation?.id);
+  const { debouncedRefresh } = useVariationAuditTrail(variation?.id);
   
   const [isEditing, setIsEditing] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -103,59 +102,34 @@ const EnhancedVariationDetailsModalV2: React.FC<EnhancedVariationDetailsModalV2P
     setShowConfirmDialog(false);
   };
 
-  // Enhanced save handler with audit logging
+  // Simplified save handler - database trigger handles all audit logging
   const handleSave = async () => {
     if (!onUpdate || !canEditVariation) return;
     
     try {
-      // Calculate field-level changes for audit logging
-      const auditEntries = [];
-      const changedFields = Object.keys(pendingChanges);
-      
-      for (const field of changedFields) {
-        const oldValue = originalData[field];
-        const newValue = editData[field];
-        
-        if (oldValue !== newValue) {
-          auditEntries.push({
-            actionType: 'edit' as const,
-            options: {
-              fieldName: field,
-              oldValue: String(oldValue || ''),
-              newValue: String(newValue || ''),
-              comments: `Field ${field} updated during edit session`
-            }
-          });
-        }
-      }
-
       // Prepare update data with status change if needed
-      let updatePayload = { ...editData };
+      let updatePayload = { 
+        ...editData,
+        updated_by: variation?.updated_by, // Ensure updated_by is set for trigger
+        updated_at: new Date().toISOString()
+      };
       
       if (isStatusLocked) {
         updatePayload.status = 'pending_approval';
-        auditEntries.push({
-          actionType: 'edit' as const,
-          options: {
-            statusFrom: variation.status,
-            statusTo: 'pending_approval',
-            comments: `Status reverted due to edit of ${variation.status} variation`
-          }
-        });
       }
 
-      // Update the variation
+      console.log('Saving variation changes:', updatePayload);
+
+      // Update the variation - database trigger will handle all audit logging automatically
       await onUpdate(variation.id, updatePayload);
-      
-      // Log all changes in batch
-      if (auditEntries.length > 0) {
-        await logBatchAuditEntries(auditEntries);
-      }
 
       // Notify parent component
       if (onVariationUpdate) {
         onVariationUpdate({ ...variation, ...updatePayload });
       }
+
+      // Trigger audit trail refresh after update
+      debouncedRefresh(500, true);
 
       setIsEditing(false);
       setPendingChanges({});

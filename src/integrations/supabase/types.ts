@@ -1898,6 +1898,7 @@ export type Database = {
           total_amount: number | null
           trade: string | null
           updated_at: string | null
+          updated_by: string | null
           variation_number: string
         }
         Insert: {
@@ -1942,6 +1943,7 @@ export type Database = {
           total_amount?: number | null
           trade?: string | null
           updated_at?: string | null
+          updated_by?: string | null
           variation_number: string
         }
         Update: {
@@ -1986,6 +1988,7 @@ export type Database = {
           total_amount?: number | null
           trade?: string | null
           updated_at?: string | null
+          updated_by?: string | null
           variation_number?: string
         }
         Relationships: [
@@ -2017,6 +2020,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "variations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -2039,6 +2049,10 @@ export type Database = {
           total_pending_cost: number
           total_time_impact: number
         }[]
+      }
+      cleanup_old_audit_trail: {
+        Args: { retention_days?: number }
+        Returns: number
       }
       generate_inspection_number: {
         Args: Record<PropertyKey, never>
@@ -2093,6 +2107,24 @@ export type Database = {
           comments: string
           metadata: Json
           action_timestamp: string
+        }[]
+      }
+      get_variation_audit_history_paginated: {
+        Args: { p_variation_id: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          id: string
+          user_id: string
+          user_name: string
+          action_type: string
+          field_name: string
+          old_value: string
+          new_value: string
+          status_from: string
+          status_to: string
+          comments: string
+          metadata: Json
+          action_timestamp: string
+          total_count: number
         }[]
       }
       get_withholding_suggestions: {

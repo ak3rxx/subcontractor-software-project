@@ -146,12 +146,19 @@ const VariationManager: React.FC<VariationManagerProps> = ({ projectName, projec
     await handleSendEmail(variationId);
   };
 
-  // Enhanced update handler with immediate state sync
+  // Enhanced update handler with immediate state sync - simplified without manual audit logging
   const handleUpdateFromModalEnhanced = async (id: string, updates: any) => {
     try {
       console.log('Updating variation with:', updates);
       
-      await handleUpdateFromModal(id, updates);
+      // Add updated_by field for database trigger
+      const updatePayload = {
+        ...updates,
+        updated_by: updates.updated_by || null, // Let the hook handle user ID
+        updated_at: new Date().toISOString()
+      };
+      
+      await handleUpdateFromModal(id, updatePayload);
       
       // Force refresh variations immediately
       await refreshVariations();

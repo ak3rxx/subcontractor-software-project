@@ -13,7 +13,7 @@ export const useApprovalActions = (
   const { user } = useAuth();
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin } = usePermissions();
-  const { logAuditEntry, refetch } = useVariationAuditTrail(variation?.id);
+  const { refetch } = useVariationAuditTrail(variation?.id);
   
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -101,17 +101,8 @@ export const useApprovalActions = (
         
         console.log('Submitting for approval with data:', updateData);
         
-        // Update variation first
+        // Database trigger will handle audit logging automatically
         await onUpdate(variation.id, updateData);
-        
-        // Log audit entry
-        if (user) {
-          await logAuditEntry('submit', {
-            statusFrom: 'draft',
-            statusTo: 'pending_approval',
-            comments: 'Variation submitted for approval'
-          });
-        }
       },
       'Variation submitted for approval'
     );
@@ -150,17 +141,8 @@ export const useApprovalActions = (
 
         console.log('Updating variation approval with:', updateData);
 
-        // Update variation first
+        // Database trigger will handle audit logging automatically
         await onUpdate(variation.id, updateData);
-        
-        // Log detailed audit entry for approval/rejection
-        if (user) {
-          await logAuditEntry(approved ? 'approve' : 'reject', {
-            statusFrom: 'pending_approval',
-            statusTo: approved ? 'approved' : 'rejected',
-            comments: updateData.approval_comments || (approved ? 'Variation approved' : 'Variation rejected')
-          });
-        }
         
         // Clear form
         setApprovalComments('');
@@ -206,17 +188,8 @@ export const useApprovalActions = (
 
         console.log('Unlocking variation with data:', updateData);
 
-        // Update variation first
+        // Database trigger will handle audit logging automatically
         await onUpdate(variation.id, updateData);
-        
-        // Log detailed audit entry for unlock
-        if (user) {
-          await logAuditEntry('unlock', {
-            statusFrom: variation.status,
-            statusTo: unlockTargetStatus,
-            comments: unlockReason
-          });
-        }
         
         // Clear form
         setUnlockReason('');

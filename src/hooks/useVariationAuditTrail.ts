@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 
 export interface AuditTrailEntry {
   id: string;
@@ -64,7 +63,6 @@ export const useVariationAuditTrail = (variationId?: string) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
-  const { toast } = useToast();
   
   // Refs for debouncing and preventing duplicate requests
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -154,122 +152,37 @@ export const useVariationAuditTrail = (variationId?: string) => {
     await fetchAuditTrail(true, true);
   }, [fetchAuditTrail]);
 
-  const logAuditEntry = async (
-    actionType: AuditTrailEntry['action_type'],
-    options: {
-      fieldName?: string;
-      oldValue?: string;
-      newValue?: string;
-      statusFrom?: string;
-      statusTo?: string;
-      comments?: string;
-      metadata?: any;
-    } = {}
-  ) => {
+  // Simplified function for email logging only (database trigger handles everything else)
+  const logEmailSent = async (comments?: string) => {
     if (!variationId || !user) {
-      console.warn('Cannot log audit entry: missing variationId or user');
+      console.warn('Cannot log email: missing variationId or user');
       return false;
     }
 
     try {
-      console.log('Logging audit entry:', {
-        variationId,
-        userId: user.id,
-        actionType,
-        options
-      });
+      console.log('Logging email sent for variation:', variationId);
 
       const { data, error } = await supabase
         .rpc('log_variation_change', {
           p_variation_id: variationId,
           p_user_id: user.id,
-          p_action_type: actionType,
-          p_field_name: options.fieldName,
-          p_old_value: options.oldValue,
-          p_new_value: options.newValue,
-          p_status_from: options.statusFrom,
-          p_status_to: options.statusTo,
-          p_comments: options.comments,
-          p_metadata: options.metadata || {}
+          p_action_type: 'email_sent',
+          p_comments: comments || 'Variation email sent'
         });
 
       if (error) {
-        console.error('Error logging audit entry:', error);
-        setError(`Failed to log audit entry: ${error.message}`);
+        console.error('Error logging email:', error);
         return false;
       }
 
-      console.log('Audit entry logged successfully:', data);
+      console.log('Email logged successfully:', data);
       
-      // Immediate refresh after logging to ensure UI is up to date
+      // Immediate refresh after logging
       await immediateRefresh();
       
       return true;
     } catch (error) {
-      console.error('Error logging audit entry:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to log audit entry';
-      setError(errorMessage);
-      return false;
-    }
-  };
-
-  // Enhanced batch logging for multiple changes
-  const logBatchAuditEntries = async (entries: Array<{
-    actionType: AuditTrailEntry['action_type'];
-    options: {
-      fieldName?: string;
-      oldValue?: string;
-      newValue?: string;
-      statusFrom?: string;
-      statusTo?: string;
-      comments?: string;
-      metadata?: any;
-    };
-  }>) => {
-    if (!variationId || !user || entries.length === 0) {
-      console.warn('Cannot log batch audit entries: missing variationId, user, or entries');
-      return false;
-    }
-
-    try {
-      console.log('Logging batch audit entries:', entries.length);
-      
-      // Log all entries
-      const results = await Promise.all(
-        entries.map(({ actionType, options }) =>
-          supabase.rpc('log_variation_change', {
-            p_variation_id: variationId,
-            p_user_id: user.id,
-            p_action_type: actionType,
-            p_field_name: options.fieldName,
-            p_old_value: options.oldValue,
-            p_new_value: options.newValue,
-            p_status_from: options.statusFrom,
-            p_status_to: options.statusTo,
-            p_comments: options.comments,
-            p_metadata: options.metadata || {}
-          })
-        )
-      );
-
-      // Check for any errors
-      const errors = results.filter(result => result.error);
-      if (errors.length > 0) {
-        console.error('Errors in batch logging:', errors);
-        setError(`Failed to log ${errors.length} audit entries`);
-        return false;
-      }
-
-      console.log('Batch audit entries logged successfully');
-      
-      // Single refresh after all entries are logged
-      await immediateRefresh();
-      
-      return true;
-    } catch (error) {
-      console.error('Error logging batch audit entries:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to log batch audit entries';
-      setError(errorMessage);
+      console.error('Error logging email:', error);
       return false;
     }
   };
@@ -301,10 +214,8 @@ export const useVariationAuditTrail = (variationId?: string) => {
     loading,
     refreshing,
     error,
-    fetchAuditTrail,
-    logAuditEntry,
-    logBatchAuditEntries,
     refetch: immediateRefresh,
-    debouncedRefresh
+    debouncedRefresh,
+    logEmailSent // Only keep email logging, everything else is handled by DB trigger
   };
 };
