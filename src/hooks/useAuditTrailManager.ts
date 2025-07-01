@@ -133,13 +133,21 @@ export const useAuditTrailManager = () => {
   // Log email with cache invalidation
   const logEmailSent = useCallback(async (variationId: string, comments?: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
+      }
+
       const { error } = await supabase
         .from('variation_audit_trail')
         .insert({
           variation_id: variationId,
-          action: 'email_sent',
-          details: { comments: comments || 'Variation email sent to client' },
-          created_by: null // Will be set by database trigger
+          action_type: 'email_sent',
+          comments: comments || 'Variation email sent to client',
+          metadata: { email_action: 'sent_to_client' },
+          user_id: user.id
         });
 
       if (error) {
