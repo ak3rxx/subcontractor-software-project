@@ -2,7 +2,7 @@
 import React from 'react';
 import { Variation } from '@/types/variations';
 import QuotationVariationForm from '../QuotationVariationForm';
-import VariationDetailsModalManager from '../modal/VariationDetailsModalManager';
+import VariationDetailsModal from '../../VariationDetailsModal';
 
 interface VariationManagerModalsProps {
   showForm: boolean;
@@ -45,14 +45,12 @@ const VariationManagerModals: React.FC<VariationManagerModalsProps> = ({
         />
       )}
 
-      {/* Variation Details Modal */}
-      <VariationDetailsModalManager
+      {/* Variation Details Modal - Simplified to use core modal */}
+      <VariationDetailsModal
         variation={selectedVariation}
         isOpen={showDetailsModal}
         onClose={onDetailsModalClose}
         onUpdate={onUpdateFromModal}
-        onVariationUpdate={onVariationUpdate}
-        useEnhanced={true}
       />
     </>
   );
