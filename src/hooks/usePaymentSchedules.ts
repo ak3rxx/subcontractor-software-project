@@ -63,7 +63,19 @@ export const usePaymentSchedules = (projectId?: string) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setSchedules(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = data?.map(item => ({
+        ...item,
+        withholding_reasons: Array.isArray(item.withholding_reasons) 
+          ? item.withholding_reasons 
+          : item.withholding_reasons ? JSON.parse(item.withholding_reasons as string) : [],
+        supporting_evidence: Array.isArray(item.supporting_evidence) 
+          ? item.supporting_evidence 
+          : item.supporting_evidence ? JSON.parse(item.supporting_evidence as string) : []
+      })) || [];
+      
+      setSchedules(transformedData);
     } catch (error) {
       console.error('Error fetching payment schedules:', error);
       toast({
@@ -106,10 +118,13 @@ export const usePaymentSchedules = (projectId?: string) => {
     try {
       const scheduleNumber = await generateScheduleNumber(scheduleData.project_id);
       
+      // Remove schedule_number from the data since it will be generated
+      const { schedule_number, legal_deadline, ...dataToInsert } = scheduleData as any;
+      
       const { data, error } = await supabase
         .from('payment_schedules')
         .insert({
-          ...scheduleData,
+          ...dataToInsert,
           schedule_number: scheduleNumber
         })
         .select()

@@ -48,7 +48,16 @@ export const usePaymentClaims = (projectId?: string) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setClaims(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = data?.map(item => ({
+        ...item,
+        supporting_documents: Array.isArray(item.supporting_documents) 
+          ? item.supporting_documents 
+          : item.supporting_documents ? JSON.parse(item.supporting_documents as string) : []
+      })) || [];
+      
+      setClaims(transformedData);
     } catch (error) {
       console.error('Error fetching payment claims:', error);
       toast({
