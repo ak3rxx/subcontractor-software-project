@@ -14,28 +14,8 @@ interface VariationManagerTableProps {
   onCreateFirst: () => void;
 }
 
-const VariationManagerTable: React.FC<VariationManagerTableProps> = ({
-  variations,
-  canEditVariations,
-  canSendEmails,
-  canCreateVariations,
-  onViewDetails,
-  onEdit,
-  onSendEmail,
-  onCreateFirst
-}) => {
-  return (
-    <VariationTable
-      variations={variations}
-      canEditVariations={canEditVariations}
-      canSendEmails={canSendEmails}
-      canCreateVariations={canCreateVariations}
-      onViewDetails={onViewDetails}
-      onEdit={onEdit}
-      onSendEmail={onSendEmail}
-      onCreateFirst={onCreateFirst}
-    />
-  );
+const VariationManagerTable: React.FC<VariationManagerTableProps> = (props) => {
+  return <VariationTable {...props} />;
 };
 
 export default VariationManagerTable;
