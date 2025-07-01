@@ -11,7 +11,8 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, AlertTriangle, CheckCircle, Upload, Clock } from 'lucide-react';
 import { format, differenceInBusinessDays } from 'date-fns';
 import { usePaymentClaims, type PaymentClaim } from '@/hooks/usePaymentClaims';
-import { usePaymentSchedules, type PaymentSchedule, type WithholdingSuggestion } from '@/hooks/usePaymentSchedules';
+import { usePaymentSchedules } from '@/hooks/usePaymentSchedules';
+import { PaymentSchedule, WithholdingSuggestion } from '@/types/paymentSchedules';
 
 interface PaymentScheduleFormProps {
   projectId: string;
