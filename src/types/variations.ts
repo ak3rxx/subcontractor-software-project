@@ -1,4 +1,3 @@
-
 export type VariationStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected';
 export type VariationPriority = 'high' | 'medium' | 'low';
 export type VariationCategory = 'design_change' | 'site_condition' | 'client_request' | 'regulatory' | 'other';
@@ -9,6 +8,7 @@ export interface CostBreakdownItem {
   quantity: number;
   rate: number;
   subtotal: number;
+  [key: string]: any; // Index signature for Json compatibility
 }
 
 export interface TimeImpactDetails {
@@ -16,6 +16,7 @@ export interface TimeImpactDetails {
   requiresExtensionOfTime: boolean;
   noticeOfDelayDays?: number;
   extensionOfTimeDays?: number;
+  [key: string]: any; // Index signature for Json compatibility
 }
 
 export interface VariationAttachment {

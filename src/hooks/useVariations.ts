@@ -106,17 +106,17 @@ export const useVariations = (projectId: string) => {
         trade: variationData.trade,
         client_email: variationData.clientEmail,
         justification: variationData.justification,
-        cost_breakdown: variationData.cost_breakdown || [],
-        time_impact_details: variationData.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false },
+        cost_breakdown: JSON.stringify(variationData.cost_breakdown || []),
+        time_impact_details: JSON.stringify(variationData.time_impact_details || { requiresNoticeOfDelay: false, requiresExtensionOfTime: false }),
         gst_amount: variationData.gst_amount || 0,
         total_amount: variationData.total_amount || variationData.costImpact || 0,
         requires_eot: variationData.requires_eot || false,
         requires_nod: variationData.requires_nod || false,
         eot_days: variationData.eot_days || 0,
         nod_days: variationData.nod_days || 0,
-        linked_milestones: variationData.linked_milestones || [],
-        linked_tasks: variationData.linked_tasks || [],
-        linked_qa_items: variationData.linked_qa_items || []
+        linked_milestones: JSON.stringify(variationData.linked_milestones || []),
+        linked_tasks: JSON.stringify(variationData.linked_tasks || []),
+        linked_qa_items: JSON.stringify(variationData.linked_qa_items || [])
       };
 
       const { data, error } = await supabase
@@ -143,11 +143,29 @@ export const useVariations = (projectId: string) => {
     }
 
     try {
-      const updateData = {
+      // Convert complex objects to JSON strings for database storage
+      const updateData: any = {
         ...updates,
         updated_at: new Date().toISOString(),
         updated_by: user.id
       };
+
+      // Handle JSON fields that need stringification
+      if (updates.cost_breakdown) {
+        updateData.cost_breakdown = JSON.stringify(updates.cost_breakdown);
+      }
+      if (updates.time_impact_details) {
+        updateData.time_impact_details = JSON.stringify(updates.time_impact_details);
+      }
+      if (updates.linked_milestones) {
+        updateData.linked_milestones = JSON.stringify(updates.linked_milestones);
+      }
+      if (updates.linked_tasks) {
+        updateData.linked_tasks = JSON.stringify(updates.linked_tasks);
+      }
+      if (updates.linked_qa_items) {
+        updateData.linked_qa_items = JSON.stringify(updates.linked_qa_items);
+      }
 
       const { data, error } = await supabase
         .from('variations')

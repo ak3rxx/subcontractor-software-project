@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Variation } from '@/hooks/useVariations';
+import { Variation } from '@/types/variations';
 import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 import VariationApprovalWorkflow from '../VariationApprovalWorkflow';
 import CrossModuleIntegrationBar from './CrossModuleIntegrationBar';
