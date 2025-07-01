@@ -1,17 +1,16 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { useVariationsRefactored } from '@/hooks/useVariationsRefactored';
+import { useVariations } from '@/hooks/useVariations';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
-import PermissionGate from '@/components/PermissionGate';
-import QuotationVariationForm from './variations/QuotationVariationForm';
-import EnhancedVariationDetailsModalV2 from './variations/EnhancedVariationDetailsModalV2';
+import { useVariationActions } from '@/hooks/useVariationActions';
+import { Variation } from '@/types/variations';
+
+import VariationManagerHeader from './variations/sections/VariationManagerHeader';
 import VariationSummaryCards from './variations/VariationSummaryCards';
-import VariationFilters from './variations/VariationFilters';
-import VariationList from './variations/list/VariationList';
-import { VariationFilters as IVariationFilters, Variation } from '@/types/variations';
+import VariationManagerFilters from './variations/sections/VariationManagerFilters';
+import VariationManagerTable from './variations/sections/VariationManagerTable';
+import VariationManagerModals from './variations/sections/VariationManagerModals';
 
 interface VariationManagerRefactoredProps {
   projectName: string;
@@ -24,7 +23,7 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
   projectId, 
   crossModuleData 
 }) => {
-  const { variations, loading, createVariation, updateVariation, sendVariationEmail, refetch } = useVariationsRefactored(projectId);
+  const { variations, loading, createVariation, updateVariation, sendVariationEmail, refetch: refreshVariations } = useVariations(projectId);
   const { toast } = useToast();
   const { isDeveloper, canEdit, canAdmin, canAccess } = usePermissions();
   
@@ -32,24 +31,39 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingVariation, setEditingVariation] = useState<Variation | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const [formKey, setFormKey] = useState(0);
-  
-  // Filter state
-  const [filters, setFilters] = useState<IVariationFilters>({
-    searchTerm: '',
-    statusFilter: 'all',
-    priorityFilter: 'all',
-    categoryFilter: 'all',
-    tradeFilter: 'all'
+
+  const {
+    handleCreateVariation,
+    handleUpdateVariation,
+    handleSendEmail,
+    handleUpdateFromModal
+  } = useVariationActions({
+    variations,
+    createVariation,
+    updateVariation,
+    sendVariationEmail
   });
 
-  // Enhanced permission checks
+  // Enhanced permission checks using the permission system
   const canCreateVariations = isDeveloper() || canEdit('variations');
   const canEditVariations = isDeveloper() || canEdit('variations') || canAdmin('variations');
   const canSendEmails = isDeveloper() || canAdmin('variations');
   const canViewVariations = isDeveloper() || canAccess('variations');
 
-  // Check permissions early
+  // Handle loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Check permissions after all hooks are called
   if (!canViewVariations) {
     return (
       <div className="text-center py-8">
@@ -58,12 +72,21 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
     );
   }
 
-  const handleFormSubmit = async (data: any) => {
-    const variation = editingVariation 
-      ? await updateVariation(editingVariation.id, data)
-      : await createVariation(data);
+  const filteredVariations = variations.filter(variation => {
+    const matchesSearch = variation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         variation.variation_number.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || variation.status === statusFilter;
+    const matchesPriority = priorityFilter === 'all' || variation.priority === priorityFilter;
     
-    if (variation) {
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  const handleFormSubmit = async (data: any) => {
+    const success = editingVariation 
+      ? await handleUpdateVariation(editingVariation.id, data)
+      : await handleCreateVariation(data);
+    
+    if (success) {
       setShowForm(false);
       setEditingVariation(null);
       setFormKey(prev => prev + 1);
@@ -108,25 +131,29 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
       });
       return;
     }
-    await sendVariationEmail(variationId);
+    await handleSendEmail(variationId);
   };
 
-  const handleUpdateFromModal = async (id: string, updates: any) => {
+  const handleUpdateFromModalEnhanced = async (id: string, updates: any) => {
     try {
-      const updatedVariation = await updateVariation(id, {
+      const updatePayload = {
         ...updates,
         updated_at: new Date().toISOString()
-      });
+      };
       
-      if (updatedVariation && selectedVariation && selectedVariation.id === id) {
-        setSelectedVariation(updatedVariation);
-      }
-      
-      await refetch();
+      await handleUpdateFromModal(id, updatePayload);
+      await refreshVariations();
     } catch (error) {
       console.error('Error updating variation:', error);
       throw error;
     }
+  };
+
+  const handleVariationUpdate = (updatedVariation: Variation) => {
+    if (selectedVariation && selectedVariation.id === updatedVariation.id) {
+      setSelectedVariation(updatedVariation);
+    }
+    refreshVariations();
   };
 
   const handleNewVariation = () => {
@@ -143,72 +170,45 @@ const VariationManagerRefactored: React.FC<VariationManagerRefactoredProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Variations</h2>
-          <p className="text-gray-600">Manage project variations and change orders</p>
-        </div>
-        <PermissionGate module="variations" requiredLevel="write">
-          <Button onClick={handleNewVariation} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Variation
-          </Button>
-        </PermissionGate>
-      </div>
-
-      {/* Summary Cards */}
+      <VariationManagerHeader onNewVariation={handleNewVariation} />
+      
       <VariationSummaryCards variations={variations} />
-
-      {/* Filters */}
-      <VariationFilters
-        searchTerm={filters.searchTerm}
-        setSearchTerm={(term) => setFilters(prev => ({ ...prev, searchTerm: term }))}
-        statusFilter={filters.statusFilter}
-        setStatusFilter={(status) => setFilters(prev => ({ ...prev, statusFilter: status }))}
-        priorityFilter={filters.priorityFilter}
-        setPriorityFilter={(priority) => setFilters(prev => ({ ...prev, priorityFilter: priority }))}
+      
+      <VariationManagerFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        priorityFilter={priorityFilter}
+        setPriorityFilter={setPriorityFilter}
       />
-
-      {/* Variations List */}
-      <VariationList
-        variations={variations}
-        loading={loading}
-        filters={filters}
-        onItemClick={handleViewDetails}
+      
+      <VariationManagerTable
+        variations={filteredVariations}
+        canEditVariations={canEditVariations}
+        canSendEmails={canSendEmails}
+        canCreateVariations={canCreateVariations}
+        onViewDetails={handleViewDetails}
         onEdit={handleEdit}
         onSendEmail={handleSendEmailAction}
         onCreateFirst={handleNewVariation}
-        canEdit={canEditVariations}
-        canSendEmails={canSendEmails}
       />
 
-      {/* Modals */}
-      <PermissionGate module="variations" requiredLevel="write">
-        <QuotationVariationForm
-          key={formKey}
-          isOpen={showForm}
-          onClose={handleFormClose}
-          onSubmit={handleFormSubmit}
-          projectName={projectName}
-          editingVariation={editingVariation}
-        />
-      </PermissionGate>
-
-      <EnhancedVariationDetailsModalV2
-        variation={selectedVariation}
-        isOpen={showDetailsModal}
-        onClose={() => {
+      <VariationManagerModals
+        showForm={showForm}
+        onFormClose={handleFormClose}
+        onFormSubmit={handleFormSubmit}
+        projectName={projectName}
+        editingVariation={editingVariation}
+        formKey={formKey}
+        selectedVariation={selectedVariation}
+        showDetailsModal={showDetailsModal}
+        onDetailsModalClose={() => {
           setShowDetailsModal(false);
           setSelectedVariation(null);
         }}
-        onUpdate={handleUpdateFromModal}
-        onVariationUpdate={(updatedVariation) => {
-          if (selectedVariation && selectedVariation.id === updatedVariation.id) {
-            setSelectedVariation(updatedVariation);
-          }
-          refetch();
-        }}
+        onUpdateFromModal={handleUpdateFromModalEnhanced}
+        onVariationUpdate={handleVariationUpdate}
       />
     </div>
   );
