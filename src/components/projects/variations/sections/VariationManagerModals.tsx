@@ -1,9 +1,8 @@
 
 import React from 'react';
-import PermissionGate from '@/components/PermissionGate';
-import QuotationVariationForm from '../QuotationVariationForm';
-import EnhancedVariationDetailsModalV2 from '../EnhancedVariationDetailsModalV2';
 import { Variation } from '@/types/variations';
+import VariationForm from '../VariationForm';
+import VariationDetailsModalManager from '../modal/VariationDetailsModalManager';
 
 interface VariationManagerModalsProps {
   showForm: boolean;
@@ -34,23 +33,26 @@ const VariationManagerModals: React.FC<VariationManagerModalsProps> = ({
 }) => {
   return (
     <>
-      <PermissionGate module="variations" requiredLevel="write">
-        <QuotationVariationForm
+      {/* Variation Form Modal */}
+      {showForm && (
+        <VariationForm
           key={formKey}
-          isOpen={showForm}
-          onClose={onFormClose}
-          onSubmit={onFormSubmit}
           projectName={projectName}
-          editingVariation={editingVariation}
+          onSubmit={onFormSubmit}
+          onCancel={onFormClose}
+          initialData={editingVariation}
+          isEditing={!!editingVariation}
         />
-      </PermissionGate>
+      )}
 
-      <EnhancedVariationDetailsModalV2
+      {/* Variation Details Modal */}
+      <VariationDetailsModalManager
         variation={selectedVariation}
         isOpen={showDetailsModal}
         onClose={onDetailsModalClose}
         onUpdate={onUpdateFromModal}
         onVariationUpdate={onVariationUpdate}
+        useEnhanced={true}
       />
     </>
   );
