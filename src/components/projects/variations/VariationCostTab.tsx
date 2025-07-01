@@ -1,12 +1,12 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, Calculator, DollarSign } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Calculator, Clock } from 'lucide-react';
 
 interface CostBreakdownItem {
   id: string;
@@ -29,238 +29,284 @@ const VariationCostTab: React.FC<VariationCostTabProps> = ({
   isEditing,
   onDataChange
 }) => {
-  const costBreakdown = editData.cost_breakdown || [];
-  const gstRate = 10; // Default GST rate
-
-  const handleCostItemChange = (index: number, field: keyof CostBreakdownItem, value: any) => {
-    const updated = [...costBreakdown];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    if (field === 'quantity' || field === 'rate') {
-      updated[index].subtotal = updated[index].quantity * updated[index].rate;
-    }
-    
-    updateTotals(updated);
+  const handleInputChange = (field: string, value: any) => {
+    onDataChange({ [field]: value });
   };
 
-  const addCostItem = () => {
-    const newItem = {
+  const handleCostBreakdownChange = (index: number, field: string, value: any) => {
+    const updatedBreakdown = [...(editData.cost_breakdown || [])];
+    updatedBreakdown[index] = {
+      ...updatedBreakdown[index],
+      [field]: field === 'quantity' || field === 'rate' ? parseFloat(value) || 0 : value
+    };
+    
+    // Recalculate subtotal
+    if (field === 'quantity' || field === 'rate') {
+      updatedBreakdown[index].subtotal = updatedBreakdown[index].quantity * updatedBreakdown[index].rate;
+    }
+    
+    // Recalculate total
+    const newTotal = updatedBreakdown.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const newGST = newTotal * 0.1;
+    const newTotalWithGST = newTotal + newGST;
+    
+    onDataChange({
+      cost_breakdown: updatedBreakdown,
+      cost_impact: newTotal,
+      gst_amount: newGST,
+      total_amount: newTotalWithGST
+    });
+  };
+
+  const addCostBreakdownItem = () => {
+    const newItem: CostBreakdownItem = {
       id: Date.now().toString(),
       description: '',
       quantity: 1,
       rate: 0,
       subtotal: 0
     };
-    const updated = [...costBreakdown, newItem];
-    updateTotals(updated);
+    
+    const updatedBreakdown = [...(editData.cost_breakdown || []), newItem];
+    onDataChange({ cost_breakdown: updatedBreakdown });
   };
 
-  const removeCostItem = (index: number) => {
-    if (costBreakdown.length > 1) {
-      const filtered = costBreakdown.filter((_: any, i: number) => i !== index);
-      updateTotals(filtered);
-    }
-  };
-
-  const updateTotals = (breakdown: CostBreakdownItem[]) => {
-    const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0);
-    const gstAmount = subtotal * (gstRate / 100);
-    const total = subtotal + gstAmount;
+  const removeCostBreakdownItem = (index: number) => {
+    const updatedBreakdown = editData.cost_breakdown.filter((_: any, i: number) => i !== index);
+    
+    // Recalculate total
+    const newTotal = updatedBreakdown.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0);
+    const newGST = newTotal * 0.1;
+    const newTotalWithGST = newTotal + newGST;
     
     onDataChange({
-      cost_breakdown: breakdown,
-      total_amount: total,
-      gst_amount: gstAmount
+      cost_breakdown: updatedBreakdown,
+      cost_impact: newTotal,
+      gst_amount: newGST,
+      total_amount: newTotalWithGST
     });
-  };
-
-  const getCostImpactBadge = (amount: number) => {
-    if (amount > 50000) {
-      return <Badge variant="destructive" className="ml-2">High Impact</Badge>;
-    } else if (amount > 10000) {
-      return <Badge className="bg-yellow-100 text-yellow-800 ml-2">Medium Impact</Badge>;
-    } else if (amount > 0) {
-      return <Badge className="bg-green-100 text-green-800 ml-2">Low Impact</Badge>;
-    }
-    return null;
   };
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const subtotal = editData.total_amount - editData.gst_amount || 0;
-  const gstAmount = editData.gst_amount || 0;
-  const total = editData.total_amount || variation.total_amount || variation.cost_impact || 0;
+  const costBreakdown = isEditing ? editData.cost_breakdown || [] : variation.cost_breakdown || [];
+  const costImpact = isEditing ? editData.cost_impact || 0 : variation.cost_impact || 0;
+  const gstAmount = isEditing ? editData.gst_amount || 0 : variation.gst_amount || 0;
+  const totalAmount = isEditing ? editData.total_amount || 0 : variation.total_amount || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Cost Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Cost Summary
-            {getCostImpactBadge(total)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <Label className="text-sm font-medium text-gray-600">Subtotal</Label>
-              <div className="text-2xl font-bold text-blue-600 mt-2">
-                {formatCurrency(subtotal)}
+    <ScrollArea className="h-[calc(100vh-400px)] pr-4">
+      <div className="space-y-6">
+        {/* Cost Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Cost Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(costImpact)}
+                </div>
+                <div className="text-sm text-blue-800">Subtotal (excl. GST)</div>
+              </div>
+              
+              <div className="text-center p-4 bg-orange-50 rounded-lg">
+                <div className="text-2xl font-bold text-orange-600">
+                  {formatCurrency(gstAmount)}
+                </div>
+                <div className="text-sm text-orange-800">GST (10%)</div>
+              </div>
+              
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(totalAmount)}
+                </div>
+                <div className="text-sm text-green-800">Total (incl. GST)</div>
               </div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <Label className="text-sm font-medium text-gray-600">GST ({gstRate}%)</Label>
-              <div className="text-2xl font-bold text-gray-600 mt-2">
-                {formatCurrency(gstAmount)}
-              </div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
-              <Label className="text-sm font-medium text-gray-600">Total Amount</Label>
-              <div className="text-3xl font-bold text-green-600 mt-2">
-                {formatCurrency(total)}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Cost Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" />
-            Cost Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isEditing ? (
-            <>
-              {/* Editable Cost Items */}
-              <div className="space-y-3">
+        {/* Time Impact */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Time Impact
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Time Impact (days)</Label>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    value={editData.time_impact || 0}
+                    onChange={(e) => handleInputChange('time_impact', parseInt(e.target.value) || 0)}
+                    placeholder="Enter time impact in days"
+                  />
+                ) : (
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <Badge variant={variation.time_impact > 0 ? 'destructive' : variation.time_impact < 0 ? 'default' : 'secondary'}>
+                      {variation.time_impact > 0 ? `+${variation.time_impact}d` : 
+                       variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <Label>Impact Description</Label>
+                <div className="p-3 bg-gray-50 rounded-md text-sm">
+                  {variation.time_impact > 0 ? 'Extends project timeline' :
+                   variation.time_impact < 0 ? 'Reduces project timeline' :
+                   'No impact on timeline'}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cost Breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Calculator className="h-5 w-5" />
+                Cost Breakdown
+              </div>
+              {isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCostBreakdownItem}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {costBreakdown.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {isEditing ? 'No cost breakdown items. Click "Add Item" to get started.' : 'No cost breakdown available.'}
+              </div>
+            ) : (
+              <div className="space-y-4">
                 {costBreakdown.map((item: CostBreakdownItem, index: number) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg">
+                  <div key={item.id || index} className="grid grid-cols-12 gap-2 items-end p-4 border rounded-lg">
                     <div className="col-span-5">
-                      <Label className="text-xs font-medium text-gray-600">Description</Label>
-                      <Input
-                        value={item.description}
-                        onChange={(e) => handleCostItemChange(index, 'description', e.target.value)}
-                        placeholder="Enter item description"
-                        className="mt-1"
-                      />
+                      <Label className="text-xs">Description</Label>
+                      {isEditing ? (
+                        <Input
+                          value={item.description}
+                          onChange={(e) => handleCostBreakdownChange(index, 'description', e.target.value)}
+                          placeholder="Item description"
+                        />
+                      ) : (
+                        <div className="p-2 bg-gray-50 rounded text-sm">{item.description}</div>
+                      )}
                     </div>
+                    
                     <div className="col-span-2">
-                      <Label className="text-xs font-medium text-gray-600">Qty</Label>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => handleCostItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
-                        min="0"
-                        step="0.1"
-                        className="mt-1"
-                      />
+                      <Label className="text-xs">Quantity</Label>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => handleCostBreakdownChange(index, 'quantity', e.target.value)}
+                          step="0.01"
+                          min="0"
+                        />
+                      ) : (
+                        <div className="p-2 bg-gray-50 rounded text-sm text-right">{item.quantity}</div>
+                      )}
                     </div>
+                    
                     <div className="col-span-2">
-                      <Label className="text-xs font-medium text-gray-600">Rate ($)</Label>
-                      <Input
-                        type="number"
-                        value={item.rate}
-                        onChange={(e) => handleCostItemChange(index, 'rate', parseFloat(e.target.value) || 0)}
-                        min="0"
-                        step="0.01"
-                        className="mt-1"
-                      />
+                      <Label className="text-xs">Rate ($)</Label>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={item.rate}
+                          onChange={(e) => handleCostBreakdownChange(index, 'rate', e.target.value)}
+                          step="0.01"
+                          min="0"
+                        />
+                      ) : (
+                        <div className="p-2 bg-gray-50 rounded text-sm text-right">{formatCurrency(item.rate)}</div>
+                      )}
                     </div>
+                    
                     <div className="col-span-2">
-                      <Label className="text-xs font-medium text-gray-600">Subtotal</Label>
-                      <div className="mt-1 p-2 bg-white border rounded-md text-right font-medium">
+                      <Label className="text-xs">Subtotal</Label>
+                      <div className="p-2 bg-blue-50 rounded text-sm text-right font-medium">
                         {formatCurrency(item.subtotal)}
                       </div>
                     </div>
-                    <div className="col-span-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeCostItem(index)}
-                        disabled={costBreakdown.length === 1}
-                        className="w-full"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    
+                    {isEditing && (
+                      <div className="col-span-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCostBreakdownItem(index)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={addCostItem}
-                className="w-full"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Cost Item
-              </Button>
-            </>
-          ) : (
-            <>
-              {/* Read-only Cost Items */}
-              {costBreakdown.length > 0 ? (
-                <div className="space-y-3">
-                  {costBreakdown.map((item: CostBreakdownItem, index: number) => (
-                    <div key={item.id || index} className="grid grid-cols-12 gap-2 items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="col-span-5">
-                        <span className="font-medium">{item.description}</span>
-                      </div>
-                      <div className="col-span-2 text-center">
-                        <span>{item.quantity}</span>
-                      </div>
-                      <div className="col-span-2 text-center">
-                        <span>{formatCurrency(item.rate)}</span>
-                      </div>
-                      <div className="col-span-3 text-right">
-                        <span className="font-medium">{formatCurrency(item.subtotal)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center p-8 text-gray-500">
-                  <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No detailed cost breakdown available</p>
-                  <p className="text-sm">Total cost impact: {formatCurrency(total)}</p>
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </CardContent>
+        </Card>
 
-          <Separator />
-
-          {/* Cost Impact Analysis */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Financial Impact Analysis</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Impact Type:</span>
-                <span className="ml-2 font-medium">
-                  {total > 0 ? 'Cost Addition' : total < 0 ? 'Cost Reduction' : 'No Impact'}
-                </span>
+        {/* Financial Impact Analysis */}
+        {totalAmount !== 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Impact Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span>Impact Type:</span>
+                  <Badge variant={totalAmount > 0 ? 'destructive' : 'default'}>
+                    {totalAmount > 0 ? 'Cost Addition' : 'Cost Reduction'}
+                  </Badge>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span>Budget Impact:</span>
+                  <span className={`font-medium ${totalAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {totalAmount > 0 ? '+' : ''}{formatCurrency(totalAmount)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span>GST Component:</span>
+                  <span className="font-medium">{formatCurrency(gstAmount)}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-600">Budget Impact:</span>
-                <span className="ml-2 font-medium">
-                  {total > 0 ? `+${((total / 100000) * 100).toFixed(1)}%` : 'Reduction'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </ScrollArea>
   );
 };
 

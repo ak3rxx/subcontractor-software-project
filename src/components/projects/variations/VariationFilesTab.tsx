@@ -1,269 +1,327 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Download, X, FileText, Image, FileIcon, Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { 
+  FileText, 
+  Image, 
+  File, 
+  Download, 
+  Eye, 
+  Trash2, 
+  Upload,
+  Paperclip,
+  Calendar,
+  User,
+  HardDrive
+} from 'lucide-react';
 
 interface VariationFilesTabProps {
   variation: any;
-  attachments: any[];
-  attachmentsLoading: boolean;
-  canEdit: boolean;
-  onUpload: (files: File[]) => Promise<void>;
-  onDownload: (attachment: any) => Promise<void>;
-  onDelete: (attachmentId: string) => Promise<void>;
+  isEditing: boolean;
 }
 
 const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
   variation,
-  attachments,
-  attachmentsLoading,
-  canEdit,
-  onUpload,
-  onDownload,
-  onDelete
+  isEditing
 }) => {
-  const { toast } = useToast();
-  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setUploadingFiles([...uploadingFiles, ...files]);
-  };
-
-  const removeUploadingFile = (index: number) => {
-    setUploadingFiles(uploadingFiles.filter((_, i) => i !== index));
-  };
-
-  const handleUpload = async () => {
-    if (uploadingFiles.length === 0) return;
-
-    setIsUploading(true);
-    try {
-      await onUpload(uploadingFiles);
-      setUploadingFiles([]);
-      toast({
-        title: "Success",
-        description: `${uploadingFiles.length} file(s) uploaded successfully`
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload files",
-        variant: "destructive"
-      });
-    } finally {
-      setIsUploading(false);
+  // Mock attachments data - in real implementation, this would come from variation.attachments
+  const attachments = variation.attachments || [
+    {
+      id: '1',
+      name: 'electrical_plan_rev2.pdf',
+      size: 2.4 * 1024 * 1024,
+      type: 'application/pdf',
+      uploaded_by: 'John Smith',
+      uploaded_at: '2024-01-15T10:30:00Z',
+      url: '#'
+    },
+    {
+      id: '2',
+      name: 'site_photo_001.jpg',
+      size: 1.8 * 1024 * 1024,
+      type: 'image/jpeg',
+      uploaded_by: 'Jane Doe',
+      uploaded_at: '2024-01-16T14:20:00Z',
+      url: '#'
+    },
+    {
+      id: '3',
+      name: 'specification_update.docx',
+      size: 0.9 * 1024 * 1024,
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      uploaded_by: 'Mike Johnson',
+      uploaded_at: '2024-01-17T09:15:00Z',
+      url: '#'
     }
-  };
-
-  const handleDownload = async (attachment: any) => {
-    try {
-      await onDownload(attachment);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to download file",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDelete = async (attachmentId: string) => {
-    try {
-      await onDelete(attachmentId);
-      toast({
-        title: "Success",
-        description: "File deleted successfully"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete file",
-        variant: "destructive"
-      });
-    }
-  };
+  ];
 
   const getFileIcon = (fileType: string) => {
-    if (fileType?.startsWith('image/')) return <Image className="h-5 w-5" />;
-    if (fileType?.includes('pdf')) return <FileText className="h-5 w-5" />;
-    return <FileIcon className="h-5 w-5" />;
-  };
-
-  const getFileTypeColor = (fileType: string) => {
-    if (fileType?.startsWith('image/')) return 'bg-green-100 text-green-800';
-    if (fileType?.includes('pdf')) return 'bg-red-100 text-red-800';
-    if (fileType?.includes('word')) return 'bg-blue-100 text-blue-800';
-    if (fileType?.includes('excel') || fileType?.includes('spreadsheet')) return 'bg-emerald-100 text-emerald-800';
-    return 'bg-gray-100 text-gray-800';
+    if (fileType.startsWith('image/')) {
+      return <Image className="h-5 w-5 text-blue-500" />;
+    }
+    if (fileType === 'application/pdf') {
+      return <FileText className="h-5 w-5 text-red-500" />;
+    }
+    return <File className="h-5 w-5 text-gray-500" />;
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 B';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${Math.round(bytes / Math.pow(1024, i) * 100) / 100} ${sizes[i]}`;
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-AU', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getFileTypeBadge = (fileType: string) => {
+    if (fileType.startsWith('image/')) {
+      return <Badge variant="secondary" className="text-xs">Image</Badge>;
+    }
+    if (fileType === 'application/pdf') {
+      return <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">PDF</Badge>;
+    }
+    if (fileType.includes('word') || fileType.includes('document')) {
+      return <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">Document</Badge>;
+    }
+    return <Badge variant="outline" className="text-xs">File</Badge>;
+  };
+
+  const handleDragOver = (e: any) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: any) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e: any) => {
+    e.preventDefault();
+    setDragOver(false);
+    // Handle file drop - in real implementation
+    console.log('Files dropped:', e.dataTransfer.files);
+  };
+
+  const handleFileUpload = () => {
+    // Trigger file input - in real implementation
+    console.log('File upload triggered');
+  };
+
+  const handleViewFile = (attachment: any) => {
+    // Open file viewer - in real implementation
+    console.log('Viewing file:', attachment.name);
+  };
+
+  const handleDownloadFile = (attachment: any) => {
+    // Download file - in real implementation
+    console.log('Downloading file:', attachment.name);
+  };
+
+  const handleDeleteFile = (attachment: any) => {
+    // Delete file - in real implementation
+    console.log('Deleting file:', attachment.name);
+  };
+
+  const totalFileSize = attachments.reduce((sum, file) => sum + file.size, 0);
+
   return (
-    <div className="space-y-6">
-      {/* File Upload Section */}
-      {canEdit && (
+    <ScrollArea className="h-[calc(100vh-400px)] pr-4">
+      <div className="space-y-6">
+        {/* File Summary */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Upload Files
+              <Paperclip className="h-5 w-5" />
+              File Summary
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="file-upload">Select Files</Label>
-              <Input
-                id="file-upload"
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.xls,.xlsx"
-                className="mt-1"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Supported formats: PDF, Word, Excel, Images (JPG, PNG, GIF, WebP)
-              </p>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">
+                  {attachments.length}
+                </div>
+                <div className="text-sm text-blue-800">Total Files</div>
+              </div>
+              
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {formatFileSize(totalFileSize)}
+                </div>
+                <div className="text-sm text-green-800">Total Size</div>
+              </div>
+              
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">
+                  {attachments.filter(f => f.type.startsWith('image/')).length}
+                </div>
+                <div className="text-sm text-purple-800">Images</div>
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {uploadingFiles.length > 0 && (
-              <div>
-                <Label>Files to Upload</Label>
-                <div className="space-y-2 mt-2">
-                  {uploadingFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-2">
-                        {getFileIcon(file.type)}
-                        <div>
-                          <div className="font-medium">{file.name}</div>
-                          <div className="text-sm text-gray-500">{formatFileSize(file.size)}</div>
+        {/* File Upload Area (only in edit mode) */}
+        {isEditing && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Files</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragOver 
+                    ? 'border-blue-400 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Upload Files
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Drag and drop files here, or click to browse
+                </p>
+                <Button onClick={handleFileUpload} className="mb-2">
+                  Browse Files
+                </Button>
+                <p className="text-xs text-gray-500">
+                  Supported formats: PDF, DOC, DOCX, JPG, PNG, GIF (Max 10MB each)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* File List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Attached Files</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {attachments.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <File className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No files attached</h3>
+                <p className="text-sm text-gray-600">
+                  {isEditing ? 'Upload files to attach them to this variation.' : 'No files have been attached to this variation.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {attachments.map((attachment) => (
+                  <div key={attachment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {getFileIcon(attachment.type)}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {attachment.name}
+                          </p>
+                          {getFileTypeBadge(attachment.type)}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <HardDrive className="h-3 w-3" />
+                            {formatFileSize(attachment.size)}
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {attachment.uploaded_by}
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(attachment.uploaded_at)}
+                          </div>
                         </div>
                       </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 ml-4">
                       <Button
-                        type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeUploadingFile(index)}
+                        onClick={() => handleViewFile(attachment)}
+                        className="h-8 w-8 p-0"
                       >
-                        <X className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                       </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadFile(attachment)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      
+                      {isEditing && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteFile(attachment)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <Button 
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                  className="w-full mt-3"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isUploading ? 'Uploading...' : `Upload ${uploadingFiles.length} File(s)`}
-                </Button>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
-      )}
 
-      {/* Existing Files */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Attached Files
-            {attachments.length > 0 && (
-              <Badge variant="outline">{attachments.length}</Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {attachmentsLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading files...</span>
+        {/* File Management Guidelines */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-blue-900">File Management Guidelines</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-blue-800 space-y-2">
+              <p className="font-medium">Recommended file types:</p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Technical drawings: PDF, DWG</li>
+                <li>Photographs: JPG, PNG</li>
+                <li>Documents: PDF, DOC, DOCX</li>
+                <li>Specifications: PDF, TXT</li>
+              </ul>
+              <p className="font-medium mt-4">Best practices:</p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Use descriptive file names</li>
+                <li>Keep file sizes under 10MB when possible</li>
+                <li>Upload high-resolution images for technical details</li>
+                <li>Include revision numbers in file names</li>
+              </ul>
             </div>
-          ) : attachments.length > 0 ? (
-            <div className="space-y-3">
-              {attachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center gap-3">
-                    {getFileIcon(attachment.file_type)}
-                    <div className="flex-1">
-                      <div className="font-medium">{attachment.file_name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className={getFileTypeColor(attachment.file_type)}>
-                          {attachment.file_type?.split('/')[1]?.toUpperCase() || 'FILE'}
-                        </Badge>
-                        <span className="text-sm text-gray-500">
-                          {formatFileSize(attachment.file_size)}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {new Date(attachment.uploaded_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDownload(attachment)}
-                      title="Download file"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    {canEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(attachment.id)}
-                        title="Delete file"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>No files attached</p>
-              {canEdit && (
-                <p className="text-sm">Use the upload section above to add files</p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* File Management Tips */}
-      {canEdit && (
-        <Card className="bg-blue-50">
-          <CardContent className="pt-6">
-            <h4 className="font-medium mb-2 text-blue-900">File Management Tips</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Upload supporting documents, drawings, or specifications</li>
-              <li>• Accepted formats: PDF, Word, Excel, and common image formats</li>
-              <li>• Files are automatically organized and accessible to project team</li>
-              <li>• Use descriptive filenames for better organization</li>
-            </ul>
           </CardContent>
         </Card>
-      )}
-    </div>
+      </div>
+    </ScrollArea>
   );
 };
 
