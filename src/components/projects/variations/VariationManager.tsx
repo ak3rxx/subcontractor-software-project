@@ -5,7 +5,7 @@ import { VariationManagerActions } from './VariationManagerActions';
 import VariationManagerHeader from './sections/VariationManagerHeader';
 import VariationSummaryCards from './VariationSummaryCards';
 import VariationManagerFilters from './sections/VariationManagerFilters';
-import VariationManagerTable from './sections/VariationManagerTable';
+import VariationTable from './VariationTable';
 import VariationManagerModals from './sections/VariationManagerModals';
 import VariationAnalytics from '../../variations/analytics/VariationAnalytics';
 
@@ -137,7 +137,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({
                         onFiltersChange={setFilters}
                       />
                       
-                      <VariationManagerTable
+                      <VariationTable
                         variations={filteredVariations}
                         canEditVariations={canEditVariations}
                         canSendEmails={canSendEmails}
