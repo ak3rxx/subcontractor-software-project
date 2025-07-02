@@ -2050,6 +2050,10 @@ export type Database = {
           total_time_impact: number
         }[]
       }
+      check_organization_access: {
+        Args: { org_id: string; user_id: string }
+        Returns: boolean
+      }
       cleanup_old_audit_trail: {
         Args: { retention_days?: number }
         Returns: number
@@ -2139,6 +2143,10 @@ export type Database = {
           evidence_count: number
           confidence_score: number
         }[]
+      }
+      is_org_admin: {
+        Args: { org_id: string; user_id: string }
+        Returns: boolean
       }
       log_variation_change: {
         Args: {

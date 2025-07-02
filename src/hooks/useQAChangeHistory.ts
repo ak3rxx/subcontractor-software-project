@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -24,7 +24,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
   // Track the last recorded changes to prevent duplicates
   const lastRecordedChanges = useRef<Map<string, string>>(new Map());
 
-  const fetchChangeHistory = async () => {
+  const fetchChangeHistory = useCallback(async () => {
     if (!inspectionId) {
       setLoading(false);
       return;
@@ -59,7 +59,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [inspectionId]);
 
   const recordChange = async (
     fieldName: string,
@@ -172,12 +172,54 @@ export const useQAChangeHistory = (inspectionId: string) => {
   };
 
   useEffect(() => {
-    if (inspectionId) {
-      fetchChangeHistory();
-    }
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      if (!inspectionId || !isMounted) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        console.log('Fetching change history for inspection:', inspectionId);
+        
+        const { data, error } = await supabase.rpc('get_qa_change_history', {
+          p_inspection_id: inspectionId
+        });
+
+        if (error) {
+          console.error('Error fetching change history:', error);
+          if (isMounted) {
+            setChangeHistory([]);
+          }
+          return;
+        }
+
+        if (isMounted) {
+          const mappedData = (data || []).map((item: any) => ({
+            ...item,
+            timestamp: item.change_timestamp || item.timestamp,
+            user_name: item.user_name || 'Unknown User'
+          }));
+          setChangeHistory(mappedData);
+        }
+      } catch (error) {
+        console.error('Error fetching change history:', error);
+        if (isMounted) {
+          setChangeHistory([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
     
     // Cleanup function to prevent memory leaks
     return () => {
+      isMounted = false;
       setChangeHistory([]);
       setLoading(false);
       lastRecordedChanges.current.clear();

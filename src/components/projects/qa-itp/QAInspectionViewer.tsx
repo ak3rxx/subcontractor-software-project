@@ -30,6 +30,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 
   useEffect(() => {
     const fetchInspectionData = async () => {
+      if (!inspectionId) {
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       
       try {
@@ -47,10 +52,8 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
       }
     };
 
-    if (inspectionId) {
-      fetchInspectionData();
-    }
-  }, [inspectionId, getInspectionById, getChecklistItems]);
+    fetchInspectionData();
+  }, [inspectionId]); // Remove function dependencies to prevent loops
 
   const getStatusIcon = (status: string) => {
     switch (status) {

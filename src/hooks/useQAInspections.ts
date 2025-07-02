@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -82,7 +82,7 @@ export const useQAInspections = (projectId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchInspections = async () => {
+  const fetchInspections = useCallback(async () => {
     if (!user) {
       console.log('No user found, skipping QA inspections fetch');
       setLoading(false);
@@ -137,9 +137,9 @@ export const useQAInspections = (projectId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, projectId, toast]);
 
-  const createInspection = async (
+  const createInspection = useCallback(async (
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
     checklistItems: Array<{
       item_id: string;
@@ -271,9 +271,9 @@ export const useQAInspections = (projectId?: string) => {
       });
       return null;
     }
-  };
+  }, [user, toast]);
 
-  const updateInspection = async (
+  const updateInspection = useCallback(async (
     inspectionId: string,
     inspectionData: Partial<QAInspection>,
     checklistItems?: Array<{
@@ -357,7 +357,7 @@ export const useQAInspections = (projectId?: string) => {
       });
       return null;
     }
-  };
+  }, [user, toast]);
 
   const updateChecklistItem = async (itemId: string, updates: Partial<QAChecklistItem>) => {
     if (!user) return null;
@@ -389,7 +389,7 @@ export const useQAInspections = (projectId?: string) => {
     }
   };
 
-  const getChecklistItems = async (inspectionId: string): Promise<QAChecklistItem[]> => {
+  const getChecklistItems = useCallback(async (inspectionId: string): Promise<QAChecklistItem[]> => {
     try {
       const { data, error } = await supabase
         .from('qa_checklist_items')
@@ -407,9 +407,9 @@ export const useQAInspections = (projectId?: string) => {
       console.error('Error:', error);
       return [];
     }
-  };
+  }, []);
 
-  const getInspectionById = async (inspectionId: string): Promise<QAInspection | null> => {
+  const getInspectionById = useCallback(async (inspectionId: string): Promise<QAInspection | null> => {
     try {
       const { data, error } = await supabase
         .from('qa_inspections')
@@ -427,9 +427,9 @@ export const useQAInspections = (projectId?: string) => {
       console.error('Error:', error);
       return null;
     }
-  };
+  }, []);
 
-  const deleteInspection = async (inspectionId: string) => {
+  const deleteInspection = useCallback(async (inspectionId: string) => {
     if (!user) return false;
 
     try {
@@ -481,7 +481,7 @@ export const useQAInspections = (projectId?: string) => {
       });
       return false;
     }
-  };
+  }, [user, toast]);
 
   const bulkDeleteInspections = async (inspectionIds: string[]) => {
     if (!user) return false;

@@ -191,13 +191,14 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
           onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={uploading || currentFiles.length >= maxFiles}
+          style={{ pointerEvents: isDragOver ? 'none' : 'auto' }}
         />
         <Button
           variant="outline"
-          className="mt-4"
+          className="mt-4 pointer-events-none relative z-10"
           disabled={uploading || currentFiles.length >= maxFiles}
         >
-          {uploading ? 'Uploading...' : 'Choose Files'}
+          {uploading ? 'Uploading...' : isDragOver ? 'Drop files here!' : 'Choose Files'}
         </Button>
       </div>
 
