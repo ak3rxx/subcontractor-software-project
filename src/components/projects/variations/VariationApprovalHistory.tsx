@@ -108,8 +108,19 @@ const VariationApprovalHistory: React.FC<VariationApprovalHistoryProps> = ({
     );
   };
 
-  // Show all audit trail entries, not just approval-related ones
-  const displayableEntries = auditTrail;
+  // Remove duplicates and show all audit trail entries
+  const displayableEntries = React.useMemo(() => {
+    const seen = new Set();
+    return auditTrail.filter(entry => {
+      // Create a unique key for each entry to detect duplicates
+      const key = `${entry.action_type}-${entry.field_name}-${entry.action_timestamp}-${entry.user_id}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [auditTrail]);
 
   return (
     <Card>

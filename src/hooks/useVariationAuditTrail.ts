@@ -4,9 +4,10 @@ import { useAuditTrailFetch } from './useAuditTrailFetch';
 import { useAuditTrailRefresh } from './useAuditTrailRefresh';
 import { useEmailLogging } from './useEmailLogging';
 
-export const useVariationAuditTrail = (variationId?: string) => {
+export const useVariationAuditTrail = (variationId?: string, variation?: any) => {
   const lastVariationIdRef = useRef<string | null>(null);
   const lastStatusRef = useRef<string | null>(null);
+  const lastUpdatedAtRef = useRef<string | null>(null);
   
   const {
     auditTrail,
@@ -52,6 +53,31 @@ export const useVariationAuditTrail = (variationId?: string) => {
       fetchAuditTrail(variationId, false, false);
     }
   }, [variationId, fetchAuditTrail, resetFetchState]);
+
+  // Refresh audit trail when variation data changes (status, updated_at, etc.)
+  useEffect(() => {
+    if (variation && variationId) {
+      const currentStatus = variation.status;
+      const currentUpdatedAt = variation.updated_at;
+      
+      // Check if status or updated_at has changed
+      if (
+        (currentStatus !== lastStatusRef.current) ||
+        (currentUpdatedAt !== lastUpdatedAtRef.current)
+      ) {
+        console.log('Variation data changed, refreshing audit trail');
+        lastStatusRef.current = currentStatus;
+        lastUpdatedAtRef.current = currentUpdatedAt;
+        
+        // Use immediate refresh for status changes, debounced for other updates
+        if (currentStatus !== lastStatusRef.current) {
+          immediateRefresh();
+        } else {
+          debouncedRefresh(300, true);
+        }
+      }
+    }
+  }, [variation, variationId, immediateRefresh, debouncedRefresh]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -2,6 +2,7 @@
 import React from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Eye, Edit, Send, MapPin } from 'lucide-react';
 import VariationStatusBadge from '../VariationStatusBadge';
 import VariationPriorityBadge from '../VariationPriorityBadge';
@@ -65,33 +66,58 @@ const VariationTableRow: React.FC<VariationTableRowProps> = ({
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onViewDetails(variation)}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          {canEditVariations && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(variation)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          {canSendEmails && variation.client_email && !variation.email_sent && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onSendEmail(variation.id)}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onViewDetails(variation)}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View Variation Details</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            {canEditVariations && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(variation)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Edit Variation</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            
+            {canSendEmails && variation.client_email && !variation.email_sent && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSendEmail(variation.id)}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Send Email to Client</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </TooltipProvider>
       </TableCell>
     </TableRow>
   );

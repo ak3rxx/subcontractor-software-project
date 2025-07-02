@@ -33,7 +33,7 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
     error: auditError,
     refetch,
     debouncedRefresh
-  } = useVariationAuditTrail(variation?.id);
+  } = useVariationAuditTrail(variation?.id, variation);
 
   const [refreshCount, setRefreshCount] = useState(0);
   const lastUpdateTimestampRef = useRef<string>('');

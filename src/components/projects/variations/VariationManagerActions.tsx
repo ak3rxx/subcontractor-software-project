@@ -84,9 +84,9 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
       return;
     }
     
-    setEditingVariation(variation);
-    setShowForm(true);
-    setFormKey(formKey + 1);
+    // Open the detail modal instead of the form modal for editing
+    setSelectedVariation(variation);
+    setShowDetailsModal(true);
   };
 
   const handleViewDetails = (variation: Variation) => {
@@ -113,7 +113,13 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
         updated_at: new Date().toISOString()
       };
       
-      await updateVariation(id, updatePayload);
+      const updatedVariation = await updateVariation(id, updatePayload);
+      
+      // Update the selected variation to keep modal data fresh
+      if (updatedVariation) {
+        setSelectedVariation(updatedVariation);
+      }
+      
       await refreshVariations();
     } catch (error) {
       console.error('Error updating variation:', error);
@@ -122,6 +128,8 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
   };
 
   const handleVariationUpdate = (updatedVariation: Variation) => {
+    // Update the selected variation to keep modal data fresh
+    setSelectedVariation(updatedVariation);
     refreshVariations();
   };
 
