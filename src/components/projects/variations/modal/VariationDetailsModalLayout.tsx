@@ -7,8 +7,10 @@ import { FileText, Edit, Save, X } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
+import { useVariationFieldAudit } from '@/hooks/useVariationFieldAudit';
 import VariationModalTabs from './VariationModalTabs';
 import VariationStatusNotification from './VariationStatusNotification';
+import StatusChangeWarningDialog from '../StatusChangeWarningDialog';
 
 interface VariationDetailsModalLayoutProps {
   isOpen: boolean;
@@ -32,9 +34,14 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
   const [activeTab, setActiveTab] = useState('details');
   const [saveLoading, setSaveLoading] = useState(false);
   const [currentVariation, setCurrentVariation] = useState(variation);
+  const [showStatusWarning, setShowStatusWarning] = useState(false);
+  const [pendingEditAction, setPendingEditAction] = useState<(() => void) | null>(null);
 
   // Use the dedicated edit permissions hook
   const { canEditVariation, editBlockedReason, isPendingApproval, isStatusLocked } = useVariationEditPermissions(currentVariation);
+  
+  // Use audit logging hook
+  const { logFieldChanges, logStatusChange, isLogging } = useVariationFieldAudit();
 
   // Update current variation when prop changes (for real-time updates)
   useEffect(() => {
@@ -58,41 +65,75 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
       return;
     }
 
-    setEditData({
-      title: currentVariation.title,
-      description: currentVariation.description || '',
-      location: currentVariation.location || '',
-      cost_impact: currentVariation.cost_impact,
-      time_impact: currentVariation.time_impact,
-      category: currentVariation.category || '',
-      priority: currentVariation.priority,
-      client_email: currentVariation.client_email || '',
-      justification: currentVariation.justification || '',
-      requires_eot: currentVariation.requires_eot || false,
-      requires_nod: currentVariation.requires_nod || false,
-      trade: currentVariation.trade || '',
-      cost_breakdown: currentVariation.cost_breakdown || [],
-      gst_amount: currentVariation.gst_amount || 0,
-      total_amount: currentVariation.total_amount || 0
-    });
-    setIsEditing(true);
-  }, [currentVariation, editBlockedReason, toast]);
+    const proceedWithEdit = () => {
+      setEditData({
+        title: currentVariation.title,
+        description: currentVariation.description || '',
+        location: currentVariation.location || '',
+        cost_impact: currentVariation.cost_impact,
+        time_impact: currentVariation.time_impact,
+        category: currentVariation.category || '',
+        priority: currentVariation.priority,
+        client_email: currentVariation.client_email || '',
+        justification: currentVariation.justification || '',
+        requires_eot: currentVariation.requires_eot || false,
+        requires_nod: currentVariation.requires_nod || false,
+        trade: currentVariation.trade || '',
+        cost_breakdown: currentVariation.cost_breakdown || [],
+        gst_amount: currentVariation.gst_amount || 0,
+        total_amount: currentVariation.total_amount || 0
+      });
+      setIsEditing(true);
+    };
+
+    // Check if we need to show status change warning
+    if (isStatusLocked || isPendingApproval) {
+      setPendingEditAction(() => proceedWithEdit);
+      setShowStatusWarning(true);
+    } else {
+      proceedWithEdit();
+    }
+  }, [currentVariation, editBlockedReason, isStatusLocked, isPendingApproval, toast]);
 
   const handleSave = useCallback(async () => {
     if (!onUpdate || !canEditVariation) return;
     
     setSaveLoading(true);
     try {
-      await onUpdate(currentVariation.id, editData);
+      // Log field changes before updating
+      await logFieldChanges(currentVariation.id, currentVariation, editData);
+      
+      // Check if status will change due to the edit
+      const willChangeStatus = (isStatusLocked || isPendingApproval) && currentVariation.status !== 'draft';
+      
+      // Prepare update payload
+      let updatePayload = { ...editData };
+      
+      // If editing a status-locked variation, revert to pending approval
+      if (willChangeStatus) {
+        updatePayload.status = 'pending_approval';
+        await logStatusChange(
+          currentVariation.id, 
+          currentVariation.status, 
+          'pending_approval',
+          'Status reverted to pending approval due to field changes'
+        );
+      }
+      
+      await onUpdate(currentVariation.id, updatePayload);
       setIsEditing(false);
-      const updatedVariation = { ...currentVariation, ...editData };
+      
+      const updatedVariation = { ...currentVariation, ...updatePayload };
       setCurrentVariation(updatedVariation);
       if (onVariationUpdate) {
         onVariationUpdate(updatedVariation);
       }
+      
       toast({
         title: "Success",
-        description: "Variation updated successfully"
+        description: willChangeStatus 
+          ? "Variation updated and status reverted to pending approval"
+          : "Variation updated successfully"
       });
     } catch (error) {
       toast({
@@ -103,11 +144,24 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
     } finally {
       setSaveLoading(false);
     }
-  }, [currentVariation, editData, onUpdate, onVariationUpdate, canEditVariation, toast]);
+  }, [currentVariation, editData, onUpdate, onVariationUpdate, canEditVariation, isStatusLocked, isPendingApproval, logFieldChanges, logStatusChange, toast]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
     setEditData({});
+  }, []);
+
+  const handleStatusWarningConfirm = useCallback(() => {
+    if (pendingEditAction) {
+      pendingEditAction();
+      setPendingEditAction(null);
+    }
+    setShowStatusWarning(false);
+  }, [pendingEditAction]);
+
+  const handleStatusWarningClose = useCallback(() => {
+    setShowStatusWarning(false);
+    setPendingEditAction(null);
   }, []);
 
   const handleDataChange = useCallback((changes: any) => {
@@ -159,7 +213,7 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
               </div>
             </div>
             <div className="flex gap-2">
-              {!isEditing && canEditVariation && currentVariation.status === 'draft' && (
+              {!isEditing && canEditVariation && (
                 <Button variant="outline" size="sm" onClick={handleEdit}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
@@ -167,17 +221,17 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
               )}
               {isEditing && (
                 <>
-                  <Button variant="outline" size="sm" onClick={handleCancel}>
+                  <Button variant="outline" size="sm" onClick={handleCancel} disabled={saveLoading || isLogging}>
                     <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
                   <Button 
                     size="sm" 
                     onClick={handleSave}
-                    disabled={saveLoading}
+                    disabled={saveLoading || isLogging}
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {saveLoading ? 'Saving...' : 'Save'}
+                    {saveLoading || isLogging ? 'Saving...' : 'Save'}
                   </Button>
                 </>
               )}
@@ -205,6 +259,14 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
             setCurrentVariation(updatedVar);
             if (onVariationUpdate) onVariationUpdate(updatedVar);
           }}
+        />
+
+        <StatusChangeWarningDialog
+          isOpen={showStatusWarning}
+          onClose={handleStatusWarningClose}
+          onConfirm={handleStatusWarningConfirm}
+          variationStatus={currentVariation.status}
+          variationNumber={currentVariation.variation_number}
         />
       </DialogContent>
     </Dialog>

@@ -105,7 +105,8 @@ const VariationTableRow: React.FC<VariationTableRowProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onEdit(variation)}
-                  className={(!canEditVariations || editBlockedReason) ? "opacity-50" : ""}
+                  disabled={!canEditVariations || !!editBlockedReason}
+                  className={(!canEditVariations || editBlockedReason) ? "opacity-50 cursor-not-allowed" : ""}
                 >
                   {getEditIcon()}
                 </Button>
