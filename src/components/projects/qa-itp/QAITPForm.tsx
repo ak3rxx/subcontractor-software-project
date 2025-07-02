@@ -210,7 +210,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           requirements: item.requirements,
           status: item.status || '',
           comments: item.comments || '',
-          evidence_files: evidenceFileNames
+          evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : []
         };
       });
 

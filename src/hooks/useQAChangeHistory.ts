@@ -172,14 +172,14 @@ export const useQAChangeHistory = (inspectionId: string) => {
   };
 
   useEffect(() => {
+    if (!inspectionId) {
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
     
     const fetchData = async () => {
-      if (!inspectionId || !isMounted) {
-        setLoading(false);
-        return;
-      }
-      
       try {
         console.log('Fetching change history for inspection:', inspectionId);
         
@@ -217,12 +217,9 @@ export const useQAChangeHistory = (inspectionId: string) => {
 
     fetchData();
     
-    // Cleanup function to prevent memory leaks
+    // Simple cleanup without aggressive state clearing
     return () => {
       isMounted = false;
-      setChangeHistory([]);
-      setLoading(false);
-      lastRecordedChanges.current.clear();
     };
   }, [inspectionId]);
 

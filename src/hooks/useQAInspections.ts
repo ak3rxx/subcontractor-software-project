@@ -189,9 +189,14 @@ export const useQAInspections = (projectId?: string) => {
         // Don't fail completely if organization lookup fails - proceed without org
       }
 
-      // If no organization found, we can still create the inspection
-      const organizationId = orgData?.organization_id || null;
+      // If no organization found, try to handle gracefully
+      const organizationId = orgData?.organization_id;
       console.log('User organization ID:', organizationId);
+      
+      // For users without organization, allow creation but warn
+      if (!organizationId) {
+        console.warn('User has no organization - creating inspection without org restriction');
+      }
 
       const insertData: QAInspectionInsert = {
         project_id: inspectionData.project_id,

@@ -130,8 +130,12 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
   const buildings = React.useMemo(() => {
     const buildingSet = new Set<string>();
     inspections.forEach(inspection => {
-      const parts = inspection.location_reference.split(' - ');
-      if (parts[0]) buildingSet.add(parts[0]);
+      if (inspection.location_reference) {
+        const parts = inspection.location_reference.split(' - ');
+        if (parts[0] && parts[0].trim()) {
+          buildingSet.add(parts[0].trim());
+        }
+      }
     });
     return Array.from(buildingSet).sort();
   }, [inspections]);
@@ -139,10 +143,14 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
   const levels = React.useMemo(() => {
     const levelSet = new Set<string>();
     inspections.forEach(inspection => {
-      const parts = inspection.location_reference.split(' - ');
-      if (parts[1]) {
-        const level = parts[1].replace('Level ', '');
-        levelSet.add(level);
+      if (inspection.location_reference) {
+        const parts = inspection.location_reference.split(' - ');
+        if (parts[1] && parts[1].trim()) {
+          const level = parts[1].replace('Level ', '').trim();
+          if (level) {
+            levelSet.add(level);
+          }
+        }
       }
     });
     return Array.from(levelSet).sort();
@@ -156,13 +164,13 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
     
     const matchesStatus = statusFilter === 'all' || inspection.overall_status === statusFilter;
     
-    // Building filter
-    const locationParts = inspection.location_reference.split(' - ');
-    const building = locationParts[0] || '';
+    // Building filter  
+    const locationParts = inspection.location_reference ? inspection.location_reference.split(' - ') : [];
+    const building = locationParts[0] ? locationParts[0].trim() : '';
     const matchesBuilding = buildingFilter === 'all' || building === buildingFilter;
     
     // Level filter
-    const level = locationParts[1] ? locationParts[1].replace('Level ', '') : '';
+    const level = locationParts[1] ? locationParts[1].replace('Level ', '').trim() : '';
     const matchesLevel = levelFilter === 'all' || level === levelFilter;
     
     return matchesSearch && matchesStatus && matchesBuilding && matchesLevel;
