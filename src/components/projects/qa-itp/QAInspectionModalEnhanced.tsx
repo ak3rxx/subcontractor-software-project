@@ -74,12 +74,20 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
       // Prepare update data including checklist items if modified
       const updateData = { ...editData };
       
-      // If checklist items were modified, include them
+      // Transform checklist items for database format if they exist
       if (editData.checklistItems) {
-        updateData.checklistItems = editData.checklistItems;
+        const checklistItems = editData.checklistItems.map((item: any) => ({
+          item_id: item.id,
+          description: item.description,
+          requirements: item.requirements,
+          status: item.status || '',
+          comments: item.comments || '',
+          evidence_files: item.evidenceFiles || []
+        }));
+        updateData.checklistItems = checklistItems;
       }
 
-      await updateInspection(currentInspection.id, updateData);
+      await updateInspection(currentInspection.id, updateData, updateData.checklistItems);
       
       setIsEditing(false);
       const updatedInspection = { ...currentInspection, ...editData };

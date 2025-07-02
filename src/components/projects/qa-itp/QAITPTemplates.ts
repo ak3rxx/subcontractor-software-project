@@ -5,9 +5,9 @@ export interface ChecklistItem {
   id: string;
   description: string;
   requirements: string;
-  status?: 'pass' | 'fail' | 'na';
+  status?: 'pass' | 'fail' | 'na' | '';
   comments?: string;
-  evidenceFiles?: UploadedFile[];
+  evidenceFiles?: any[];
   isFireDoorOnly?: boolean;
 }
 

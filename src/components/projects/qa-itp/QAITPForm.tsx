@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useQAInspections } from '@/hooks/useQAInspections';
+import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useToast } from '@/hooks/use-toast';
 import { useProjects } from '@/hooks/useProjects';
 import { ChecklistItem, templates } from './QAITPTemplates';
-import QAITPChecklistItem from './QAITPChecklistItem';
+import QAITPChecklistItemEnhanced from './QAITPChecklistItemEnhanced';
 import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
 import { AlertCircle, Save, X } from 'lucide-react';
@@ -22,7 +22,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   projectId,
   editingInspection 
 }) => {
-  const { createInspection, updateInspection } = useQAInspections();
+  const { createInspection, updateInspection } = useQAInspectionsSimple();
   const { toast } = useToast();
   const { projects } = useProjects();
   const [saving, setSaving] = useState(false);
@@ -276,7 +276,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Inspection Checklist</h3>
             {filteredChecklist.map((item) => (
-              <QAITPChecklistItem
+              <QAITPChecklistItemEnhanced
                 key={item.id}
                 item={item}
                 onChecklistChange={handleChecklistChange}

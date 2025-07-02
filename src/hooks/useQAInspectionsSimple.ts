@@ -340,13 +340,13 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     }
   }, []);
 
-  // Real-time subscription for list updates
+  // Initial fetch and real-time subscription
   useEffect(() => {
     fetchInspections();
 
     // Subscribe to real-time changes
     const channel = supabase
-      .channel('qa_inspections_changes')
+      .channel(`qa_inspections_${projectId || 'all'}`)
       .on('postgres_changes', 
         { 
           event: '*', 
@@ -364,7 +364,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchInspections, projectId]);
+  }, [projectId]); // Remove fetchInspections from deps to prevent loop
 
   return {
     inspections,
