@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -5,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FileText, Edit, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import QAInspectionTabsEnhanced from './QAInspectionTabsEnhanced';
 
 interface QAInspectionModalEnhancedProps {
@@ -24,58 +26,90 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
 }) => {
   const { toast } = useToast();
   const { updateInspection } = useQAInspectionsSimple();
+  const { recordChange } = useQAChangeHistory(inspection?.id);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [saveLoading, setSaveLoading] = useState(false);
   const [currentInspection, setCurrentInspection] = useState(inspection);
 
-  // Update current inspection when prop changes
+  // Initialize edit data when inspection changes
   useEffect(() => {
     if (inspection) {
+      console.log('Initializing inspection data:', inspection);
       setCurrentInspection(inspection);
-      // Reset edit data when inspection changes
-      setEditData({
-        project_name: inspection.project_name,
-        task_area: inspection.task_area,
-        location_reference: inspection.location_reference,
-        inspection_type: inspection.inspection_type,
-        template_type: inspection.template_type,
-        is_fire_door: inspection.is_fire_door,
-        inspector_name: inspection.inspector_name,
-        inspection_date: inspection.inspection_date,
-        digital_signature: inspection.digital_signature,
-        overall_status: inspection.overall_status
-      });
+      const initialEditData = {
+        project_name: inspection.project_name || '',
+        task_area: inspection.task_area || '',
+        location_reference: inspection.location_reference || '',
+        inspection_type: inspection.inspection_type || '',
+        template_type: inspection.template_type || '',
+        is_fire_door: inspection.is_fire_door || false,
+        inspector_name: inspection.inspector_name || '',
+        inspection_date: inspection.inspection_date || '',
+        digital_signature: inspection.digital_signature || '',
+        overall_status: inspection.overall_status || ''
+      };
+      console.log('Setting initial edit data:', initialEditData);
+      setEditData(initialEditData);
     }
   }, [inspection]);
 
   const handleEdit = useCallback(() => {
-    setEditData({
-      project_name: currentInspection.project_name,
-      task_area: currentInspection.task_area,
-      location_reference: currentInspection.location_reference,
-      inspection_type: currentInspection.inspection_type,
-      template_type: currentInspection.template_type,
-      is_fire_door: currentInspection.is_fire_door,
-      inspector_name: currentInspection.inspector_name,
-      inspection_date: currentInspection.inspection_date,
-      digital_signature: currentInspection.digital_signature,
-      overall_status: currentInspection.overall_status
-    });
+    console.log('Starting edit mode for inspection:', currentInspection?.id);
     setIsEditing(true);
-  }, [currentInspection]);
+    
+    // Record the start of editing session
+    if (recordChange) {
+      recordChange('edit_session', 'inactive', 'active', 'update');
+    }
+  }, [currentInspection, recordChange]);
 
   const handleSave = useCallback(async () => {
-    if (!updateInspection) return;
+    if (!updateInspection || !currentInspection?.id) {
+      console.error('Missing updateInspection function or inspection ID');
+      toast({
+        title: "Error",
+        description: "Unable to save - missing required data",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setSaveLoading(true);
+    console.log('Starting save process for inspection:', currentInspection.id);
+    console.log('Edit data to save:', editData);
+
     try {
-      // Prepare update data including checklist items if modified
+      // Track field changes for audit trail
+      const fieldsToTrack = [
+        'project_name', 'task_area', 'location_reference', 'inspection_type',
+        'template_type', 'is_fire_door', 'inspector_name', 'inspection_date',
+        'digital_signature', 'overall_status'
+      ];
+
+      // Record individual field changes
+      for (const field of fieldsToTrack) {
+        const oldValue = currentInspection[field];
+        const newValue = editData[field];
+        
+        if (oldValue !== newValue && recordChange) {
+          console.log(`Recording change for ${field}: ${oldValue} -> ${newValue}`);
+          await recordChange(
+            field,
+            String(oldValue || ''),
+            String(newValue || ''),
+            'update'
+          );
+        }
+      }
+
+      // Prepare the update data
       const updateData = { ...editData };
       
-      // Transform checklist items for database format if they exist
+      // Handle checklist items if they exist
       if (editData.checklistItems) {
+        console.log('Processing checklist items:', editData.checklistItems);
         const checklistItems = editData.checklistItems.map((item: any) => ({
           item_id: item.id,
           description: item.description,
@@ -87,49 +121,83 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
         updateData.checklistItems = checklistItems;
       }
 
+      console.log('Calling updateInspection with data:', updateData);
       await updateInspection(currentInspection.id, updateData, updateData.checklistItems);
       
-      setIsEditing(false);
+      // Update local state
       const updatedInspection = { ...currentInspection, ...editData };
       setCurrentInspection(updatedInspection);
+      setIsEditing(false);
+      
+      // Notify parent component
       if (onInspectionUpdate) {
         onInspectionUpdate(updatedInspection);
       }
+
+      // Record successful save
+      if (recordChange) {
+        await recordChange('edit_session', 'active', 'saved', 'update');
+      }
       
+      console.log('Save completed successfully');
       toast({
         title: "Success",
         description: "Inspection updated successfully"
       });
+
     } catch (error) {
+      console.error('Save failed:', error);
+      
+      // Record failed save
+      if (recordChange) {
+        await recordChange('edit_session', 'active', 'failed', 'update');
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to update inspection",
+        description: `Failed to update inspection: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
       setSaveLoading(false);
     }
-  }, [currentInspection, editData, updateInspection, onInspectionUpdate, toast]);
+  }, [currentInspection, editData, updateInspection, onInspectionUpdate, recordChange, toast]);
 
   const handleCancel = useCallback(() => {
+    console.log('Canceling edit mode');
     setIsEditing(false);
+    
     // Reset edit data to current inspection values
-    setEditData({
-      project_name: currentInspection.project_name,
-      task_area: currentInspection.task_area,
-      location_reference: currentInspection.location_reference,
-      inspection_type: currentInspection.inspection_type,
-      template_type: currentInspection.template_type,
-      is_fire_door: currentInspection.is_fire_door,
-      inspector_name: currentInspection.inspector_name,
-      inspection_date: currentInspection.inspection_date,
-      digital_signature: currentInspection.digital_signature,
-      overall_status: currentInspection.overall_status
-    });
-  }, [currentInspection]);
+    if (currentInspection) {
+      const resetData = {
+        project_name: currentInspection.project_name || '',
+        task_area: currentInspection.task_area || '',
+        location_reference: currentInspection.location_reference || '',
+        inspection_type: currentInspection.inspection_type || '',
+        template_type: currentInspection.template_type || '',
+        is_fire_door: currentInspection.is_fire_door || false,
+        inspector_name: currentInspection.inspector_name || '',
+        inspection_date: currentInspection.inspection_date || '',
+        digital_signature: currentInspection.digital_signature || '',
+        overall_status: currentInspection.overall_status || ''
+      };
+      console.log('Resetting edit data:', resetData);
+      setEditData(resetData);
+    }
+
+    // Record cancel action
+    if (recordChange) {
+      recordChange('edit_session', 'active', 'cancelled', 'update');
+    }
+  }, [currentInspection, recordChange]);
 
   const handleDataChange = useCallback((changes: any) => {
-    setEditData(prev => ({ ...prev, ...changes }));
+    console.log('Data change received:', changes);
+    setEditData(prev => {
+      const updated = { ...prev, ...changes };
+      console.log('Updated edit data:', updated);
+      return updated;
+    });
   }, []);
 
   const getStatusBadge = (status: string) => {

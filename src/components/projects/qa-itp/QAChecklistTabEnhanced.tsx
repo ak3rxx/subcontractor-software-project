@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import QAITPChecklistItemEnhanced from './QAITPChecklistItemEnhanced';
 import { ChecklistItem } from './QAITPTemplates';
 
@@ -17,12 +19,14 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
 }) => {
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { recordChange } = useQAChangeHistory(inspection?.id);
 
   useEffect(() => {
     const fetchChecklistItems = async () => {
       if (inspection?.id) {
         setLoading(true);
         try {
+          console.log('Fetching checklist items for inspection:', inspection.id);
           const { data, error } = await supabase
             .from('qa_checklist_items')
             .select('*')
@@ -35,6 +39,7 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
             return;
           }
 
+          console.log('Fetched checklist items:', data);
           // Transform database items to ChecklistItem format
           const transformedItems: ChecklistItem[] = (data || []).map(item => ({
             id: item.item_id,
@@ -58,15 +63,40 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
   }, [inspection?.id]);
 
   const handleChecklistItemChange = (itemId: string, field: string, value: any) => {
-    if (!isEditing) return;
+    if (!isEditing) {
+      console.log('Not in editing mode, ignoring change');
+      return;
+    }
     
+    console.log(`Checklist item change: ${itemId} ${field} = ${value}`);
+    
+    // Find the old value for audit trail
+    const oldItem = checklistItems.find(item => item.id === itemId);
+    const oldValue = oldItem ? oldItem[field as keyof ChecklistItem] : null;
+    
+    // Update the checklist items
     const updatedItems = checklistItems.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     );
+    
     setChecklistItems(updatedItems);
     onChecklistChange?.(updatedItems);
-  };
 
+    // Record the change in audit trail
+    if (recordChange && oldValue !== value) {
+      const itemDescription = oldItem?.description || `Item ${itemId}`;
+      console.log(`Recording audit trail for item ${itemId}: ${field} changed from ${oldValue} to ${value}`);
+      
+      recordChange(
+        field,
+        String(oldValue || ''),
+        String(value || ''),
+        'update',
+        itemId,
+        itemDescription
+      );
+    }
+  };
 
   if (loading) {
     return (
@@ -81,6 +111,11 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
       <Card>
         <CardHeader>
           <CardTitle>Inspection Checklist</CardTitle>
+          {isEditing && (
+            <p className="text-sm text-muted-foreground">
+              Make changes to checklist items. All changes are tracked in the audit trail.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {checklistItems.length > 0 ? (
