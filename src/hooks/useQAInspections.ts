@@ -157,6 +157,8 @@ export const useQAInspections = (projectId?: string) => {
 
     try {
       console.log('Creating QA inspection for user:', user.id);
+      console.log('Inspection data:', inspectionData);
+      console.log('Checklist items:', checklistItems);
       
       // Generate inspection number
       const { data: numberData, error: numberError } = await supabase
@@ -172,22 +174,19 @@ export const useQAInspections = (projectId?: string) => {
         return null;
       }
 
+      console.log('Generated inspection number:', numberData);
+
       // Get user's organization - with better error handling
       const { data: orgData, error: orgError } = await supabase
         .from('organization_users')
         .select('organization_id')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .maybeSingle(); // Use maybeSingle to avoid errors when no data
+        .maybeSingle();
 
       if (orgError) {
         console.error('Error getting user organization:', orgError);
-        toast({
-          title: "Error",
-          description: "Could not determine user organization",
-          variant: "destructive"
-        });
-        return null;
+        // Don't fail completely if organization lookup fails - proceed without org
       }
 
       // If no organization found, we can still create the inspection
@@ -195,13 +194,23 @@ export const useQAInspections = (projectId?: string) => {
       console.log('User organization ID:', organizationId);
 
       const insertData: QAInspectionInsert = {
-        ...inspectionData,
+        project_id: inspectionData.project_id,
+        project_name: inspectionData.project_name,
+        task_area: inspectionData.task_area,
+        location_reference: inspectionData.location_reference,
+        inspection_type: inspectionData.inspection_type,
+        template_type: inspectionData.template_type,
+        is_fire_door: inspectionData.is_fire_door,
+        inspector_name: inspectionData.inspector_name,
+        inspection_date: inspectionData.inspection_date,
+        digital_signature: inspectionData.digital_signature,
+        overall_status: inspectionData.overall_status,
         inspection_number: numberData,
         created_by: user.id,
         organization_id: organizationId
       };
 
-      console.log('Creating QA inspection with data:', insertData);
+      console.log('Final insert data:', insertData);
 
       const { data: inspectionResult, error: inspectionError } = await supabase
         .from('qa_inspections')
@@ -212,7 +221,7 @@ export const useQAInspections = (projectId?: string) => {
       if (inspectionError) {
         console.error('Error creating inspection:', inspectionError);
         
-        if (inspectionError.message.includes('policy')) {
+        if (inspectionError.message.includes('policy') || inspectionError.message.includes('permission')) {
           toast({
             title: "Permission Error",
             description: "You don't have permission to create inspections. Please check your organization membership.",
@@ -228,15 +237,22 @@ export const useQAInspections = (projectId?: string) => {
         return null;
       }
 
-      console.log('Successfully created inspection:', inspectionResult.id);
+      console.log('Successfully created inspection:', inspectionResult);
 
       // Insert checklist items if provided
       if (checklistItems.length > 0) {
+        console.log('Creating checklist items...');
         const checklistInserts: QAChecklistItemInsert[] = checklistItems.map(item => ({
-          ...item,
           inspection_id: inspectionResult.id,
+          item_id: item.item_id,
+          description: item.description,
+          requirements: item.requirements,
+          status: item.status || '',
+          comments: item.comments || null,
           evidence_files: item.evidence_files.length > 0 ? item.evidence_files : null
         }));
+
+        console.log('Checklist inserts:', checklistInserts);
 
         const { error: checklistError } = await supabase
           .from('qa_checklist_items')

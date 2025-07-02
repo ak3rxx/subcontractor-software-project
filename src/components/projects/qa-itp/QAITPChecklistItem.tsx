@@ -4,8 +4,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import SupabaseFileUpload from './SupabaseFileUpload';
+import QAFieldAuditTrail from './QAFieldAuditTrail';
 import { ChecklistItem } from './QAITPTemplates';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 
 interface QAITPChecklistItemProps {
   item: ChecklistItem;
@@ -20,20 +22,62 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   onUploadStatusChange,
   inspectionId
 }) => {
+  const { recordChange } = useQAChangeHistory(inspectionId || '');
+
   const handleFileChange = useCallback((files: SupabaseUploadedFile[]) => {
     console.log('Files changed for item', item.id, ':', files);
+    
+    // Record audit trail for file changes
+    if (inspectionId) {
+      const oldFiles = item.evidenceFiles || [];
+      recordChange(
+        'evidenceFiles',
+        JSON.stringify(oldFiles),
+        JSON.stringify(files),
+        'update',
+        item.id,
+        item.description
+      );
+    }
+    
     onChecklistChange(item.id, 'evidenceFiles', files);
-  }, [item.id, onChecklistChange]);
+  }, [item.id, onChecklistChange, recordChange, inspectionId, item.description, item.evidenceFiles]);
 
   const handleStatusChange = useCallback((status: 'pass' | 'fail' | 'na' | '') => {
     console.log('Status changed for item', item.id, ':', status);
+    
+    // Record audit trail for status changes
+    if (inspectionId) {
+      recordChange(
+        'status',
+        item.status || '',
+        status,
+        'update',
+        item.id,
+        item.description
+      );
+    }
+    
     onChecklistChange(item.id, 'status', status);
-  }, [item.id, onChecklistChange]);
+  }, [item.id, onChecklistChange, recordChange, inspectionId, item.status, item.description]);
 
   const handleCommentsChange = useCallback((comments: string) => {
     console.log('Comments changed for item', item.id, ':', comments);
+    
+    // Record audit trail for comments changes
+    if (inspectionId) {
+      recordChange(
+        'comments',
+        item.comments || '',
+        comments,
+        'update',
+        item.id,
+        item.description
+      );
+    }
+    
     onChecklistChange(item.id, 'comments', comments);
-  }, [item.id, onChecklistChange]);
+  }, [item.id, onChecklistChange, recordChange, inspectionId, item.comments, item.description]);
 
   // Ensure evidenceFiles is always an array of SupabaseUploadedFile objects
   const currentFiles = React.useMemo(() => {
@@ -110,6 +154,15 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           inspectionId={inspectionId}
           checklistItemId={item.id}
         />
+
+        {/* Show audit trail for this checklist item if inspection exists */}
+        {inspectionId && (
+          <QAFieldAuditTrail
+            inspectionId={inspectionId}
+            fieldName={item.id}
+            className="mt-2"
+          />
+        )}
       </div>
     </div>
   );

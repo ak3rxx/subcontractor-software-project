@@ -36,6 +36,8 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [buildingFilter, setBuildingFilter] = useState<string>('all');
+  const [levelFilter, setLevelFilter] = useState<string>('all');
   const [selectedInspection, setSelectedInspection] = useState<string | null>(null);
   const [editingInspection, setEditingInspection] = useState<any>(null);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -124,6 +126,28 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
     }
   };
 
+  // Extract unique buildings and levels from location_reference
+  const buildings = React.useMemo(() => {
+    const buildingSet = new Set<string>();
+    inspections.forEach(inspection => {
+      const parts = inspection.location_reference.split(' - ');
+      if (parts[0]) buildingSet.add(parts[0]);
+    });
+    return Array.from(buildingSet).sort();
+  }, [inspections]);
+
+  const levels = React.useMemo(() => {
+    const levelSet = new Set<string>();
+    inspections.forEach(inspection => {
+      const parts = inspection.location_reference.split(' - ');
+      if (parts[1]) {
+        const level = parts[1].replace('Level ', '');
+        levelSet.add(level);
+      }
+    });
+    return Array.from(levelSet).sort();
+  }, [inspections]);
+
   const filteredInspections = inspections.filter(inspection => {
     const matchesSearch = !searchTerm || 
       inspection.inspection_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -132,7 +156,16 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
     
     const matchesStatus = statusFilter === 'all' || inspection.overall_status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Building filter
+    const locationParts = inspection.location_reference.split(' - ');
+    const building = locationParts[0] || '';
+    const matchesBuilding = buildingFilter === 'all' || building === buildingFilter;
+    
+    // Level filter
+    const level = locationParts[1] ? locationParts[1].replace('Level ', '') : '';
+    const matchesLevel = levelFilter === 'all' || level === levelFilter;
+    
+    return matchesSearch && matchesStatus && matchesBuilding && matchesLevel;
   });
 
   const handleDeleteInspection = async (inspectionId: string) => {
@@ -215,9 +248,45 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
                 </select>
               </div>
             </div>
-            {searchTerm && (
+            
+            {/* Building and Level Filters */}
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Building:</label>
+                <select
+                  value={buildingFilter}
+                  onChange={(e) => setBuildingFilter(e.target.value)}
+                  className="border border-input rounded-md px-3 py-2 text-sm bg-background"
+                >
+                  <option value="all">All Buildings</option>
+                  {buildings.map(building => (
+                    <option key={building} value={building}>{building}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Level:</label>
+                <select
+                  value={levelFilter}
+                  onChange={(e) => setLevelFilter(e.target.value)}
+                  className="border border-input rounded-md px-3 py-2 text-sm bg-background"
+                >
+                  <option value="all">All Levels</option>
+                  {levels.map(level => (
+                    <option key={level} value={level}>Level {level}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {/* Search Results Info */}
+            {(searchTerm || statusFilter !== 'all' || buildingFilter !== 'all' || levelFilter !== 'all') && (
               <div className="text-sm text-muted-foreground">
-                Showing results for "{searchTerm}" • {filteredInspections.length} inspection{filteredInspections.length !== 1 ? 's' : ''} found
+                {searchTerm && `Searching for "${searchTerm}" • `}
+                {filteredInspections.length} inspection{filteredInspections.length !== 1 ? 's' : ''} found
+                {statusFilter !== 'all' && ` • Status: ${statusFilter}`}
+                {buildingFilter !== 'all' && ` • Building: ${buildingFilter}`}
+                {levelFilter !== 'all' && ` • Level: ${levelFilter}`}
               </div>
             )}
           </div>
