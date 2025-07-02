@@ -163,6 +163,49 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
     return incompleteItems;
   };
 
+  const validateForm = (): boolean => {
+    // Check if required fields are filled
+    const requiredFields = [
+      { field: 'projectId', label: 'Project' },
+      { field: 'taskArea', label: 'Task Area' },
+      { field: 'building', label: 'Building' },
+      { field: 'inspectionType', label: 'Inspection Type' },
+      { field: 'template', label: 'Template' },
+      { field: 'inspectorName', label: 'Inspector Name' },
+      { field: 'inspectionDate', label: 'Inspection Date' },
+      { field: 'digitalSignature', label: 'Digital Signature' }
+    ];
+
+    for (const { field, label } of requiredFields) {
+      if (!formData[field as keyof typeof formData].trim()) {
+        toast({
+          title: "Required Field Missing",
+          description: `${label} is required.`,
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    // Check inspection date is not in the future
+    if (formData.inspectionDate) {
+      const inspectionDate = new Date(formData.inspectionDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+      
+      if (inspectionDate > today) {
+        toast({
+          title: "Invalid Date",
+          description: "Inspection date cannot be in the future.",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -183,22 +226,9 @@ const QAITPForm: React.FC<QAITPFormProps> = ({ onClose }) => {
       });
       return;
     }
-    
-    if (!formData.digitalSignature.trim()) {
-      toast({
-        title: "Digital Signature Required",
-        description: "Please provide your digital signature before submitting.",
-        variant: "destructive"
-      });
-      return;
-    }
 
-    if (!formData.projectId) {
-      toast({
-        title: "Project Required",
-        description: "Please select a project for this inspection.",
-        variant: "destructive"
-      });
+    // Validate form
+    if (!validateForm()) {
       return;
     }
 

@@ -138,7 +138,6 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
       <QAInspectionViewer
         inspectionId={selectedInspectionId}
         onClose={() => setSelectedInspectionId(null)}
-        canEdit={true}
       />
     );
   }

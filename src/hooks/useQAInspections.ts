@@ -142,11 +142,29 @@ export const useQAInspections = (projectId?: string) => {
         return null;
       }
 
+      // Get user's organization
+      const { data: orgData, error: orgError } = await supabase
+        .from('organization_users')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (orgError || !orgData) {
+        console.error('Error getting user organization:', orgError);
+        toast({
+          title: "Error",
+          description: "Could not determine user organization",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       const insertData: QAInspectionInsert = {
         ...inspectionData,
         inspection_number: numberData,
         created_by: user.id,
-        organization_id: user.id  // Use user ID as placeholder for now
+        organization_id: orgData.organization_id
       };
 
       console.log('Creating QA inspection with data:', insertData);
