@@ -1,13 +1,15 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Calendar, User, Mail, Clock, Wrench, AlertTriangle, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MapPin, User, Mail, FileText, Calendar, AlertTriangle } from 'lucide-react';
+import SmartTradeSelector from './SmartTradeSelector';
 
 interface VariationDetailsTabProps {
   variation: any;
@@ -29,50 +31,43 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
     onDataChange({ [field]: value });
   };
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <Badge variant="destructive">High</Badge>;
-      case 'medium':
-        return <Badge variant="secondary">Medium</Badge>;
-      case 'low':
-        return <Badge variant="outline">Low</Badge>;
-      default:
-        return <Badge variant="secondary">Medium</Badge>;
-    }
-  };
-
   const effectiveIsEditing = isEditing && !isBlocked;
 
   return (
     <ScrollArea className="h-[calc(100vh-400px)] pr-4">
       <div className="space-y-6">
-        {/* Header Information */}
+        {/* Basic Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Basic Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Variation Title *</Label>
                 {effectiveIsEditing ? (
                   <Input
                     id="title"
-                    value={editData.title}
+                    value={editData.title || ''}
                     onChange={(e) => handleInputChange('title', e.target.value)}
+                    placeholder="Enter variation title"
                     disabled={isBlocked}
                   />
                 ) : (
-                  <div className="p-2 bg-gray-50 rounded-md">{variation.title}</div>
+                  <div className="p-3 bg-gray-50 rounded-md font-medium">
+                    {variation.title}
+                  </div>
                 )}
               </div>
-              
+
               <div>
-                <Label>Priority</Label>
+                <Label htmlFor="priority">Priority</Label>
                 {effectiveIsEditing ? (
                   <Select 
-                    value={editData.priority} 
+                    value={editData.priority || 'medium'} 
                     onValueChange={(value) => handleInputChange('priority', value)}
                     disabled={isBlocked}
                   >
@@ -80,297 +75,228 @@ const VariationDetailsTab: React.FC<VariationDetailsTabProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="high">High Priority</SelectItem>
+                      <SelectItem value="medium">Medium Priority</SelectItem>
+                      <SelectItem value="low">Low Priority</SelectItem>
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="p-2">
-                    {getPriorityBadge(variation.priority)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>Location</Label>
-                {effectiveIsEditing ? (
-                  <Input
-                    value={editData.location}
-                    onChange={(e) => handleInputChange('location', e.target.value)}
-                    disabled={isBlocked}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                    <MapPin className="h-4 w-4 text-gray-500" />
-                    <span>{variation.location}</span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label>Category</Label>
-                {effectiveIsEditing ? (
-                  <Select 
-                    value={editData.category} 
-                    onValueChange={(value) => handleInputChange('category', value)}
-                    disabled={isBlocked}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="electrical">Electrical</SelectItem>
-                      <SelectItem value="plumbing">Plumbing</SelectItem>
-                      <SelectItem value="structural">Structural</SelectItem>
-                      <SelectItem value="fixtures">Fixtures & Fittings</SelectItem>
-                      <SelectItem value="finishes">Finishes</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="p-2 bg-gray-50 rounded-md">
-                    <Badge variant="outline" className="capitalize">
-                      {variation.category}
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <Badge variant={
+                      variation.priority === 'high' ? 'destructive' :
+                      variation.priority === 'medium' ? 'secondary' : 'outline'
+                    }>
+                      {variation.priority?.charAt(0).toUpperCase() + variation.priority?.slice(1)} Priority
                     </Badge>
                   </div>
                 )}
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              {effectiveIsEditing ? (
+                <Textarea
+                  id="description"
+                  value={editData.description || ''}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Describe the variation in detail"
+                  rows={4}
+                  disabled={isBlocked}
+                />
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-md min-h-[100px]">
+                  {variation.description || 'No description provided'}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="justification">Justification</Label>
+              {effectiveIsEditing ? (
+                <Textarea
+                  id="justification"
+                  value={editData.justification || ''}
+                  onChange={(e) => handleInputChange('justification', e.target.value)}
+                  placeholder="Explain why this variation is necessary"
+                  rows={3}
+                  disabled={isBlocked}
+                />
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-md min-h-[80px]">
+                  {variation.justification || 'No justification provided'}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Location & Trade Information Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Location & Trade Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="location">Location/Area</Label>
+                {effectiveIsEditing ? (
+                  <Input
+                    id="location"
+                    value={editData.location || ''}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder="e.g., Level 2, Unit 5, Kitchen"
+                    disabled={isBlocked}
+                  />
+                ) : (
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    {variation.location || 'Location not specified'}
+                  </div>
+                )}
+              </div>
 
               <div>
-                <Label>Trade</Label>
+                <Label htmlFor="trade">Trade</Label>
                 {effectiveIsEditing ? (
-                  <Select 
-                    value={editData.trade || ''} 
-                    onValueChange={(value) => handleInputChange('trade', value)}
+                  <SmartTradeSelector
+                    value={editData.trade || ''}
+                    onChange={(value) => handleInputChange('trade', value)}
                     disabled={isBlocked}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select trade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="electrical">Electrical</SelectItem>
-                      <SelectItem value="plumbing">Plumbing</SelectItem>
-                      <SelectItem value="hvac">HVAC</SelectItem>
-                      <SelectItem value="carpentry">Carpentry</SelectItem>
-                      <SelectItem value="painting">Painting</SelectItem>
-                      <SelectItem value="flooring">Flooring</SelectItem>
-                      <SelectItem value="roofing">Roofing</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  />
                 ) : (
-                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                    <Wrench className="h-4 w-4 text-gray-500" />
-                    <span className="capitalize">{variation.trade || 'Not specified'}</span>
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    {variation.trade || 'Trade not specified'}
                   </div>
                 )}
               </div>
             </div>
 
+            <div>
+              <Label htmlFor="category">Category</Label>
+              {effectiveIsEditing ? (
+                <Select 
+                  value={editData.category || ''} 
+                  onValueChange={(value) => handleInputChange('category', value)}
+                  disabled={isBlocked}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="plumbing">Plumbing</SelectItem>
+                    <SelectItem value="structural">Structural</SelectItem>
+                    <SelectItem value="fixtures">Fixtures & Fittings</SelectItem>
+                    <SelectItem value="finishes">Finishes</SelectItem>
+                    <SelectItem value="mechanical">Mechanical</SelectItem>
+                    <SelectItem value="landscaping">Landscaping</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <Badge variant="outline" className="capitalize">
+                    {variation.category || 'Uncategorized'}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Client Information Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Client Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="client_email">Client Email</Label>
+              {effectiveIsEditing ? (
+                <Input
+                  id="client_email"
+                  type="email"
+                  value={editData.client_email || ''}
+                  onChange={(e) => handleInputChange('client_email', e.target.value)}
+                  placeholder="client@example.com"
+                  disabled={isBlocked}
+                />
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-md flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  {variation.client_email || 'No client email provided'}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Client Email</Label>
-                {effectiveIsEditing ? (
-                  <Input
-                    type="email"
-                    value={editData.client_email}
-                    onChange={(e) => handleInputChange('client_email', e.target.value)}
-                    disabled={isBlocked}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                    <Mail className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm">{variation.client_email}</span>
-                  </div>
-                )}
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="request_date">Request Date</Label>
+                <div className="p-3 bg-gray-50 rounded-md flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  {variation.request_date ? new Date(variation.request_date).toLocaleDateString() : 'Not set'}
+                </div>
               </div>
 
               <div>
-                <Label>Time Impact (days)</Label>
-                {effectiveIsEditing ? (
-                  <Input
-                    type="number"
-                    value={editData.time_impact}
-                    onChange={(e) => handleInputChange('time_impact', parseInt(e.target.value) || 0)}
-                    disabled={isBlocked}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <span>
-                      {variation.time_impact > 0 ? `+${variation.time_impact}d` : 
-                       variation.time_impact === 0 ? '0d' : `${variation.time_impact}d`}
-                    </span>
-                  </div>
-                )}
+                <Label>Requested By</Label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  {variation.requested_by || 'Not specified'}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* NOD/EOT Status */}
+        {/* Legal Requirements Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Notice of Delay & Extension of Time
+              Legal Requirements
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  {effectiveIsEditing ? (
-                    <Checkbox
-                      id="requires_nod"
-                      checked={editData.requires_nod || false}
-                      onCheckedChange={(checked) => handleInputChange('requires_nod', checked)}
-                      disabled={isBlocked}
-                    />
-                  ) : (
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                      variation.requires_nod ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
-                    }`}>
-                      {variation.requires_nod && <span className="text-white text-xs">✓</span>}
-                    </div>
-                  )}
-                  <Label htmlFor="requires_nod" className="font-medium">
-                    Requires Notice of Delay (NOD)
-                  </Label>
-                </div>
-                
-                {(effectiveIsEditing ? editData.requires_nod : variation.requires_nod) && (
-                  <div>
-                    <Label>NOD Days</Label>
-                    {effectiveIsEditing ? (
-                      <Input
-                        type="number"
-                        value={editData.nod_days || 0}
-                        onChange={(e) => handleInputChange('nod_days', parseInt(e.target.value) || 0)}
-                        placeholder="Enter NOD days"
-                        disabled={isBlocked}
-                      />
-                    ) : (
-                      <div className="p-2 bg-blue-50 rounded-md">
-                        <span className="font-medium">{variation.nod_days || 0} days</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  {effectiveIsEditing ? (
-                    <Checkbox
-                      id="requires_eot"
-                      checked={editData.requires_eot || false}
-                      onCheckedChange={(checked) => handleInputChange('requires_eot', checked)}
-                      disabled={isBlocked}
-                    />
-                  ) : (
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                      variation.requires_eot ? 'bg-green-600 border-green-600' : 'border-gray-300'
-                    }`}>
-                      {variation.requires_eot && <span className="text-white text-xs">✓</span>}
-                    </div>
-                  )}
-                  <Label htmlFor="requires_eot" className="font-medium">
+              <div className="flex items-center space-x-3">
+                <Checkbox
+                  id="requires_eot"
+                  checked={effectiveIsEditing ? (editData.requires_eot || false) : (variation.requires_eot || false)}
+                  onCheckedChange={(checked) => handleInputChange('requires_eot', checked)}
+                  disabled={!effectiveIsEditing}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="requires_eot" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Requires Extension of Time (EOT)
                   </Label>
+                  <p className="text-xs text-muted-foreground">
+                    This variation will extend the project timeline
+                  </p>
                 </div>
-                
-                {(effectiveIsEditing ? editData.requires_eot : variation.requires_eot) && (
-                  <div>
-                    <Label>EOT Days</Label>
-                    {effectiveIsEditing ? (
-                      <Input
-                        type="number"
-                        value={editData.eot_days || 0}
-                        onChange={(e) => handleInputChange('eot_days', parseInt(e.target.value) || 0)}
-                        placeholder="Enter EOT days"
-                        disabled={isBlocked}
-                      />
-                    ) : (
-                      <div className="p-2 bg-green-50 rounded-md">
-                        <span className="font-medium">{variation.eot_days || 0} days</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Description */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {effectiveIsEditing ? (
-              <Textarea
-                value={editData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={4}
-                placeholder="Enter variation description..."
-                disabled={isBlocked}
-              />
-            ) : (
-              <div className="p-3 bg-gray-50 rounded-md">
-                {variation.description}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Justification */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Justification</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {effectiveIsEditing ? (
-              <Textarea
-                value={editData.justification}
-                onChange={(e) => handleInputChange('justification', e.target.value)}
-                rows={3}
-                placeholder="Enter justification for this variation..."
-                disabled={isBlocked}
-              />
-            ) : (
-              <div className="p-3 bg-gray-50 rounded-md">
-                {variation.justification}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Metadata */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Submission Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">Submitted:</span>
-                <span>{variation.request_date}</span>
-              </div>
-              
-              {variation.requested_by && (
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="font-medium">Submitted by:</span>
-                  <span>{variation.requested_by}</span>
+              <div className="flex items-center space-x-3">
+                <Checkbox
+                  id="requires_nod"
+                  checked={effectiveIsEditing ? (editData.requires_nod || false) : (variation.requires_nod || false)}
+                  onCheckedChange={(checked) => handleInputChange('requires_nod', checked)}
+                  disabled={!effectiveIsEditing}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="requires_nod" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Requires Notice of Dispute (NOD)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    This variation may be subject to dispute
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           </CardContent>
         </Card>
