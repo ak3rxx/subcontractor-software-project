@@ -50,15 +50,15 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
 
   if (!canViewInspections) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h3>
-            <p className="text-gray-600">You don't have permission to view QA inspections.</p>
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
+              <p className="text-muted-foreground">You don't have permission to view QA inspections.</p>
+            </div>
+          </CardContent>
+        </Card>
     );
   }
 
@@ -187,32 +187,39 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search inspections..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search by inspection number, task area, or location..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border border-input rounded-md px-3 py-2 text-sm bg-background"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pass">Pass</option>
+                  <option value="fail">Fail</option>
+                  <option value="pending-reinspection">Pending Reinspection</option>
+                  <option value="incomplete-in-progress">In Progress</option>
+                </select>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="pass">Pass</option>
-                <option value="fail">Fail</option>
-                <option value="pending-reinspection">Pending Reinspection</option>
-                <option value="incomplete-in-progress">In Progress</option>
-              </select>
-            </div>
+            {searchTerm && (
+              <div className="text-sm text-muted-foreground">
+                Showing results for "{searchTerm}" • {filteredInspections.length} inspection{filteredInspections.length !== 1 ? 's' : ''} found
+              </div>
+            )}
           </div>
 
           {filteredInspections.length === 0 ? (
@@ -254,7 +261,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
                         <div><strong>Task Area:</strong> {inspection.task_area}</div>
                         <div><strong>Location:</strong> {inspection.location_reference}</div>
                         <div><strong>Type:</strong> {inspection.inspection_type.replace('-', ' ')}</div>
-                        <div><strong>Template:</strong> {inspection.template_type.replace('-', ' ')}</div>
+                        <div><strong>Trade Item:</strong> {inspection.template_type.replace('-', ' ')}</div>
                         <div><strong>Inspector:</strong> {inspection.inspector_name}</div>
                         <div><strong>Date:</strong> {format(new Date(inspection.inspection_date), 'dd/MM/yyyy')}</div>
                       </div>

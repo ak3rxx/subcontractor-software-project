@@ -31,6 +31,7 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
 }) => {
   const { uploadFiles, uploading, hasUploadFailures, removeFile, retryFailedUpload } = useSupabaseFileUpload();
   const [currentFiles, setCurrentFiles] = useState<SupabaseUploadedFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Initialize with provided files
   useEffect(() => {
@@ -90,6 +91,47 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
     // The hook will automatically update the files list
   }, [retryFailedUpload, inspectionId, checklistItemId]);
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length === 0) return;
+
+    console.log('Dropped files:', droppedFiles.map(f => f.name));
+
+    // Check file limit
+    if (currentFiles.length + droppedFiles.length > maxFiles) {
+      console.warn(`Maximum ${maxFiles} files allowed`);
+      return;
+    }
+
+    try {
+      // Upload files to Supabase
+      const uploadedFiles = await uploadFiles(droppedFiles, inspectionId, checklistItemId);
+      console.log('Dropped files uploaded successfully:', uploadedFiles);
+      
+      const updatedFiles = [...currentFiles, ...uploadedFiles];
+      setCurrentFiles(updatedFiles);
+      onFilesChange?.(updatedFiles);
+    } catch (error) {
+      console.error('Error uploading dropped files:', error);
+    }
+  }, [currentFiles, maxFiles, onFilesChange, uploadFiles, inspectionId, checklistItemId]);
+
   const handleDownloadFile = useCallback((file: SupabaseUploadedFile) => {
     if (file.uploaded && file.url) {
       console.log('Opening file URL:', file.url);
@@ -121,14 +163,25 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors relative">
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+      <div 
+        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors relative ${
+          isDragOver 
+            ? 'border-primary bg-primary/5' 
+            : uploading || currentFiles.length >= maxFiles
+              ? 'border-muted-foreground/30 bg-muted/30' 
+              : 'border-muted-foreground/50 hover:border-primary/50'
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <Upload className={`mx-auto h-12 w-12 mb-4 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
         <div className="space-y-2">
-          <p className="text-sm text-gray-600">
-            Drop files here or click to upload
+          <p className={`text-sm ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`}>
+            {isDragOver ? 'Drop files here!' : 'Drop files here or click to upload'}
           </p>
-          <p className="text-xs text-gray-500">
-            Maximum {maxFiles} files allowed
+          <p className="text-xs text-muted-foreground">
+            Maximum {maxFiles} files allowed • Accepts {accept}
           </p>
         </div>
         <input

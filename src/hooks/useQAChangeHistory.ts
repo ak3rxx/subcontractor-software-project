@@ -172,7 +172,16 @@ export const useQAChangeHistory = (inspectionId: string) => {
   };
 
   useEffect(() => {
-    fetchChangeHistory();
+    if (inspectionId) {
+      fetchChangeHistory();
+    }
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      setChangeHistory([]);
+      setLoading(false);
+      lastRecordedChanges.current.clear();
+    };
   }, [inspectionId]);
 
   return {
