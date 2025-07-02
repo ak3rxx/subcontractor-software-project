@@ -276,7 +276,14 @@ export const useQAInspections = (projectId?: string) => {
   const updateInspection = async (
     inspectionId: string,
     inspectionData: Partial<QAInspection>,
-    checklistItems?: QAChecklistItem[]
+    checklistItems?: Array<{
+      item_id: string;
+      description: string;
+      requirements: string;
+      status: string;
+      comments: string;
+      evidence_files: string[];
+    }>
   ) => {
     if (!user) return null;
 
@@ -302,20 +309,30 @@ export const useQAInspections = (projectId?: string) => {
         return null;
       }
 
-      // Update checklist items if provided
+      // Update checklist items if provided - delete and recreate them
       if (checklistItems && checklistItems.length > 0) {
-        for (const item of checklistItems) {
-          const { error: itemError } = await supabase
-            .from('qa_checklist_items')
-            .update({
-              status: item.status,
-              comments: item.comments,
-              created_at: new Date().toISOString() // Update timestamp when item is modified
-            })
-            .eq('id', item.id);
+        // First delete existing checklist items for this inspection
+        const { error: deleteError } = await supabase
+          .from('qa_checklist_items')
+          .delete()
+          .eq('inspection_id', inspectionId);
 
-          if (itemError) {
-            console.error('Error updating checklist item:', itemError);
+        if (deleteError) {
+          console.error('Error deleting existing checklist items:', deleteError);
+        } else {
+          // Insert new checklist items
+          const checklistInserts: QAChecklistItemInsert[] = checklistItems.map(item => ({
+            ...item,
+            inspection_id: inspectionId,
+            evidence_files: item.evidence_files.length > 0 ? item.evidence_files : null
+          }));
+
+          const { error: insertError } = await supabase
+            .from('qa_checklist_items')
+            .insert(checklistInserts);
+
+          if (insertError) {
+            console.error('Error inserting updated checklist items:', insertError);
           }
         }
       }
