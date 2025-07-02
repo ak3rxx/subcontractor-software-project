@@ -3,10 +3,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import SupabaseFileUploadEnhanced from './SupabaseFileUploadEnhanced';
-import QAFieldAuditTrailLive from './QAFieldAuditTrailLive';
 import { ChecklistItem } from './QAITPTemplates';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
-import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 interface QAITPChecklistItemEnhancedProps {
@@ -15,6 +13,7 @@ interface QAITPChecklistItemEnhancedProps {
   onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
   inspectionId?: string | null;
   showAuditTrail?: boolean;
+  onRecordChange?: (field: string, oldValue: string, newValue: string, itemId: string, itemDescription: string) => void;
 }
 
 const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({ 
@@ -22,64 +21,61 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
   onChecklistChange,
   onUploadStatusChange,
   inspectionId,
-  showAuditTrail = true
+  showAuditTrail = false,
+  onRecordChange
 }) => {
-  const { recordChange } = useQAChangeHistory(inspectionId || '');
 
   const handleFileChange = useCallback((files: SupabaseUploadedFile[]) => {
     console.log('Files changed for item', item.id, ':', files);
     
-    // Record audit trail for file changes
-    if (inspectionId) {
+    // Record audit trail for file changes via parent
+    if (onRecordChange) {
       const oldFiles = item.evidenceFiles || [];
-      recordChange(
+      onRecordChange(
         'evidenceFiles',
         `${oldFiles.length} files`,
         `${files.length} files`,
-        'update',
         item.id,
         item.description
       );
     }
     
     onChecklistChange(item.id, 'evidenceFiles', files);
-  }, [item.id, onChecklistChange, recordChange, inspectionId, item.description, item.evidenceFiles]);
+  }, [item.id, onChecklistChange, onRecordChange, item.description, item.evidenceFiles]);
 
   const handleStatusChange = useCallback((status: string) => {
     console.log('Status changed for item', item.id, ':', status);
     
-    // Record audit trail for status changes
-    if (inspectionId) {
-      recordChange(
+    // Record audit trail for status changes via parent
+    if (onRecordChange) {
+      onRecordChange(
         'status',
         item.status || '',
         status,
-        'update',
         item.id,
         item.description
       );
     }
     
     onChecklistChange(item.id, 'status', status);
-  }, [item.id, onChecklistChange, recordChange, inspectionId, item.status, item.description]);
+  }, [item.id, onChecklistChange, onRecordChange, item.status, item.description]);
 
   const handleCommentsChange = useCallback((comments: string) => {
     console.log('Comments changed for item', item.id, ':', comments);
     
-    // Record audit trail for comments changes
-    if (inspectionId) {
-      recordChange(
+    // Record audit trail for comments changes via parent
+    if (onRecordChange) {
+      onRecordChange(
         'comments',
         item.comments || '',
         comments,
-        'update',
         item.id,
         item.description
       );
     }
     
     onChecklistChange(item.id, 'comments', comments);
-  }, [item.id, onChecklistChange, recordChange, inspectionId, item.comments, item.description]);
+  }, [item.id, onChecklistChange, onRecordChange, item.comments, item.description]);
 
   // Ensure evidenceFiles is always an array of SupabaseUploadedFile objects
   const currentFiles = React.useMemo(() => {
@@ -167,17 +163,6 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
           inspectionId={inspectionId}
           checklistItemId={item.id}
         />
-
-        {/* Show real-time audit trail for this checklist item */}
-        {showAuditTrail && inspectionId && (
-          <QAFieldAuditTrailLive
-            inspectionId={inspectionId}
-            fieldName={item.id}
-            className="mt-3 bg-muted/10"
-            autoRefresh={true}
-            refreshInterval={10000}
-          />
-        )}
       </div>
     </div>
   );

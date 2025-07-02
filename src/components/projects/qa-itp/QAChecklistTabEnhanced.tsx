@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
+import { supabase } from '@/integrations/supabase/client';
 import QAITPChecklistItemEnhanced from './QAITPChecklistItemEnhanced';
 import { ChecklistItem } from './QAITPTemplates';
 
@@ -17,16 +17,26 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
 }) => {
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { getChecklistItems } = useQAInspectionsSimple();
 
   useEffect(() => {
     const fetchChecklistItems = async () => {
       if (inspection?.id) {
         setLoading(true);
         try {
-          const items = await getChecklistItems(inspection.id);
+          const { data, error } = await supabase
+            .from('qa_checklist_items')
+            .select('*')
+            .eq('inspection_id', inspection.id)
+            .order('item_id');
+
+          if (error) {
+            console.error('Error fetching checklist items:', error);
+            setChecklistItems([]);
+            return;
+          }
+
           // Transform database items to ChecklistItem format
-          const transformedItems: ChecklistItem[] = items.map(item => ({
+          const transformedItems: ChecklistItem[] = (data || []).map(item => ({
             id: item.item_id,
             description: item.description,
             requirements: item.requirements,
@@ -37,6 +47,7 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
           setChecklistItems(transformedItems);
         } catch (error) {
           console.error('Error fetching checklist items:', error);
+          setChecklistItems([]);
         } finally {
           setLoading(false);
         }
@@ -44,7 +55,7 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
     };
 
     fetchChecklistItems();
-  }, [inspection?.id, getChecklistItems]);
+  }, [inspection?.id]);
 
   const handleChecklistItemChange = (itemId: string, field: string, value: any) => {
     if (!isEditing) return;
