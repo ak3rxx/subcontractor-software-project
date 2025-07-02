@@ -162,8 +162,8 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-4">
           <div className="flex justify-between items-start">
             <div>
               <DialogTitle className="flex items-center gap-2">
@@ -179,22 +179,6 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
               </div>
             </div>
             <div className="flex gap-2">
-              {isEditing && (
-                <>
-                  <Button 
-                    size="sm" 
-                    onClick={handleSave}
-                    disabled={saveLoading}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {saveLoading ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleCancel} disabled={saveLoading}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                </>
-              )}
               {!isEditing && (
                 <Button variant="outline" size="sm" onClick={handleEdit}>
                   <Edit className="h-4 w-4 mr-2" />
@@ -205,21 +189,47 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
           </div>
         </DialogHeader>
 
-        <QAInspectionTabsEnhanced
-          inspection={currentInspection}
-          editData={editData}
-          isEditing={isEditing}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onDataChange={handleDataChange}
-          onUpdate={async (id: string, updates: any) => {
-            await updateInspection(id, updates);
-          }}
-          onInspectionUpdate={(updatedInspection) => {
-            setCurrentInspection(updatedInspection);
-            if (onInspectionUpdate) onInspectionUpdate(updatedInspection);
-          }}
-        />
+        {/* Prominent Save Button Bar - Only show when editing */}
+        {isEditing && (
+          <div className="flex-shrink-0 bg-muted/50 border border-border rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  Editing Mode - Changes will be saved across all tabs
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleCancel} disabled={saveLoading}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} disabled={saveLoading}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {saveLoading ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0">
+          <QAInspectionTabsEnhanced
+            inspection={currentInspection}
+            editData={editData}
+            isEditing={isEditing}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onDataChange={handleDataChange}
+            onUpdate={async (id: string, updates: any) => {
+              await updateInspection(id, updates);
+            }}
+            onInspectionUpdate={(updatedInspection) => {
+              setCurrentInspection(updatedInspection);
+              if (onInspectionUpdate) onInspectionUpdate(updatedInspection);
+            }}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -73,7 +73,7 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="flex-shrink-0 flex justify-between items-center mb-4">
         <Tabs value={activeTab} onValueChange={onTabChange} className="flex-1">
           <TabsList className="grid w-full max-w-lg grid-cols-4">
@@ -92,38 +92,46 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
-          <TabsContent value="details" className="flex-1 overflow-y-auto mt-0">
-            <QADetailsTab
-              inspection={inspection}
-              editData={editData}
-              isEditing={isEditing}
-              onDataChange={onDataChange}
-            />
+      <div className="flex-1 min-h-0">
+        <Tabs value={activeTab} onValueChange={onTabChange} className="h-full">
+          <TabsContent value="details" className="h-full overflow-y-auto mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <div className="flex-1 overflow-y-auto">
+              <QADetailsTab
+                inspection={inspection}
+                editData={editData}
+                isEditing={isEditing}
+                onDataChange={onDataChange}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0">
-            <QAChecklistTabEnhanced
-              inspection={inspection}
-              isEditing={isEditing}
-              onChecklistChange={handleChecklistChange}
-            />
+          <TabsContent value="checklist" className="h-full overflow-y-auto mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <div className="flex-1 overflow-y-auto">
+              <QAChecklistTabEnhanced
+                inspection={inspection}
+                isEditing={isEditing}
+                onChecklistChange={handleChecklistChange}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="attachments" className="flex-1 overflow-y-auto mt-0">
-            <QAAttachmentsTabEnhanced
-              inspection={inspection}
-              isEditing={isEditing}
-              onAttachmentsChange={handleAttachmentsChange}
-            />
+          <TabsContent value="attachments" className="h-full overflow-y-auto mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <div className="flex-1 overflow-y-auto">
+              <QAAttachmentsTabEnhanced
+                inspection={inspection}
+                isEditing={isEditing}
+                onAttachmentsChange={handleAttachmentsChange}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="audit" className="flex-1 overflow-y-auto mt-0">
-            <QAChangeHistory
-              inspectionId={inspection?.id}
-              changeHistory={changeHistory}
-            />
+          <TabsContent value="audit" className="h-full overflow-y-auto mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <div className="flex-1 overflow-y-auto">
+              <QAChangeHistory
+                inspectionId={inspection?.id}
+                changeHistory={changeHistory}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
