@@ -62,7 +62,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
     
     // Record the start of editing session
     if (recordChange) {
-      recordChange('edit_session', 'inactive', 'active', 'session_start');
+      recordChange('edit_session', 'inactive', 'active', 'update');
     }
   }, [currentInspection, recordChange]);
 
@@ -100,7 +100,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
             field,
             String(oldValue || ''),
             String(newValue || ''),
-            'field_update'
+            'update'
           );
         }
       }
@@ -125,7 +125,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
 
       // Record successful save
       if (recordChange) {
-        await recordChange('edit_session', 'active', 'saved', 'session_end');
+        await recordChange('edit_session', 'active', 'saved', 'update');
       }
       
       console.log('Save completed successfully');
@@ -139,7 +139,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
       
       // Record failed save
       if (recordChange) {
-        await recordChange('edit_session', 'active', 'failed', 'session_error');
+        await recordChange('edit_session', 'active', 'failed', 'update');
       }
       
       toast({
@@ -177,7 +177,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
 
     // Record cancel action
     if (recordChange) {
-      recordChange('edit_session', 'active', 'cancelled', 'session_cancel');
+      recordChange('edit_session', 'active', 'cancelled', 'update');
     }
   }, [currentInspection, recordChange]);
 

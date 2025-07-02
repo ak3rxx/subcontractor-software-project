@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
@@ -104,7 +103,7 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
   const handleRecordChange = useCallback((field: string, oldValue: string, newValue: string, itemId: string, itemDescription: string) => {
     if (recordChange) {
       console.log(`Recording audit trail for item ${itemId}: ${field} changed from "${oldValue}" to "${newValue}"`);
-      recordChange(field, oldValue, newValue, 'field_update', itemId, itemDescription);
+      recordChange(field, oldValue, newValue, 'update', itemId, itemDescription);
     }
   }, [recordChange]);
 
