@@ -1,26 +1,28 @@
-
 import React, { useCallback } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import SupabaseFileUpload from './SupabaseFileUpload';
-import QAFieldAuditTrail from './QAFieldAuditTrail';
+import SupabaseFileUploadEnhanced from './SupabaseFileUploadEnhanced';
+import QAFieldAuditTrailLive from './QAFieldAuditTrailLive';
 import { ChecklistItem } from './QAITPTemplates';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
-interface QAITPChecklistItemProps {
+interface QAITPChecklistItemEnhancedProps {
   item: ChecklistItem;
   onChecklistChange: (id: string, field: string, value: any) => void;
   onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
   inspectionId?: string | null;
+  showAuditTrail?: boolean;
 }
 
-const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({ 
+const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({ 
   item, 
   onChecklistChange,
   onUploadStatusChange,
-  inspectionId
+  inspectionId,
+  showAuditTrail = true
 }) => {
   const { recordChange } = useQAChangeHistory(inspectionId || '');
 
@@ -32,8 +34,8 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
       const oldFiles = item.evidenceFiles || [];
       recordChange(
         'evidenceFiles',
-        JSON.stringify(oldFiles),
-        JSON.stringify(files),
+        `${oldFiles.length} files`,
+        `${files.length} files`,
         'update',
         item.id,
         item.description
@@ -90,40 +92,59 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
     });
   }, [item.evidenceFiles]);
 
+  const getStatusIcon = () => {
+    switch (item.status) {
+      case 'pass':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'fail':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'na':
+        return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="border rounded-lg p-4 space-y-3">
+    <div className="border rounded-lg p-4 space-y-4 bg-card">
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <h4 className="font-medium">{item.description}</h4>
-          <p className="text-sm text-gray-600 mt-1">{item.requirements}</p>
+          <div className="flex items-center gap-2">
+            <h4 className="font-medium">{item.description}</h4>
+            {getStatusIcon()}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">{item.requirements}</p>
         </div>
       </div>
       
-      <div className="space-y-3">
-        <RadioGroup
-          value={item.status || ''}
-          onValueChange={handleStatusChange}
-          className="flex gap-6"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="pass" id={`${item.id}-pass`} />
-            <Label htmlFor={`${item.id}-pass`} className="text-green-600 font-medium cursor-pointer">
-              Pass
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="fail" id={`${item.id}-fail`} />
-            <Label htmlFor={`${item.id}-fail`} className="text-red-600 font-medium cursor-pointer">
-              Fail
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="na" id={`${item.id}-na`} />
-            <Label htmlFor={`${item.id}-na`} className="text-muted-foreground font-medium cursor-pointer">
-              N/A
-            </Label>
-          </div>
-        </RadioGroup>
+      <div className="space-y-4">
+        <div>
+          <Label className="text-sm font-medium mb-3 block">Status *</Label>
+          <RadioGroup
+            value={item.status || ''}
+            onValueChange={handleStatusChange}
+            className="flex gap-6"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="pass" id={`${item.id}-pass`} />
+              <Label htmlFor={`${item.id}-pass`} className="text-green-600 font-medium cursor-pointer">
+                Pass
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="fail" id={`${item.id}-fail`} />
+              <Label htmlFor={`${item.id}-fail`} className="text-red-600 font-medium cursor-pointer">
+                Fail
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="na" id={`${item.id}-na`} />
+              <Label htmlFor={`${item.id}-na`} className="text-muted-foreground font-medium cursor-pointer">
+                N/A
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor={`${item.id}-comments`}>Comments</Label>
@@ -136,23 +157,25 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           />
         </div>
 
-        <SupabaseFileUpload
+        <SupabaseFileUploadEnhanced
           files={currentFiles}
           onFilesChange={handleFileChange}
           onUploadStatusChange={onUploadStatusChange}
           label="Evidence Photos/Documents"
           accept="image/*,.pdf,.doc,.docx"
-          maxFiles={3}
+          maxFiles={5}
           inspectionId={inspectionId}
           checklistItemId={item.id}
         />
 
         {/* Show real-time audit trail for this checklist item */}
-        {inspectionId && (
-          <QAFieldAuditTrail
+        {showAuditTrail && inspectionId && (
+          <QAFieldAuditTrailLive
             inspectionId={inspectionId}
             fieldName={item.id}
-            className="mt-2 bg-muted/20"
+            className="mt-3 bg-muted/10"
+            autoRefresh={true}
+            refreshInterval={10000}
           />
         )}
       </div>
@@ -160,4 +183,4 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   );
 };
 
-export default QAITPChecklistItem;
+export default QAITPChecklistItemEnhanced;

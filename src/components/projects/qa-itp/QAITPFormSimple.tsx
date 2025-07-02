@@ -9,6 +9,7 @@ import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useToast } from '@/hooks/use-toast';
 import { useProjects } from '@/hooks/useProjects';
 import { ChecklistItem, templates } from './QAITPTemplates';
+import QAITPChecklistItemEnhanced from './QAITPChecklistItemEnhanced';
 import { AlertCircle, Save, X } from 'lucide-react';
 
 interface QAITPFormSimpleProps {
@@ -325,47 +326,20 @@ const QAITPFormSimple: React.FC<QAITPFormSimpleProps> = ({
             <Label htmlFor="isFireDoor">Fire Door Inspection</Label>
           </div>
 
-          {/* Checklist */}
+          {/* Enhanced Checklist */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Inspection Checklist</h3>
+            <p className="text-sm text-muted-foreground">
+              Select one status option for each item. Changes are automatically tracked with audit trail.
+            </p>
             {filteredChecklist.map((item) => (
-              <Card key={item.id} className="p-4">
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="font-medium">{item.description}</h4>
-                    <p className="text-sm text-muted-foreground">{item.requirements}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Status</Label>
-                      <Select 
-                        value={item.status || ''} 
-                        onValueChange={(value) => handleChecklistChange(item.id, 'status', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pass">Pass</SelectItem>
-                          <SelectItem value="fail">Fail</SelectItem>
-                          <SelectItem value="na">N/A</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label>Comments</Label>
-                      <Textarea
-                        value={item.comments || ''}
-                        onChange={(e) => handleChecklistChange(item.id, 'comments', e.target.value)}
-                        placeholder="Add comments..."
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Card>
+              <QAITPChecklistItemEnhanced
+                key={item.id}
+                item={item}
+                onChecklistChange={handleChecklistChange}
+                inspectionId={editingInspection?.id || null}
+                showAuditTrail={!!editingInspection}
+              />
             ))}
           </div>
 
