@@ -9,6 +9,7 @@ import { useQAPermissions } from '@/hooks/useQAPermissions';
 import { Plus, Search, Filter, AlertCircle, CheckCircle2, XCircle, Clock, Eye, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import QAInspectionViewer from './QAInspectionViewer';
+import QAITPForm from './QAITPForm';
 
 interface QAITPTrackerProps {
   onNewInspection: () => void;
@@ -36,6 +37,8 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedInspection, setSelectedInspection] = useState<string | null>(null);
+  const [editingInspection, setEditingInspection] = useState<any>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Clear error when component mounts or data changes
@@ -65,9 +68,28 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
         inspectionId={selectedInspection}
         onClose={() => setSelectedInspection(null)}
         onEdit={(inspection) => {
-          // Handle edit - could navigate to edit form
-          console.log('Edit inspection:', inspection);
+          setSelectedInspection(null);
+          setEditingInspection(inspection);
         }}
+      />
+    );
+  }
+
+  if (editingInspection) {
+    return (
+      <QAITPForm
+        onClose={() => setEditingInspection(null)}
+        projectId={projectId}
+        editingInspection={editingInspection}
+      />
+    );
+  }
+
+  if (showNewForm) {
+    return (
+      <QAITPForm
+        onClose={() => setShowNewForm(false)}
+        projectId={projectId}
       />
     );
   }
@@ -157,7 +179,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
           <div className="flex justify-between items-center">
             <CardTitle>QA/ITP Inspections</CardTitle>
             {canCreateInspections && (
-              <Button onClick={onNewInspection} className="flex items-center gap-2">
+              <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 New Inspection
               </Button>
@@ -206,7 +228,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
                 }
               </p>
               {canCreateInspections && inspections.length === 0 && (
-                <Button onClick={onNewInspection} className="flex items-center gap-2">
+                <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   Create First Inspection
                 </Button>
@@ -255,10 +277,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            // Handle edit
-                            console.log('Edit inspection:', inspection.id);
-                          }}
+                          onClick={() => setEditingInspection(inspection)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>

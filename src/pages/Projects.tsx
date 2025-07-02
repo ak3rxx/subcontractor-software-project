@@ -15,7 +15,7 @@ import VariationManager from '@/components/projects/variations/VariationManager'
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
 import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
-import QAITPForm from '@/components/projects/QAITPForm';
+import QAITPForm from '@/components/projects/qa-itp/QAITPForm';
 import ProgrammeTracker from '@/components/projects/ProgrammeTracker';
 import FinanceManager from '@/components/projects/finance/FinanceManager';
 import DocumentManager from '@/components/projects/DocumentManager';
@@ -341,7 +341,10 @@ const Projects = () => {
 
                       <TabsContent value="qa-list">
                         {activeQAForm ? (
-                          <QAITPForm onClose={() => setActiveQAForm(false)} />
+                          <QAITPForm 
+                            onClose={() => setActiveQAForm(false)} 
+                            projectId={selectedProject.id}
+                          />
                         ) : (
                           <QAITPTracker 
                             onNewInspection={() => setActiveQAForm(true)} 

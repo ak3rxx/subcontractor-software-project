@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Building2, FileText, Users, Calendar, DollarSign, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle, Plus, List, CheckSquare, Gavel } from 'lucide-react';
 import QAITPTracker from './qa-itp/QAITPTracker';
-import QAITPForm from './QAITPForm';
+import QAITPForm from './qa-itp/QAITPForm';
 import TaskManager from './TaskManager';
 import TeamNotes from './TeamNotes';
 import DocumentManager from './DocumentManager';
@@ -221,7 +221,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
 
                 <TabsContent value="qa-list">
                   {activeQAForm ? (
-                    <QAITPForm onClose={() => setActiveQAForm(false)} />
+                    <QAITPForm 
+                      onClose={() => setActiveQAForm(false)} 
+                      projectId={projectData.id}
+                    />
                   ) : (
                     <QAITPTracker 
                       onNewInspection={() => setActiveQAForm(true)} 
