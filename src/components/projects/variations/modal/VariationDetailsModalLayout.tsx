@@ -31,13 +31,10 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
   const [activeTab, setActiveTab] = useState('details');
   const [saveLoading, setSaveLoading] = useState(false);
 
-  // Early return if no variation
-  if (!variation) return null;
-
   // Enhanced permission checks
   const canEditVariation = isDeveloper() || canEdit('variations');
-  const isPendingApproval = variation.status === 'pending_approval';
-  const isStatusLocked = ['approved', 'rejected'].includes(variation.status);
+  const isPendingApproval = variation?.status === 'pending_approval';
+  const isStatusLocked = variation ? ['approved', 'rejected'].includes(variation.status) : false;
   const editBlockedReason = !canEditVariation ? 'Insufficient permissions' : 
                            isPendingApproval ? 'Variation is pending approval' :
                            isStatusLocked ? 'Variation status is locked' : null;
@@ -120,6 +117,20 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  // Handle null variation case
+  if (!variation) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Variation Not Found</DialogTitle>
+          </DialogHeader>
+          <p className="text-gray-600">The requested variation could not be loaded.</p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
