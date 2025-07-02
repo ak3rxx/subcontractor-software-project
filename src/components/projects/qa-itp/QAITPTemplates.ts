@@ -134,4 +134,7 @@ export const templates: Record<string, Template> = {
   }
 };
 
+// Export for backward compatibility
+export const TEMPLATE_CHECKLISTS = templates;
+
 export type { Template };

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useToast } from '@/hooks/use-toast';
-import { ChecklistItem, TEMPLATE_CHECKLISTS } from './QAITPTemplates';
+import { ChecklistItem, templates } from './QAITPTemplates';
 import QAITPChecklistItem from './QAITPChecklistItem';
 import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
@@ -51,10 +51,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 
   // Initialize checklist when template changes
   useEffect(() => {
-    const templateChecklist = TEMPLATE_CHECKLISTS[formData.template_type] || [];
+    const templateChecklist = templates[formData.template_type]?.items || [];
     setChecklist(templateChecklist.map(item => ({
       ...item,
-      status: '',
+      status: undefined,
       comments: '',
       evidenceFiles: []
     })));
@@ -136,9 +136,9 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         item_id: item.id,
         description: item.description,
         requirements: item.requirements,
-        status: item.status,
-        comments: item.comments,
-        evidence_files: item.evidenceFiles ? item.evidenceFiles.map(f => f.path || f.url) : []
+        status: item.status || '',
+        comments: item.comments || '',
+        evidence_files: item.evidenceFiles ? item.evidenceFiles.map(f => f.name || f.url || '') : []
       }));
 
       let result;

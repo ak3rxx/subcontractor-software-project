@@ -141,7 +141,14 @@ export const useQAInspections = (projectId?: string) => {
 
   const createInspection = async (
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
-    checklistItems: Omit<QAChecklistItem, 'id' | 'inspection_id' | 'created_at'>[]
+    checklistItems: Array<{
+      item_id: string;
+      description: string;
+      requirements: string;
+      status: string;
+      comments: string;
+      evidence_files: string[];
+    }>
   ) => {
     if (!user) {
       console.error('No user found for creating inspection');
@@ -228,9 +235,7 @@ export const useQAInspections = (projectId?: string) => {
         const checklistInserts: QAChecklistItemInsert[] = checklistItems.map(item => ({
           ...item,
           inspection_id: inspectionResult.id,
-          evidence_files: Array.isArray(item.evidence_files) 
-            ? item.evidence_files.filter(f => typeof f === 'string') as string[]
-            : null
+          evidence_files: item.evidence_files.length > 0 ? item.evidence_files : null
         }));
 
         const { error: checklistError } = await supabase
