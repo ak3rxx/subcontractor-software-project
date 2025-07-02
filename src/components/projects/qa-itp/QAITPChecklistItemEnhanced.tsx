@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import SupabaseFileUploadEnhanced from './SupabaseFileUploadEnhanced';
+import QAFileUploadSystem from './QAFileUploadSystem';
 import { ChecklistItem } from './QAITPTemplates';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { CheckCircle, XCircle, AlertCircle, Lock, Edit } from 'lucide-react';
@@ -215,7 +215,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
           />
         </div>
 
-        <SupabaseFileUploadEnhanced
+        <QAFileUploadSystem
           files={currentFiles}
           onFilesChange={handleFileChange}
           onUploadStatusChange={onUploadStatusChange}
@@ -225,6 +225,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
           inspectionId={inspectionId}
           checklistItemId={item.id}
           disabled={!isEditing}
+          showThumbnails={true}
         />
       </div>
     </div>

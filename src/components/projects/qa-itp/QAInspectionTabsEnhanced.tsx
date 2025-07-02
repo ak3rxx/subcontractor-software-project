@@ -6,8 +6,8 @@ import { Download, FileText } from 'lucide-react';
 import QADetailsTab from './QADetailsTab';
 import QAChecklistTabEnhanced from './QAChecklistTabEnhanced';
 import QAAttachmentsTabEnhanced from './QAAttachmentsTabEnhanced';
-import QAChangeHistory from './QAChangeHistory';
-import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import QAChangeHistoryEnhanced from './QAChangeHistoryEnhanced';
+import { useQAInspectionAuditTrail } from '@/hooks/useQAInspectionAuditTrail';
 import { exportInspectionToPDF, downloadPDF } from '@/utils/pdfExport';
 
 interface QAInspectionTabsEnhancedProps {
@@ -33,7 +33,7 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
   onInspectionUpdate,
   recordChange
 }) => {
-  const { changeHistory, loading: historyLoading } = useQAChangeHistory(inspection?.id);
+  const { auditTrail, loading: historyLoading, refreshing } = useQAInspectionAuditTrail(inspection?.id, inspection);
 
   const handleSinglePDFExport = async () => {
     if (!inspection) return;
@@ -133,9 +133,10 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
 
           <TabsContent value="audit" className="h-full overflow-y-auto mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <div className="flex-1 overflow-y-auto">
-              <QAChangeHistory
-                inspectionId={inspection?.id}
-                changeHistory={changeHistory}
+              <QAChangeHistoryEnhanced
+                auditTrail={auditTrail}
+                loading={historyLoading}
+                refreshing={refreshing}
               />
             </div>
           </TabsContent>
