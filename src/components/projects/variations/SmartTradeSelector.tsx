@@ -12,6 +12,7 @@ interface SmartTradeSelectorProps {
   description?: string;
   organizationId?: string;
   showAISuggestion?: boolean;
+  disabled?: boolean;
 }
 
 const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
@@ -19,14 +20,15 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
   onChange,
   description,
   organizationId,
-  showAISuggestion = true
+  showAISuggestion = true,
+  disabled = false
 }) => {
   const { getAllTrades, suggestTrade, loading } = useAITradeSuggestions();
   const [aiSuggestion, setAISuggestion] = React.useState<{ trade: string; confidence: number } | null>(null);
 
   React.useEffect(() => {
     const getSuggestion = async () => {
-      if (description && organizationId && description.length > 10 && !value && showAISuggestion) {
+      if (description && organizationId && description.length > 10 && !value && showAISuggestion && !disabled) {
         const result = await suggestTrade(description, organizationId);
         if (result.confidence > 0.3) {
           setAISuggestion({ trade: result.suggested_trade, confidence: result.confidence });
@@ -36,15 +38,17 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
 
     const timeoutId = setTimeout(getSuggestion, 1000);
     return () => clearTimeout(timeoutId);
-  }, [description, organizationId, value, showAISuggestion, suggestTrade]);
+  }, [description, organizationId, value, showAISuggestion, disabled, suggestTrade]);
 
   const handleTradeSelect = (selectedTrade: string) => {
-    onChange(selectedTrade);
-    setAISuggestion(null);
+    if (!disabled) {
+      onChange(selectedTrade);
+      setAISuggestion(null);
+    }
   };
 
   const acceptAISuggestion = () => {
-    if (aiSuggestion) {
+    if (aiSuggestion && !disabled) {
       onChange(aiSuggestion.trade);
       setAISuggestion(null);
     }
@@ -59,7 +63,7 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
           <Wrench className="h-4 w-4" />
           Trade *
         </Label>
-        {loading && (
+        {loading && !disabled && (
           <Badge variant="outline" className="text-blue-600">
             <Brain className="h-3 w-3 mr-1" />
             AI Analyzing...
@@ -67,7 +71,7 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
         )}
       </div>
 
-      <Select value={value} onValueChange={handleTradeSelect}>
+      <Select value={value} onValueChange={handleTradeSelect} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder="Select trade type" />
         </SelectTrigger>
@@ -80,7 +84,7 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
         </SelectContent>
       </Select>
 
-      {aiSuggestion && (
+      {aiSuggestion && !disabled && (
         <div className="p-3 bg-purple-50 border border-purple-200 rounded-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -96,6 +100,7 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
               type="button"
               onClick={acceptAISuggestion}
               className="text-xs text-purple-600 hover:text-purple-800 underline"
+              disabled={disabled}
             >
               Accept
             </button>
@@ -103,7 +108,7 @@ const SmartTradeSelector: React.FC<SmartTradeSelectorProps> = ({
         </div>
       )}
 
-      {!value && !aiSuggestion && description && (
+      {!value && !aiSuggestion && description && !disabled && (
         <p className="text-sm text-gray-500">💡 Tip: Add description above for AI trade suggestion</p>
       )}
     </div>
