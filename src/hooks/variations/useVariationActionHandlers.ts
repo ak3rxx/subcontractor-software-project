@@ -128,13 +128,18 @@ export const useVariationActionHandlers = ({
         updated_at: new Date().toISOString()
       };
       
-      await updateVariation(id, updatePayload);
+      const updatedVariation = await updateVariation(id, updatePayload);
       await refreshVariations();
+      
+      // Update the selected variation with fresh data to keep modal synchronized
+      if (updatedVariation) {
+        setSelectedVariation(updatedVariation);
+      }
     } catch (error) {
       console.error('Error updating variation:', error);
       throw error;
     }
-  }, [updateVariation, refreshVariations]);
+  }, [updateVariation, refreshVariations, setSelectedVariation]);
 
   const handleNewVariation = useCallback(() => {
     setEditingVariation(null);

@@ -101,20 +101,11 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
       // Always refresh the main variations list first to get latest data
       await refreshVariations();
       
-      // Find the refreshed variation from the updated list
-      setTimeout(async () => {
-        // Give a moment for the refresh to complete
-        const refreshedVariations = variations;
-        const latestVariation = refreshedVariations.find(v => v.id === id);
-        
-        if (latestVariation) {
-          // Update modal with the refreshed data that includes any status changes
-          setSelectedVariation(latestVariation);
-        } else if (updatedVariation) {
-          // Fallback to the returned variation if list refresh hasn't completed
-          setSelectedVariation(updatedVariation);
-        }
-      }, 100);
+      // Immediately update modal with fresh data (no setTimeout needed)
+      if (updatedVariation) {
+        // Use the returned variation which has the latest data from the database
+        setSelectedVariation(updatedVariation);
+      }
       
     } catch (error) {
       console.error('Error updating variation:', error);
