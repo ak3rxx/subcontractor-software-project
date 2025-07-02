@@ -63,28 +63,10 @@ export const useVariationActionHandlers = ({
   }, [updateVariation, toast]);
 
   const handleEdit = useCallback((variation: Variation) => {
-    if (variation.status === 'pending_approval') {
-      toast({
-        title: "Cannot Edit",
-        description: "This variation is pending approval and cannot be edited",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!canEditVariations) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to edit variations",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setEditingVariation(variation);
-    setShowForm(true);
-    setFormKey(formKey + 1);
-  }, [canEditVariations, setEditingVariation, setShowForm, setFormKey, formKey, toast]);
+    // Always open the detail modal for editing (permission checks happen there)
+    setSelectedVariation(variation);
+    setShowDetailsModal(true);
+  }, [setSelectedVariation, setShowDetailsModal]);
 
   const handleViewDetails = useCallback((variation: Variation) => {
     setSelectedVariation(variation);
