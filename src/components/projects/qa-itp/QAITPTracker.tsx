@@ -1,421 +1,287 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Filter, AlertTriangle, Eye, Edit, Download, Trash2, FileText } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useQAInspections } from '@/hooks/useQAInspections';
-import { useProjects } from '@/hooks/useProjects';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useQAPermissions } from '@/hooks/useQAPermissions';
+import { Plus, Search, Filter, AlertCircle, CheckCircle2, XCircle, Clock, Eye, Edit, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 import QAInspectionViewer from './QAInspectionViewer';
-import QABulkExport from './QABulkExport';
 
 interface QAITPTrackerProps {
   onNewInspection: () => void;
-  projectId?: string;
+  projectId: string;
 }
 
-const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection, projectId }) => {
-  const { inspections, loading, deleteInspection, bulkDeleteInspections, bulkUpdateInspections } = useQAInspections(projectId);
-  const { projects } = useProjects();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterProject, setFilterProject] = useState(projectId || 'all');
-  const [filterBuilding, setFilterBuilding] = useState('all');
-  const [filterLevel, setFilterLevel] = useState('all');
-  const [filterInspectionType, setFilterInspectionType] = useState('all');
-  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
-  const [showBulkExport, setShowBulkExport] = useState(false);
-  const [selectedInspections, setSelectedInspections] = useState<string[]>([]);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+const QAITPTracker: React.FC<QAITPTrackerProps> = ({ 
+  onNewInspection, 
+  projectId 
+}) => {
+  const { 
+    inspections, 
+    loading, 
+    deleteInspection,
+    refetch 
+  } = useQAInspections(projectId);
+  
+  const {
+    canCreateInspections,
+    canEditInspections,
+    canDeleteInspections,
+    canViewInspections
+  } = useQAPermissions();
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pass':
-        return <Badge className="bg-green-100 text-green-800">Pass</Badge>;
-      case 'fail':
-        return <Badge className="bg-red-100 text-red-800">Fail</Badge>;
-      case 'pending-reinspection':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending Reinspection</Badge>;
-      case 'incomplete-in-progress':
-        return <Badge className="bg-blue-100 text-blue-800">Incomplete/In Progress</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedInspection, setSelectedInspection] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Clear error when component mounts or data changes
+  useEffect(() => {
+    if (inspections.length > 0) {
+      setError(null);
     }
-  };
+  }, [inspections]);
 
-  // Extract unique buildings, levels, and inspection types from inspections
-  const uniqueBuildings = [...new Set(inspections.map(inspection => {
-    const parts = inspection.location_reference.split(' - ');
-    return parts[0] || '';
-  }).filter(Boolean))];
-
-  const uniqueLevels = [...new Set(inspections.map(inspection => {
-    const parts = inspection.location_reference.split(' - ');
-    return parts[1] || '';
-  }).filter(Boolean))];
-
-  const uniqueInspectionTypes = [...new Set(inspections.map(inspection => inspection.inspection_type))];
-
-  const filteredInspections = inspections.filter(inspection => {
-    const statusMatch = filterStatus === 'all' || inspection.overall_status === filterStatus;
-    const projectMatch = filterProject === 'all' || inspection.project_id === filterProject;
-    const inspectionTypeMatch = filterInspectionType === 'all' || inspection.inspection_type === filterInspectionType;
-    
-    const parts = inspection.location_reference.split(' - ');
-    const building = parts[0] || '';
-    const level = parts[1] || '';
-    
-    const buildingMatch = filterBuilding === 'all' || building === filterBuilding;
-    const levelMatch = filterLevel === 'all' || level === filterLevel;
-    
-    return statusMatch && projectMatch && buildingMatch && levelMatch && inspectionTypeMatch;
-  });
-
-  const getProjectName = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    return project?.name || 'Unknown Project';
-  };
-
-  const parseLocationReference = (locationRef: string) => {
-    const parts = locationRef.split(' - ');
-    return {
-      building: parts[0] || '',
-      level: parts[1] || '',
-      reference: parts[2] || ''
-    };
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedInspections(filteredInspections.map(i => i.id));
-    } else {
-      setSelectedInspections([]);
-    }
-  };
-
-  const handleSelectInspection = (inspectionId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedInspections(prev => [...prev, inspectionId]);
-    } else {
-      setSelectedInspections(prev => prev.filter(id => id !== inspectionId));
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedInspections.length === 0) return;
-
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedInspections.length} inspection(s)? This action cannot be undone.`
-    );
-
-    if (!confirmed) return;
-
-    setBulkDeleting(true);
-    try {
-      const success = await bulkDeleteInspections(selectedInspections);
-      if (success) {
-        setSelectedInspections([]);
-        toast({
-          title: "Success",
-          description: `Successfully deleted ${selectedInspections.length} inspection(s)`,
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting inspections:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete inspections",
-        variant: "destructive"
-      });
-    } finally {
-      setBulkDeleting(false);
-    }
-  };
-
-  const isAdminOrPM = user?.role === 'admin' || user?.role === 'project_manager';
-
-  if (showBulkExport) {
+  if (!canViewInspections) {
     return (
-      <QABulkExport 
-        onClose={() => setShowBulkExport(false)}
-        selectedInspectionIds={selectedInspections}
-      />
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h3>
+            <p className="text-gray-600">You don't have permission to view QA inspections.</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  if (selectedInspectionId) {
+  if (selectedInspection) {
     return (
       <QAInspectionViewer
-        inspectionId={selectedInspectionId}
-        onClose={() => setSelectedInspectionId(null)}
+        inspectionId={selectedInspection}
+        onClose={() => setSelectedInspection(null)}
+        onEdit={(inspection) => {
+          // Handle edit - could navigate to edit form
+          console.log('Edit inspection:', inspection);
+        }}
       />
     );
   }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pass':
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case 'fail':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'pending-reinspection':
+        return <Clock className="h-4 w-4 text-orange-600" />;
+      case 'incomplete-in-progress':
+        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pass':
+        return 'bg-green-100 text-green-800';
+      case 'fail':
+        return 'bg-red-100 text-red-800';
+      case 'pending-reinspection':
+        return 'bg-orange-100 text-orange-800';
+      case 'incomplete-in-progress':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const filteredInspections = inspections.filter(inspection => {
+    const matchesSearch = !searchTerm || 
+      inspection.inspection_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inspection.task_area.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inspection.location_reference.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || inspection.overall_status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDeleteInspection = async (inspectionId: string) => {
+    if (window.confirm('Are you sure you want to delete this inspection?')) {
+      const success = await deleteInspection(inspectionId);
+      if (success) {
+        setError(null);
+      }
+    }
+  };
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading inspections...</p>
-      </div>
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-center">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4" />
-          <span className="text-sm font-medium">Filters:</span>
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pass">Pass</SelectItem>
-            <SelectItem value="fail">Fail</SelectItem>
-            <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
-            <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
-          </SelectContent>
-        </Select>
-        {!projectId && (
-          <Select value={filterProject} onValueChange={setFilterProject}>
-            <SelectTrigger>
-              <SelectValue placeholder="Project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Projects</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <Select value={filterBuilding} onValueChange={setFilterBuilding}>
-          <SelectTrigger>
-            <SelectValue placeholder="Building" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Buildings</SelectItem>
-            {uniqueBuildings.map((building) => (
-              <SelectItem key={building} value={building}>
-                {building}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterLevel} onValueChange={setFilterLevel}>
-          <SelectTrigger>
-            <SelectValue placeholder="Level" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Levels</SelectItem>
-            {uniqueLevels.map((level) => (
-              <SelectItem key={level} value={level}>
-                {level}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterInspectionType} onValueChange={setFilterInspectionType}>
-          <SelectTrigger>
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {uniqueInspectionTypes.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Bulk Actions */}
-      {selectedInspections.length > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
-          <span className="text-sm font-medium">
-            {selectedInspections.length} inspection(s) selected
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowBulkExport(true)}
+    <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          <span>{error}</span>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              setError(null);
+              refetch();
+            }}
+            className="ml-auto"
           >
-            <Download className="h-4 w-4 mr-2" />
-            Bulk Export PDF
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleBulkDelete}
-            disabled={bulkDeleting}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            {bulkDeleting ? 'Deleting...' : 'Delete Selected'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedInspections([])}
-          >
-            Clear Selection
+            Retry
           </Button>
         </div>
       )}
 
-      {/* Quick Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <Button variant="outline" size="sm" className="text-red-600 border-red-200">
-          <AlertTriangle className="h-3 w-3 mr-1" />
-          Failed Inspections ({inspections.filter(i => i.overall_status === 'fail').length})
-        </Button>
-        <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200">
-          Pending Reinspection ({inspections.filter(i => i.overall_status === 'pending-reinspection').length})
-        </Button>
-        <Button variant="outline" size="sm" className="text-blue-600 border-blue-200">
-          In Progress ({inspections.filter(i => i.overall_status === 'incomplete-in-progress').length})
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>QA/ITP Inspections</CardTitle>
+            {canCreateInspections && (
+              <Button onClick={onNewInspection} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                New Inspection
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search inspections..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="all">All Status</option>
+                <option value="pass">Pass</option>
+                <option value="fail">Fail</option>
+                <option value="pending-reinspection">Pending Reinspection</option>
+                <option value="incomplete-in-progress">In Progress</option>
+              </select>
+            </div>
+          </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left">
-                  <Checkbox
-                    checked={selectedInspections.length === filteredInspections.length && filteredInspections.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Inspection #
-                </th>
-                {!projectId && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project
-                  </th>
-                )}
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Task
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Building
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Level
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Inspection Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Inspector
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredInspections.map((inspection) => {
-                const location = parseLocationReference(inspection.location_reference);
-                return (
-                  <tr key={inspection.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <Checkbox
-                        checked={selectedInspections.includes(inspection.id)}
-                        onCheckedChange={(checked) => handleSelectInspection(inspection.id, checked as boolean)}
-                      />
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {inspection.inspection_number}
-                    </td>
-                    {!projectId && (
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getProjectName(inspection.project_id)}
-                      </td>
-                    )}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {inspection.task_area}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {location.building}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {location.level}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {inspection.inspection_type}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      {getStatusBadge(inspection.overall_status)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(inspection.inspection_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {inspection.inspector_name}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedInspectionId(inspection.id)}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedInspectionId(inspection.id)}
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
+          {filteredInspections.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {inspections.length === 0 ? 'No Inspections Yet' : 'No Matching Inspections'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {inspections.length === 0 
+                  ? 'Create your first QA inspection to get started' 
+                  : 'Try adjusting your search or filter criteria'
+                }
+              </p>
+              {canCreateInspections && inspections.length === 0 && (
+                <Button onClick={onNewInspection} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create First Inspection
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredInspections.map((inspection) => (
+                <div key={inspection.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold">{inspection.inspection_number}</h4>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(inspection.overall_status)}
+                          <Badge className={getStatusColor(inspection.overall_status)}>
+                            {inspection.overall_status.replace('-', ' ').toUpperCase()}
+                          </Badge>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {filteredInspections.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-500">
-            {inspections.length === 0 
-              ? "No QA inspections created yet." 
-              : "No inspections found matching the selected filters."}
-          </p>
-          <Button onClick={onNewInspection} className="mt-4">
-            <Plus className="h-4 w-4 mr-2" />
-            {inspections.length === 0 ? "Create First QA Inspection" : "Create New Inspection"}
-          </Button>
-        </div>
-      )}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600 mb-2">
+                        <div><strong>Task Area:</strong> {inspection.task_area}</div>
+                        <div><strong>Location:</strong> {inspection.location_reference}</div>
+                        <div><strong>Type:</strong> {inspection.inspection_type.replace('-', ' ')}</div>
+                        <div><strong>Template:</strong> {inspection.template_type.replace('-', ' ')}</div>
+                        <div><strong>Inspector:</strong> {inspection.inspector_name}</div>
+                        <div><strong>Date:</strong> {format(new Date(inspection.inspection_date), 'dd/MM/yyyy')}</div>
+                      </div>
+                      
+                      {inspection.is_fire_door && (
+                        <Badge variant="secondary" className="text-xs">Fire Door</Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedInspection(inspection.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      
+                      {canEditInspections && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Handle edit
+                            console.log('Edit inspection:', inspection.id);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      
+                      {canDeleteInspections && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteInspection(inspection.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

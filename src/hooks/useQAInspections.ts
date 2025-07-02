@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -82,15 +83,20 @@ export const useQAInspections = (projectId?: string) => {
   const { toast } = useToast();
 
   const fetchInspections = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping QA inspections fetch');
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log('Fetching QA inspections for user:', user.id, 'project:', projectId);
+      
       let query = supabase
         .from('qa_inspections')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Filter by project if provided
       if (projectId) {
         query = query.eq('project_id', projectId);
       }
@@ -99,22 +105,34 @@ export const useQAInspections = (projectId?: string) => {
 
       if (error) {
         console.error('Error fetching QA inspections:', error);
-        // Only show error toast for non-RLS errors
-        if (!error.message.includes('policy') && !error.message.includes('permission')) {
+        
+        // Handle specific error types
+        if (error.message.includes('infinite recursion')) {
+          console.error('Database policy recursion detected');
+          toast({
+            title: "Database Error",
+            description: "Please refresh the page and try again. If the issue persists, contact support.",
+            variant: "destructive"
+          });
+        } else if (error.message.includes('permission')) {
+          console.log('Permission denied for QA inspections - user may not have access');
+        } else {
           toast({
             title: "Error",
             description: "Failed to fetch QA inspections",
             variant: "destructive"
           });
         }
+        
         setInspections([]);
         return;
       }
 
+      console.log('Successfully fetched QA inspections:', data?.length || 0);
       const transformedInspections = (data || []).map(transformInspectionData);
       setInspections(transformedInspections);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error fetching QA inspections:', error);
       setInspections([]);
     } finally {
       setLoading(false);
@@ -125,9 +143,14 @@ export const useQAInspections = (projectId?: string) => {
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
     checklistItems: Omit<QAChecklistItem, 'id' | 'inspection_id' | 'created_at'>[]
   ) => {
-    if (!user) return null;
+    if (!user) {
+      console.error('No user found for creating inspection');
+      return null;
+    }
 
     try {
+      console.log('Creating QA inspection for user:', user.id);
+      
       // Generate inspection number
       const { data: numberData, error: numberError } = await supabase
         .rpc('generate_inspection_number');
@@ -142,15 +165,15 @@ export const useQAInspections = (projectId?: string) => {
         return null;
       }
 
-      // Get user's organization
+      // Get user's organization - with better error handling
       const { data: orgData, error: orgError } = await supabase
         .from('organization_users')
         .select('organization_id')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle(); // Use maybeSingle to avoid errors when no data
 
-      if (orgError || !orgData) {
+      if (orgError) {
         console.error('Error getting user organization:', orgError);
         toast({
           title: "Error",
@@ -160,11 +183,15 @@ export const useQAInspections = (projectId?: string) => {
         return null;
       }
 
+      // If no organization found, we can still create the inspection
+      const organizationId = orgData?.organization_id || null;
+      console.log('User organization ID:', organizationId);
+
       const insertData: QAInspectionInsert = {
         ...inspectionData,
         inspection_number: numberData,
         created_by: user.id,
-        organization_id: orgData.organization_id
+        organization_id: organizationId
       };
 
       console.log('Creating QA inspection with data:', insertData);
@@ -177,20 +204,30 @@ export const useQAInspections = (projectId?: string) => {
 
       if (inspectionError) {
         console.error('Error creating inspection:', inspectionError);
-        toast({
-          title: "Error",
-          description: `Failed to create inspection: ${inspectionError.message}`,
-          variant: "destructive"
-        });
+        
+        if (inspectionError.message.includes('policy')) {
+          toast({
+            title: "Permission Error",
+            description: "You don't have permission to create inspections. Please check your organization membership.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: `Failed to create inspection: ${inspectionError.message}`,
+            variant: "destructive"
+          });
+        }
         return null;
       }
 
-      // Insert checklist items
+      console.log('Successfully created inspection:', inspectionResult.id);
+
+      // Insert checklist items if provided
       if (checklistItems.length > 0) {
         const checklistInserts: QAChecklistItemInsert[] = checklistItems.map(item => ({
           ...item,
           inspection_id: inspectionResult.id,
-          // Ensure evidence_files is always string[] or null
           evidence_files: Array.isArray(item.evidence_files) 
             ? item.evidence_files.filter(f => typeof f === 'string') as string[]
             : null
@@ -202,12 +239,13 @@ export const useQAInspections = (projectId?: string) => {
 
         if (checklistError) {
           console.error('Error creating checklist items:', checklistError);
-          // Don't fail the whole operation, just log the error
           toast({
             title: "Warning",
             description: "Inspection created but some checklist items failed to save",
             variant: "destructive"
           });
+        } else {
+          console.log('Successfully created checklist items:', checklistItems.length);
         }
       }
 
@@ -220,7 +258,7 @@ export const useQAInspections = (projectId?: string) => {
       setInspections(prev => [newInspection, ...prev]);
       return newInspection;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error creating inspection:', error);
       toast({
         title: "Error",
         description: "Failed to create inspection",
