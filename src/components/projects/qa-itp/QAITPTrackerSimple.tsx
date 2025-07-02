@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
-import { Plus, Search, Filter, AlertCircle, CheckCircle2, XCircle, Clock, Eye, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, AlertCircle, CheckCircle2, XCircle, Clock, Eye, Edit, Trash2, Download, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import QAITPFormSimple from './QAITPFormSimple';
 import QAInspectionViewer from './QAInspectionViewer';
+import QABulkExport from './QABulkExport';
 
 interface QAITPTrackerSimpleProps {
   onNewInspection: () => void;
@@ -31,6 +33,8 @@ const QAITPTrackerSimple: React.FC<QAITPTrackerSimpleProps> = ({
   const [selectedInspection, setSelectedInspection] = useState<string | null>(null);
   const [editingInspection, setEditingInspection] = useState<any>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [selectedForBulk, setSelectedForBulk] = useState<string[]>([]);
+  const [showBulkExport, setShowBulkExport] = useState(false);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -120,6 +124,33 @@ const QAITPTrackerSimple: React.FC<QAITPTrackerSimpleProps> = ({
     }
   };
 
+  const handleBulkSelect = (inspectionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedForBulk(prev => [...prev, inspectionId]);
+    } else {
+      setSelectedForBulk(prev => prev.filter(id => id !== inspectionId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedForBulk(filteredInspections.map(i => i.id));
+    } else {
+      setSelectedForBulk([]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedForBulk.length === 0) return;
+    
+    if (window.confirm(`Are you sure you want to delete ${selectedForBulk.length} inspection(s)?`)) {
+      for (const id of selectedForBulk) {
+        await deleteInspection(id);
+      }
+      setSelectedForBulk([]);
+    }
+  };
+
   if (selectedInspection) {
     return (
       <QAInspectionViewer
@@ -152,6 +183,15 @@ const QAITPTrackerSimple: React.FC<QAITPTrackerSimpleProps> = ({
     );
   }
 
+  if (showBulkExport) {
+    return (
+      <QABulkExport
+        onClose={() => setShowBulkExport(false)}
+        selectedInspectionIds={selectedForBulk}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <Card>
@@ -168,11 +208,48 @@ const QAITPTrackerSimple: React.FC<QAITPTrackerSimpleProps> = ({
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>QA/ITP Inspections</CardTitle>
-            <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New Inspection
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedForBulk.length > 0 && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowBulkExport(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export PDF ({selectedForBulk.length})
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    className="flex items-center gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete ({selectedForBulk.length})
+                  </Button>
+                </>
+              )}
+              <Button onClick={() => setShowNewForm(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                New Inspection
+              </Button>
+            </div>
           </div>
+          
+          {/* Bulk Selection Controls */}
+          {filteredInspections.length > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={selectedForBulk.length === filteredInspections.length && filteredInspections.length > 0}
+                onCheckedChange={handleSelectAll}
+              />
+              <span className="text-muted-foreground">
+                Select All • {selectedForBulk.length} of {filteredInspections.length} selected
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 mb-6">
@@ -270,30 +347,37 @@ const QAITPTrackerSimple: React.FC<QAITPTrackerSimpleProps> = ({
               {filteredInspections.map((inspection) => (
                 <div key={inspection.id} className="border rounded-lg p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-semibold">{inspection.inspection_number}</h4>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(inspection.overall_status)}
-                          <Badge className={getStatusColor(inspection.overall_status)}>
-                            {inspection.overall_status.replace('-', ' ').toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600 mb-2">
-                        <div><strong>Task Area:</strong> {inspection.task_area}</div>
-                        <div><strong>Location:</strong> {inspection.location_reference}</div>
-                        <div><strong>Type:</strong> {inspection.inspection_type.replace('-', ' ')}</div>
-                        <div><strong>Trade Item:</strong> {inspection.template_type.replace('-', ' ')}</div>
-                        <div><strong>Inspector:</strong> {inspection.inspector_name}</div>
-                        <div><strong>Date:</strong> {format(new Date(inspection.inspection_date), 'dd/MM/yyyy')}</div>
-                      </div>
-                      
-                      {inspection.is_fire_door && (
-                        <Badge variant="secondary" className="text-xs">Fire Door</Badge>
-                      )}
-                    </div>
+                    <div className="flex items-start gap-3 flex-1">
+                      <Checkbox
+                        checked={selectedForBulk.includes(inspection.id)}
+                        onCheckedChange={(checked) => handleBulkSelect(inspection.id, checked as boolean)}
+                        className="mt-1"
+                      />
+                       <div className="flex-1">
+                         <div className="flex items-center gap-3 mb-2">
+                           <h4 className="font-semibold">{inspection.inspection_number}</h4>
+                           <div className="flex items-center gap-2">
+                             {getStatusIcon(inspection.overall_status)}
+                             <Badge className={getStatusColor(inspection.overall_status)}>
+                               {inspection.overall_status.replace('-', ' ').toUpperCase()}
+                             </Badge>
+                           </div>
+                         </div>
+                         
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600 mb-2">
+                           <div><strong>Task Area:</strong> {inspection.task_area}</div>
+                           <div><strong>Location:</strong> {inspection.location_reference}</div>
+                           <div><strong>Type:</strong> {inspection.inspection_type.replace('-', ' ')}</div>
+                           <div><strong>Trade Item:</strong> {inspection.template_type.replace('-', ' ')}</div>
+                           <div><strong>Inspector:</strong> {inspection.inspector_name}</div>
+                           <div><strong>Date:</strong> {format(new Date(inspection.inspection_date), 'dd/MM/yyyy')}</div>
+                         </div>
+                         
+                         {inspection.is_fire_door && (
+                           <Badge variant="secondary" className="text-xs">Fire Door</Badge>
+                         )}
+                       </div>
+                     </div>
                     
                     <div className="flex items-center gap-2">
                       <Button

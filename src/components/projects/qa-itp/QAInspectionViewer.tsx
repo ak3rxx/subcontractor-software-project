@@ -8,6 +8,7 @@ import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useQAPermissions } from '@/hooks/useQAPermissions';
 import { FileText, Calendar, User, MapPin, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import FileThumbnailViewer from './FileThumbnailViewer';
 
 interface QAInspectionViewerProps {
   inspectionId: string;
@@ -23,6 +24,7 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
   const [inspection, setInspection] = useState<QAInspection | null>(null);
   const [checklistItems, setChecklistItems] = useState<QAChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastChange, setLastChange] = useState<any>(null);
 
   const { getInspectionById, getChecklistItems } = useQAInspections();
   const { changeHistory, loading: historyLoading } = useQAChangeHistory(inspectionId);
@@ -45,6 +47,11 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
 
         setInspection(inspectionData);
         setChecklistItems(checklistData);
+        
+        // Get latest change info
+        if (changeHistory.length > 0) {
+          setLastChange(changeHistory[0]);
+        }
       } catch (error) {
         console.error('Error fetching inspection data:', error);
       } finally {
@@ -113,6 +120,17 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
         <div>
           <h2 className="text-2xl font-bold">QA Inspection {inspection.inspection_number}</h2>
           <p className="text-muted-foreground">{inspection.project_name}</p>
+          {/* Last change information */}
+          {lastChange && (
+            <div className="text-sm text-muted-foreground mt-2 bg-muted/20 rounded p-2">
+              <strong>Last updated:</strong> {format(new Date(lastChange.change_timestamp), 'dd/MM/yyyy HH:mm')} by {lastChange.user_name}
+              <br />
+              <strong>Changes:</strong> {lastChange.field_name} updated
+              {lastChange.old_value && lastChange.new_value && (
+                <span> (from "{lastChange.old_value}" to "{lastChange.new_value}")</span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           {canEditInspections && onEdit && (
@@ -228,16 +246,10 @@ const QAInspectionViewer: React.FC<QAInspectionViewerProps> = ({
                   )}
                   
                   {item.evidence_files && item.evidence_files.length > 0 && (
-                    <div className="mt-2">
-                      <label className="text-sm font-medium text-muted-foreground">Evidence Files:</label>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {item.evidence_files.map((file, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            📎 File {index + 1}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+                    <FileThumbnailViewer 
+                      files={item.evidence_files} 
+                      className="mt-2"
+                    />
                   )}
                 </div>
               ))}

@@ -164,23 +164,29 @@ const QAITPFormSimple: React.FC<QAITPFormSimpleProps> = ({
         overall_status: formData.overallStatus
       };
 
-      const checklistItems = filteredChecklist.map(item => ({
+
+      // Transform checklist items to include file URLs
+      const enhancedChecklistItems = filteredChecklist.map(item => ({
         item_id: item.id,
         description: item.description,
         requirements: item.requirements,
         status: item.status || '',
         comments: item.comments || '',
-        evidence_files: [] // Simplified for now - no file uploads
+        evidence_files: item.evidenceFiles ? item.evidenceFiles.map(f => f.url || f.id) : []
       }));
 
       let result;
       if (editingInspection) {
-        result = await updateInspection(editingInspection.id, inspectionData, checklistItems);
+        result = await updateInspection(editingInspection.id, inspectionData, enhancedChecklistItems);
       } else {
-        result = await createInspection(inspectionData, checklistItems);
+        result = await createInspection(inspectionData, enhancedChecklistItems);
       }
 
       if (result) {
+        toast({
+          title: "Success",
+          description: editingInspection ? "Inspection updated successfully" : "Inspection created successfully"
+        });
         onClose();
       } else {
         setError('Failed to save inspection. Please try again.');
@@ -199,17 +205,32 @@ const QAITPFormSimple: React.FC<QAITPFormSimpleProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>
-              {editingInspection ? 'Edit QA Inspection' : 'Create New QA Inspection'}
-            </CardTitle>
-            <Button variant="outline" onClick={onClose} disabled={saving}>
+      {/* Sticky top save bar */}
+      <div className="sticky top-0 z-10 bg-background border-b px-6 py-4 -mx-6 mb-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-semibold">
+            {editingInspection ? 'Edit QA Inspection' : 'Create New QA Inspection'}
+          </h1>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleSubmit}
+              disabled={saving}
+              size="sm"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Saving...' : editingInspection ? 'Update' : 'Save'}
+            </Button>
+            <Button variant="outline" onClick={onClose} disabled={saving} size="sm">
               <X className="h-4 w-4 mr-2" />
               Close
             </Button>
           </div>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inspection Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -354,7 +375,8 @@ const QAITPFormSimple: React.FC<QAITPFormSimpleProps> = ({
             />
           </div>
 
-          <div className="flex justify-end gap-2">
+          {/* Sticky save buttons at bottom */}
+          <div className="sticky bottom-0 bg-background border-t pt-4 -mx-6 px-6 flex justify-end gap-2">
             <Button 
               variant="outline" 
               onClick={onClose}

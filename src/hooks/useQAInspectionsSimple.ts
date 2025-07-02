@@ -340,9 +340,31 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     }
   }, []);
 
+  // Real-time subscription for list updates
   useEffect(() => {
     fetchInspections();
-  }, [fetchInspections]);
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('qa_inspections_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'qa_inspections',
+          filter: projectId ? `project_id=eq.${projectId}` : undefined
+        }, 
+        () => {
+          console.log('QA inspection changed, refreshing list...');
+          fetchInspections();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchInspections, projectId]);
 
   return {
     inspections,
