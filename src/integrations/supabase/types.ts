@@ -2070,6 +2070,10 @@ export type Database = {
         Args: { org_id?: string }
         Returns: number
       }
+      generate_qa_inspection_number: {
+        Args: { project_uuid: string }
+        Returns: string
+      }
       generate_variation_number: {
         Args: { project_uuid: string }
         Returns: string

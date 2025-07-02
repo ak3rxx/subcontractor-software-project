@@ -8,7 +8,7 @@ import { Plus, Filter, FileText, AlertTriangle, Eye, Edit, Trash2, Download } fr
 import { useQAInspections } from '@/hooks/useQAInspections';
 import { useProjects } from '@/hooks/useProjects';
 import { useToast } from '@/hooks/use-toast';
-import QAInspectionViewer from './qa-itp/QAInspectionViewer';
+// Removed old QAInspectionViewer - now using new modal system
 import QABulkExport from './qa-itp/QABulkExport';
 
 interface QAITPTrackerProps {
@@ -133,14 +133,7 @@ const QAITPTracker: React.FC<QAITPTrackerProps> = ({ onNewInspection }) => {
     }
   };
 
-  if (selectedInspectionId) {
-    return (
-      <QAInspectionViewer
-        inspectionId={selectedInspectionId}
-        onClose={() => setSelectedInspectionId(null)}
-      />
-    );
-  }
+  // Removed old viewer - using new modal system in main tracker
 
   if (showBulkExport) {
     return (

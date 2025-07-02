@@ -99,9 +99,9 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     if (!user) return null;
 
     try {
-      // Generate inspection number
+      // Generate project-specific inspection number
       const { data: numberData, error: numberError } = await supabase
-        .rpc('generate_inspection_number');
+        .rpc('generate_qa_inspection_number', { project_uuid: inspectionData.project_id });
 
       if (numberError) {
         toast({
