@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, Download, FileText, Image, Trash2 } from 'lucide-react';
+import { Upload, Download, FileText, Image, Trash2, Lock } from 'lucide-react';
 import { useQAInspections } from '@/hooks/useQAInspections';
 import DragDropFileUpload from './DragDropFileUpload';
 
@@ -9,12 +10,14 @@ interface QAAttachmentsTabEnhancedProps {
   inspection: any;
   isEditing: boolean;
   onAttachmentsChange?: (files: string[]) => void;
+  recordChange?: (field: string, oldValue: string, newValue: string, changeType?: string, itemId?: string, itemDescription?: string) => void;
 }
 
 const QAAttachmentsTabEnhanced: React.FC<QAAttachmentsTabEnhancedProps> = ({
   inspection,
   isEditing,
-  onAttachmentsChange
+  onAttachmentsChange,
+  recordChange
 }) => {
   const [allFiles, setAllFiles] = useState<string[]>([]);
   const [inspectionFiles, setInspectionFiles] = useState<string[]>([]);
@@ -51,17 +54,45 @@ const QAAttachmentsTabEnhanced: React.FC<QAAttachmentsTabEnhancedProps> = ({
   };
 
   const handleInspectionFileUpload = (filePaths: string[]) => {
+    if (!isEditing) return;
+    
+    const oldCount = inspectionFiles.length;
     const updatedFiles = [...inspectionFiles, ...filePaths];
     setInspectionFiles(updatedFiles);
     onAttachmentsChange?.(updatedFiles);
+
+    // Record audit trail for file uploads
+    if (recordChange) {
+      recordChange(
+        'inspection_attachments',
+        `${oldCount} files`,
+        `${updatedFiles.length} files`,
+        'update',
+        inspection?.id,
+        'Inspection Level Attachments'
+      );
+    }
   };
 
   const handleRemoveFile = (fileToRemove: string) => {
     if (!isEditing) return;
     
+    const oldCount = inspectionFiles.length;
     const updatedFiles = inspectionFiles.filter(file => file !== fileToRemove);
     setInspectionFiles(updatedFiles);
     onAttachmentsChange?.(updatedFiles);
+
+    // Record audit trail for file removal
+    if (recordChange) {
+      recordChange(
+        'inspection_attachments',
+        `${oldCount} files`,
+        `${updatedFiles.length} files`,
+        'update',
+        inspection?.id,
+        'Inspection Level Attachments'
+      );
+    }
   };
 
   const allInspectionFiles = [...allFiles, ...inspectionFiles];
@@ -91,18 +122,31 @@ const QAAttachmentsTabEnhanced: React.FC<QAAttachmentsTabEnhancedProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Inspection Attachments ({allInspectionFiles.length})</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // TODO: Implement bulk download
-                console.log('Bulk download not implemented yet');
-              }}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download All
-            </Button>
+            <div className="flex items-center gap-2">
+              {!isEditing && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
+                  <Lock className="h-3 w-3" />
+                  Read Only
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // TODO: Implement bulk download
+                  console.log('Bulk download not implemented yet');
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download All
+              </Button>
+            </div>
           </CardTitle>
+          {!isEditing && (
+            <p className="text-sm text-muted-foreground">
+              Switch to edit mode to upload or remove attachments
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {allInspectionFiles.length > 0 ? (
@@ -183,9 +227,13 @@ const QAAttachmentsTabEnhanced: React.FC<QAAttachmentsTabEnhancedProps> = ({
             <div className="text-center py-8">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No attachments found</p>
-              {isEditing && (
+              {isEditing ? (
                 <p className="text-sm text-muted-foreground mt-2">
                   Upload files using the form above or add evidence files to individual checklist items
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Enable edit mode to upload attachments
                 </p>
               )}
             </div>

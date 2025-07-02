@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ interface QAITPChecklistItemEnhancedProps {
   onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
   inspectionId?: string | null;
   showAuditTrail?: boolean;
+  isEditing?: boolean;
   onRecordChange?: (field: string, oldValue: string, newValue: string, itemId: string, itemDescription: string) => void;
 }
 
@@ -22,13 +24,16 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
   onUploadStatusChange,
   inspectionId,
   showAuditTrail = false,
+  isEditing = false,
   onRecordChange
 }) => {
 
   const handleFileChange = useCallback((files: SupabaseUploadedFile[]) => {
+    if (!isEditing) return;
+    
     console.log('Files changed for item', item.id, ':', files);
     
-    // Record audit trail for file changes via parent
+    // Record audit trail for file changes
     if (onRecordChange) {
       const oldFiles = item.evidenceFiles || [];
       onRecordChange(
@@ -41,12 +46,14 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
     }
     
     onChecklistChange(item.id, 'evidenceFiles', files);
-  }, [item.id, onChecklistChange, onRecordChange, item.description, item.evidenceFiles]);
+  }, [item.id, onChecklistChange, onRecordChange, item.description, item.evidenceFiles, isEditing]);
 
   const handleStatusChange = useCallback((status: string) => {
+    if (!isEditing) return;
+    
     console.log('Status changed for item', item.id, ':', status);
     
-    // Record audit trail for status changes via parent
+    // Record audit trail for status changes
     if (onRecordChange) {
       onRecordChange(
         'status',
@@ -58,12 +65,14 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
     }
     
     onChecklistChange(item.id, 'status', status);
-  }, [item.id, onChecklistChange, onRecordChange, item.status, item.description]);
+  }, [item.id, onChecklistChange, onRecordChange, item.status, item.description, isEditing]);
 
   const handleCommentsChange = useCallback((comments: string) => {
+    if (!isEditing) return;
+    
     console.log('Comments changed for item', item.id, ':', comments);
     
-    // Record audit trail for comments changes via parent
+    // Record audit trail for comments changes
     if (onRecordChange) {
       onRecordChange(
         'comments',
@@ -75,7 +84,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
     }
     
     onChecklistChange(item.id, 'comments', comments);
-  }, [item.id, onChecklistChange, onRecordChange, item.comments, item.description]);
+  }, [item.id, onChecklistChange, onRecordChange, item.comments, item.description, isEditing]);
 
   // Ensure evidenceFiles is always an array of SupabaseUploadedFile objects
   const currentFiles = React.useMemo(() => {
@@ -102,12 +111,17 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
   };
 
   return (
-    <div className="border rounded-lg p-4 space-y-4 bg-card">
+    <div className={`border rounded-lg p-4 space-y-4 bg-card ${!isEditing ? 'opacity-75' : ''}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h4 className="font-medium">{item.description}</h4>
             {getStatusIcon()}
+            {!isEditing && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                Read Only
+              </span>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">{item.requirements}</p>
         </div>
@@ -120,22 +134,44 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
             value={item.status || ''}
             onValueChange={handleStatusChange}
             className="flex gap-6"
+            disabled={!isEditing}
           >
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pass" id={`${item.id}-pass`} />
-              <Label htmlFor={`${item.id}-pass`} className="text-green-600 font-medium cursor-pointer">
+              <RadioGroupItem 
+                value="pass" 
+                id={`${item.id}-pass`} 
+                disabled={!isEditing}
+              />
+              <Label 
+                htmlFor={`${item.id}-pass`} 
+                className={`text-green-600 font-medium ${isEditing ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+              >
                 Pass
               </Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="fail" id={`${item.id}-fail`} />
-              <Label htmlFor={`${item.id}-fail`} className="text-red-600 font-medium cursor-pointer">
+              <RadioGroupItem 
+                value="fail" 
+                id={`${item.id}-fail`} 
+                disabled={!isEditing}
+              />
+              <Label 
+                htmlFor={`${item.id}-fail`} 
+                className={`text-red-600 font-medium ${isEditing ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+              >
                 Fail
               </Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="na" id={`${item.id}-na`} />
-              <Label htmlFor={`${item.id}-na`} className="text-muted-foreground font-medium cursor-pointer">
+              <RadioGroupItem 
+                value="na" 
+                id={`${item.id}-na`} 
+                disabled={!isEditing}
+              />
+              <Label 
+                htmlFor={`${item.id}-na`} 
+                className={`text-muted-foreground font-medium ${isEditing ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+              >
                 N/A
               </Label>
             </div>
@@ -148,8 +184,10 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
             id={`${item.id}-comments`}
             value={item.comments || ''}
             onChange={(e) => handleCommentsChange(e.target.value)}
-            placeholder="Add comments..."
+            placeholder={isEditing ? "Add comments..." : "No comments"}
             rows={2}
+            disabled={!isEditing}
+            className={!isEditing ? 'opacity-75 cursor-not-allowed' : ''}
           />
         </div>
 
@@ -162,6 +200,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
           maxFiles={5}
           inspectionId={inspectionId}
           checklistItemId={item.id}
+          disabled={!isEditing}
         />
       </div>
     </div>

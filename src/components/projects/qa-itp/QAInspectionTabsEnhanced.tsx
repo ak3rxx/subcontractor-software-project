@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ interface QAInspectionTabsEnhancedProps {
   onDataChange: (changes: any) => void;
   onUpdate?: (id: string, updates: any) => Promise<void>;
   onInspectionUpdate?: (updatedInspection: any) => void;
+  recordChange?: (field: string, oldValue: string, newValue: string, changeType?: string, itemId?: string, itemDescription?: string) => void;
 }
 
 const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
@@ -28,7 +30,8 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
   onTabChange,
   onDataChange,
   onUpdate,
-  onInspectionUpdate
+  onInspectionUpdate,
+  recordChange
 }) => {
   const { changeHistory, loading: historyLoading } = useQAChangeHistory(inspection?.id);
 
@@ -101,6 +104,7 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
                 editData={editData}
                 isEditing={isEditing}
                 onDataChange={onDataChange}
+                recordChange={recordChange}
               />
             </div>
           </TabsContent>
@@ -111,6 +115,7 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
                 inspection={inspection}
                 isEditing={isEditing}
                 onChecklistChange={handleChecklistChange}
+                recordChange={recordChange}
               />
             </div>
           </TabsContent>
@@ -121,6 +126,7 @@ const QAInspectionTabsEnhanced: React.FC<QAInspectionTabsEnhancedProps> = ({
                 inspection={inspection}
                 isEditing={isEditing}
                 onAttachmentsChange={handleAttachmentsChange}
+                recordChange={recordChange}
               />
             </div>
           </TabsContent>

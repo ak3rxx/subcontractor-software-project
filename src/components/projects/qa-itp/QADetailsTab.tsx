@@ -13,16 +13,25 @@ interface QADetailsTabProps {
   editData: any;
   isEditing: boolean;
   onDataChange: (changes: any) => void;
+  recordChange?: (field: string, oldValue: string, newValue: string, changeType?: string, itemId?: string, itemDescription?: string) => void;
 }
 
 const QADetailsTab: React.FC<QADetailsTabProps> = ({
   inspection,
   editData,
   isEditing,
-  onDataChange
+  onDataChange,
+  recordChange
 }) => {
   const handleFieldChange = (field: string, value: any) => {
     console.log(`Field change: ${field} = ${value}`);
+    
+    // Record audit trail if in editing mode
+    if (isEditing && recordChange) {
+      const oldValue = editData[field] || inspection[field] || '';
+      recordChange(field, String(oldValue), String(value), 'update', inspection?.id, `Details: ${field}`);
+    }
+    
     onDataChange({ [field]: value });
   };
 
@@ -32,9 +41,21 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
     <div className="space-y-6 p-4">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Inspection Details
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Inspection Details
+            </div>
+            {!isEditing && (
+              <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                View Mode
+              </span>
+            )}
+            {isEditing && (
+              <span className="text-sm text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                Edit Mode - Changes Tracked
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

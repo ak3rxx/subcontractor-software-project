@@ -10,16 +10,17 @@ interface QAChecklistTabEnhancedProps {
   inspection: any;
   isEditing: boolean;
   onChecklistChange?: (items: any[]) => void;
+  recordChange?: (field: string, oldValue: string, newValue: string, changeType?: string, itemId?: string, itemDescription?: string) => void;
 }
 
 const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
   inspection,
   isEditing,
-  onChecklistChange
+  onChecklistChange,
+  recordChange
 }) => {
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { recordChange } = useQAChangeHistory(inspection?.id);
 
   useEffect(() => {
     const fetchChecklistItems = async () => {
@@ -70,10 +71,6 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
     
     console.log(`Checklist item change: ${itemId} ${field} = ${value}`);
     
-    // Find the old value for audit trail
-    const oldItem = checklistItems.find(item => item.id === itemId);
-    const oldValue = oldItem ? oldItem[field as keyof ChecklistItem] : null;
-    
     // Update the checklist items
     const updatedItems = checklistItems.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
@@ -81,20 +78,12 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
     
     setChecklistItems(updatedItems);
     onChecklistChange?.(updatedItems);
+  };
 
-    // Record the change in audit trail
-    if (recordChange && oldValue !== value) {
-      const itemDescription = oldItem?.description || `Item ${itemId}`;
-      console.log(`Recording audit trail for item ${itemId}: ${field} changed from ${oldValue} to ${value}`);
-      
-      recordChange(
-        field,
-        String(oldValue || ''),
-        String(value || ''),
-        'update',
-        itemId,
-        itemDescription
-      );
+  const handleRecordChange = (field: string, oldValue: string, newValue: string, itemId: string, itemDescription: string) => {
+    if (recordChange) {
+      console.log(`Recording audit trail for item ${itemId}: ${field} changed from "${oldValue}" to "${newValue}"`);
+      recordChange(field, oldValue, newValue, 'update', itemId, itemDescription);
     }
   };
 
@@ -110,7 +99,19 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
     <div className="space-y-4 overflow-y-auto h-full">
       <Card>
         <CardHeader>
-          <CardTitle>Inspection Checklist</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Inspection Checklist</span>
+            {!isEditing && (
+              <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                View Mode
+              </span>
+            )}
+            {isEditing && (
+              <span className="text-sm text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                Edit Mode - Changes Tracked
+              </span>
+            )}
+          </CardTitle>
           {isEditing && (
             <p className="text-sm text-muted-foreground">
               Make changes to checklist items. All changes are tracked in the audit trail.
@@ -127,6 +128,8 @@ const QAChecklistTabEnhanced: React.FC<QAChecklistTabEnhancedProps> = ({
                   onChecklistChange={handleChecklistItemChange}
                   inspectionId={inspection?.id}
                   showAuditTrail={false}
+                  isEditing={isEditing}
+                  onRecordChange={handleRecordChange}
                 />
               ))}
             </div>
