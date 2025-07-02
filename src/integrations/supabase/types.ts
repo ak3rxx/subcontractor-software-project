@@ -2092,6 +2092,10 @@ export type Database = {
           usage_count: number
         }[]
       }
+      get_user_organization_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
       get_variation_audit_history: {
         Args: { p_variation_id: string }
         Returns: {
