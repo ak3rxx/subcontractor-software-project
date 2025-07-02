@@ -2,6 +2,7 @@
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Variation } from '@/types/variations';
+import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 
 interface VariationManagerActionsProps {
   variations: Variation[];
@@ -66,25 +67,7 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
   };
 
   const handleEdit = (variation: Variation) => {
-    if (variation.status === 'pending_approval') {
-      toast({
-        title: "Cannot Edit",
-        description: "This variation is pending approval and cannot be edited",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!canEditVariations) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to edit variations",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Open the detail modal instead of the form modal for editing
+    // Always open the detail modal for editing (permission checks happen there)
     setSelectedVariation(variation);
     setShowDetailsModal(true);
   };
@@ -115,22 +98,31 @@ export const VariationManagerActions: React.FC<VariationManagerActionsProps> = (
       
       const updatedVariation = await updateVariation(id, updatePayload);
       
-      // Update the selected variation to keep modal data fresh
+      // Always refresh the main variations list first
+      await refreshVariations();
+      
+      // Then update the selected variation to keep modal data fresh
       if (updatedVariation) {
         setSelectedVariation(updatedVariation);
+      } else {
+        // If no updated variation returned, fetch the latest from the list
+        const latestVariation = variations.find(v => v.id === id);
+        if (latestVariation) {
+          setSelectedVariation(latestVariation);
+        }
       }
-      
-      await refreshVariations();
     } catch (error) {
       console.error('Error updating variation:', error);
       throw error;
     }
   };
 
-  const handleVariationUpdate = (updatedVariation: Variation) => {
+  const handleVariationUpdate = async (updatedVariation: Variation) => {
+    // Refresh the main variations list first to get latest data
+    await refreshVariations();
+    
     // Update the selected variation to keep modal data fresh
     setSelectedVariation(updatedVariation);
-    refreshVariations();
   };
 
   const handleNewVariation = () => {

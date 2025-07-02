@@ -3,9 +3,10 @@ import React from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Eye, Edit, Send, MapPin } from 'lucide-react';
+import { Eye, Edit, Send, MapPin, Lock } from 'lucide-react';
 import VariationStatusBadge from '../VariationStatusBadge';
 import VariationPriorityBadge from '../VariationPriorityBadge';
+import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 
 interface VariationTableRowProps {
   variation: any;
@@ -24,11 +25,26 @@ const VariationTableRow: React.FC<VariationTableRowProps> = ({
   onEdit,
   onSendEmail
 }) => {
+  const { canEditVariation, editBlockedReason } = useVariationEditPermissions(variation);
+  
   const formatCurrency = (amount: number) => {
     if (amount >= 0) {
       return `+$${amount.toLocaleString()}`;
     }
     return `-$${Math.abs(amount).toLocaleString()}`;
+  };
+
+  const getEditTooltipText = () => {
+    if (!canEditVariations) return "You don't have permission to edit variations";
+    if (editBlockedReason) return editBlockedReason;
+    return "Edit Variation";
+  };
+
+  const getEditIcon = () => {
+    if (!canEditVariations || editBlockedReason) {
+      return <Lock className="h-4 w-4" />;
+    }
+    return <Edit className="h-4 w-4" />;
   };
 
   return (
@@ -83,22 +99,21 @@ const VariationTableRow: React.FC<VariationTableRowProps> = ({
               </TooltipContent>
             </Tooltip>
             
-            {canEditVariations && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(variation)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Edit Variation</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(variation)}
+                  className={(!canEditVariations || editBlockedReason) ? "opacity-50" : ""}
+                >
+                  {getEditIcon()}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getEditTooltipText()}</p>
+              </TooltipContent>
+            </Tooltip>
             
             {canSendEmails && variation.client_email && !variation.email_sent && (
               <Tooltip>

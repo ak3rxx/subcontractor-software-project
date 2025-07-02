@@ -1,11 +1,12 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, Edit, Save, X } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
+import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 import VariationModalTabs from './VariationModalTabs';
 import VariationStatusNotification from './VariationStatusNotification';
 
@@ -30,14 +31,22 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [saveLoading, setSaveLoading] = useState(false);
+  const [currentVariation, setCurrentVariation] = useState(variation);
 
-  // Enhanced permission checks
-  const canEditVariation = isDeveloper() || canEdit('variations');
-  const isPendingApproval = variation?.status === 'pending_approval';
-  const isStatusLocked = variation ? ['approved', 'rejected'].includes(variation.status) : false;
-  const editBlockedReason = !canEditVariation ? 'Insufficient permissions' : 
-                           isPendingApproval ? 'Variation is pending approval' :
-                           isStatusLocked ? 'Variation status is locked' : null;
+  // Use the dedicated edit permissions hook
+  const { canEditVariation, editBlockedReason, isPendingApproval, isStatusLocked } = useVariationEditPermissions(currentVariation);
+
+  // Update current variation when prop changes (for real-time updates)
+  useEffect(() => {
+    if (variation) {
+      setCurrentVariation(variation);
+      // Reset editing state if status has changed to locked
+      if (isEditing && !canEditVariation) {
+        setIsEditing(false);
+        setEditData({});
+      }
+    }
+  }, [variation, canEditVariation, isEditing]);
 
   const handleEdit = useCallback(() => {
     if (editBlockedReason) {
@@ -50,34 +59,36 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
     }
 
     setEditData({
-      title: variation.title,
-      description: variation.description || '',
-      location: variation.location || '',
-      cost_impact: variation.cost_impact,
-      time_impact: variation.time_impact,
-      category: variation.category || '',
-      priority: variation.priority,
-      client_email: variation.client_email || '',
-      justification: variation.justification || '',
-      requires_eot: variation.requires_eot || false,
-      requires_nod: variation.requires_nod || false,
-      trade: variation.trade || '',
-      cost_breakdown: variation.cost_breakdown || [],
-      gst_amount: variation.gst_amount || 0,
-      total_amount: variation.total_amount || 0
+      title: currentVariation.title,
+      description: currentVariation.description || '',
+      location: currentVariation.location || '',
+      cost_impact: currentVariation.cost_impact,
+      time_impact: currentVariation.time_impact,
+      category: currentVariation.category || '',
+      priority: currentVariation.priority,
+      client_email: currentVariation.client_email || '',
+      justification: currentVariation.justification || '',
+      requires_eot: currentVariation.requires_eot || false,
+      requires_nod: currentVariation.requires_nod || false,
+      trade: currentVariation.trade || '',
+      cost_breakdown: currentVariation.cost_breakdown || [],
+      gst_amount: currentVariation.gst_amount || 0,
+      total_amount: currentVariation.total_amount || 0
     });
     setIsEditing(true);
-  }, [variation, editBlockedReason, toast]);
+  }, [currentVariation, editBlockedReason, toast]);
 
   const handleSave = useCallback(async () => {
     if (!onUpdate || !canEditVariation) return;
     
     setSaveLoading(true);
     try {
-      await onUpdate(variation.id, editData);
+      await onUpdate(currentVariation.id, editData);
       setIsEditing(false);
+      const updatedVariation = { ...currentVariation, ...editData };
+      setCurrentVariation(updatedVariation);
       if (onVariationUpdate) {
-        onVariationUpdate({ ...variation, ...editData });
+        onVariationUpdate(updatedVariation);
       }
       toast({
         title: "Success",
@@ -92,7 +103,7 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
     } finally {
       setSaveLoading(false);
     }
-  }, [variation, editData, onUpdate, onVariationUpdate, canEditVariation, toast]);
+  }, [currentVariation, editData, onUpdate, onVariationUpdate, canEditVariation, toast]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -119,7 +130,7 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
   };
 
   // Handle null variation case
-  if (!variation) {
+  if (!currentVariation) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
@@ -140,15 +151,15 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Variation {variation.variation_number}
+                Variation {currentVariation.variation_number}
               </DialogTitle>
               <div className="flex items-center gap-2 mt-2">
-                <h3 className="text-lg font-semibold">{variation.title}</h3>
-                {getStatusBadge(variation.status)}
+                <h3 className="text-lg font-semibold">{currentVariation.title}</h3>
+                {getStatusBadge(currentVariation.status)}
               </div>
             </div>
             <div className="flex gap-2">
-              {!isEditing && canEditVariation && variation.status === 'draft' && (
+              {!isEditing && canEditVariation && currentVariation.status === 'draft' && (
                 <Button variant="outline" size="sm" onClick={handleEdit}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
@@ -182,7 +193,7 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
         />
 
         <VariationModalTabs
-          variation={variation}
+          variation={currentVariation}
           editData={editData}
           isEditing={isEditing}
           canEditVariation={canEditVariation}
@@ -190,7 +201,10 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
           onTabChange={setActiveTab}
           onDataChange={handleDataChange}
           onUpdate={onUpdate}
-          onVariationUpdate={onVariationUpdate}
+          onVariationUpdate={(updatedVar) => {
+            setCurrentVariation(updatedVar);
+            if (onVariationUpdate) onVariationUpdate(updatedVar);
+          }}
         />
       </DialogContent>
     </Dialog>
