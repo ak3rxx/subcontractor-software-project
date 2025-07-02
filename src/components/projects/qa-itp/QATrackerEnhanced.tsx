@@ -31,6 +31,8 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [inspectionTypeFilter, setInspectionTypeFilter] = useState('all');
   const [templateTypeFilter, setTemplateTypeFilter] = useState('all');
+  const [buildingFilter, setBuildingFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
   // Filter inspections
@@ -39,15 +41,21 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
       const matchesSearch = searchTerm === '' || 
         inspection.task_area.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inspection.inspection_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inspection.inspector_name.toLowerCase().includes(searchTerm.toLowerCase());
+        inspection.inspector_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inspection.location_reference.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || inspection.overall_status === statusFilter;
       const matchesInspectionType = inspectionTypeFilter === 'all' || inspection.inspection_type === inspectionTypeFilter;
       const matchesTemplateType = templateTypeFilter === 'all' || inspection.template_type === templateTypeFilter;
       
-      return matchesSearch && matchesStatus && matchesInspectionType && matchesTemplateType;
+      // Extract building/level from location_reference
+      const location = inspection.location_reference || '';
+      const buildingMatch = buildingFilter === 'all' || location.toLowerCase().includes(buildingFilter.toLowerCase());
+      const levelMatch = levelFilter === 'all' || location.toLowerCase().includes(levelFilter.toLowerCase());
+      
+      return matchesSearch && matchesStatus && matchesInspectionType && matchesTemplateType && buildingMatch && levelMatch;
     });
-  }, [inspections, searchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter]);
+  }, [inspections, searchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter, buildingFilter, levelFilter]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -108,11 +116,42 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
     }
   };
 
-  const handleBulkPDFExport = () => {
+  const handleBulkPDFExport = async () => {
     if (selectedItems.size === 0) return;
     
-    // TODO: Implement bulk PDF export
-    console.log('Bulk PDF export for:', Array.from(selectedItems));
+    try {
+      const selectedInspections = inspections.filter(i => selectedItems.has(i.id));
+      const { exportMultipleInspectionsToPDF, downloadPDF } = await import('@/utils/pdfExport');
+      
+      // Create temporary elements for each inspection
+      const elements = selectedInspections.map(inspection => {
+        const tempElement = document.createElement('div');
+        tempElement.setAttribute('data-inspection-viewer', 'true');
+        tempElement.innerHTML = `
+          <div data-project-name="${inspection.project_name}"></div>
+          <div data-task-area="${inspection.task_area}"></div>
+          <div data-location-reference="${inspection.location_reference}"></div>
+          <div data-inspector-name="${inspection.inspector_name}"></div>
+          <div data-inspection-date="${inspection.inspection_date}"></div>
+          <div data-overall-status="${inspection.overall_status}"></div>
+        `;
+        return tempElement;
+      });
+      
+      const blob = await exportMultipleInspectionsToPDF(elements, selectedInspections.map(i => ({
+        id: i.id,
+        inspection_number: i.inspection_number,
+        project_name: i.project_name,
+        task_area: i.task_area,
+        inspector_name: i.inspector_name,
+        inspection_date: i.inspection_date,
+        overall_status: i.overall_status
+      })));
+      
+      downloadPDF(blob, `bulk_inspections_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error exporting bulk PDF:', error);
+    }
   };
 
   const handleDelete = async (inspectionId: string) => {
@@ -126,9 +165,32 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
     setStatusFilter('all');
     setInspectionTypeFilter('all');
     setTemplateTypeFilter('all');
+    setBuildingFilter('all');
+    setLevelFilter('all');
   };
 
-  const hasActiveFilters = searchTerm || statusFilter !== 'all' || inspectionTypeFilter !== 'all' || templateTypeFilter !== 'all';
+  // Get unique buildings and levels from inspection locations
+  const uniqueBuildings = useMemo(() => {
+    const buildings = new Set<string>();
+    inspections.forEach(inspection => {
+      const location = inspection.location_reference || '';
+      const buildingMatch = location.match(/building\s+(\w+)/i);
+      if (buildingMatch) buildings.add(buildingMatch[1]);
+    });
+    return Array.from(buildings).sort();
+  }, [inspections]);
+
+  const uniqueLevels = useMemo(() => {
+    const levels = new Set<string>();
+    inspections.forEach(inspection => {
+      const location = inspection.location_reference || '';
+      const levelMatch = location.match(/level\s+(\w+)/i);
+      if (levelMatch) levels.add(levelMatch[1]);
+    });
+    return Array.from(levels).sort();
+  }, [inspections]);
+
+  const hasActiveFilters = searchTerm || statusFilter !== 'all' || inspectionTypeFilter !== 'all' || templateTypeFilter !== 'all' || buildingFilter !== 'all' || levelFilter !== 'all';
 
   if (showCreateForm) {
     return (
@@ -190,7 +252,7 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
             </div>
 
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pt-4 border-t">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Status</label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -232,6 +294,36 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
                       <SelectItem value="all">All Templates</SelectItem>
                       <SelectItem value="doors-jambs-hardware">Doors, Jambs & Hardware</SelectItem>
                       <SelectItem value="skirting">Skirting</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Building</label>
+                  <Select value={buildingFilter} onValueChange={setBuildingFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All buildings" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Buildings</SelectItem>
+                      {uniqueBuildings.map(building => (
+                        <SelectItem key={building} value={building}>Building {building}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Level</label>
+                  <Select value={levelFilter} onValueChange={setLevelFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All levels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Levels</SelectItem>
+                      {uniqueLevels.map(level => (
+                        <SelectItem key={level} value={level}>Level {level}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

@@ -179,18 +179,8 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
               </div>
             </div>
             <div className="flex gap-2">
-              {!isEditing && (
-                <Button variant="outline" size="sm" onClick={handleEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
               {isEditing && (
                 <>
-                  <Button variant="outline" size="sm" onClick={handleCancel} disabled={saveLoading}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
                   <Button 
                     size="sm" 
                     onClick={handleSave}
@@ -199,7 +189,17 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
                     <Save className="h-4 w-4 mr-2" />
                     {saveLoading ? 'Saving...' : 'Save Changes'}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={handleCancel} disabled={saveLoading}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
                 </>
+              )}
+              {!isEditing && (
+                <Button variant="outline" size="sm" onClick={handleEdit}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
               )}
             </div>
           </div>
