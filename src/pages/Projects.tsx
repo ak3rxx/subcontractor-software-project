@@ -1,21 +1,21 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Building2, Calendar, Users, Settings, Calculator, Hash } from 'lucide-react';
+import { Plus, Building2, Calendar, Users, Settings, Calculator, Hash, BarChart3, ClipboardCheck, MessageSquare, FileText, DollarSign, AlertTriangle, CheckSquare, List } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
+import { usePermissionChecks } from '@/permissions/hooks/usePermissionChecks';
 import TopNav from '@/components/TopNav';
 import ProjectSetup from '@/components/projects/ProjectSetup';
-import ProjectDashboard from '@/components/projects/ProjectDashboard';
 import VariationManager from '@/components/projects/variations/VariationManager';
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
 import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
+import QAITPForm from '@/components/projects/QAITPForm';
 import ProgrammeTracker from '@/components/projects/ProgrammeTracker';
 import FinanceManager from '@/components/projects/finance/FinanceManager';
 import DocumentManager from '@/components/projects/DocumentManager';
@@ -26,10 +26,13 @@ const Projects = () => {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [qaActiveTab, setQaActiveTab] = useState('dashboard');
+  const [activeQAForm, setActiveQAForm] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getCrossModuleData, getCrossModuleAction } = useCrossModuleNavigation();
+  const { canAccess } = usePermissionChecks();
 
   // Handle URL parameters for cross-module integration
   useEffect(() => {
@@ -80,7 +83,7 @@ const Projects = () => {
   };
 
   const handleNewInspection = () => {
-    console.log('Creating new QA inspection for project:', selectedProject?.id);
+    setActiveQAForm(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -125,66 +128,150 @@ const Projects = () => {
         <TopNav />
         <main className="flex-1">
           <div className="container mx-auto px-4 py-8">
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-3xl font-bold text-gray-900">{selectedProject.name}</h1>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <Hash className="h-3 w-3" />
-                      Project #{selectedProject.project_number}
-                    </Badge>
-                    {crossModuleData?.fromVariation && (
-                      <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
-                        🔗 Linked from Variation {crossModuleData.variationNumber}
+            {/* Project Information Header */}
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-2">
+                      <Building2 className="h-6 w-6 text-blue-600" />
+                      <h2 className="text-2xl font-bold">{selectedProject.name}</h2>
+                      {getStatusBadge(selectedProject.status)}
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <Hash className="h-3 w-3" />
+                        Project #{selectedProject.project_number}
                       </Badge>
+                      {crossModuleData?.fromVariation && (
+                        <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                          🔗 Linked from Variation {crossModuleData.variationNumber}
+                        </Badge>
+                      )}
+                    </div>
+                    {selectedProject.description && (
+                      <p className="text-gray-600 mb-2">{selectedProject.description}</p>
+                    )}
+                    <div className="flex items-center gap-6 text-sm text-gray-600">
+                      {selectedProject.project_type && (
+                        <span className="flex items-center gap-1">
+                          <Building2 className="h-4 w-4" />
+                          {selectedProject.project_type}
+                        </span>
+                      )}
+                      {selectedProject.start_date && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          Started: {new Date(selectedProject.start_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      {selectedProject.total_budget && (
+                        <span className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4" />
+                          Budget: ${selectedProject.total_budget.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    {selectedProject.site_address && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        📍 {selectedProject.site_address}
+                      </div>
                     )}
                   </div>
-                  <p className="text-gray-600">{selectedProject.description}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    {getStatusBadge(selectedProject.status)}
-                    <span className="text-sm text-gray-500">
-                      Created: {new Date(selectedProject.created_at).toLocaleDateString()}
-                    </span>
-                    {selectedProject.total_budget && (
-                      <span className="text-sm text-gray-500">
-                        Budget: ${selectedProject.total_budget.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleBackToProjects}
+                  >
+                    ← Back to Projects
+                  </Button>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={handleBackToProjects}
-                >
-                  ← Back to Projects
-                </Button>
-              </div>
-            </div>
+              </CardHeader>
+            </Card>
 
+            {/* Consolidated Navigation */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-9">
-                <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-                <TabsTrigger value="variations">Variations</TabsTrigger>
-                <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                <TabsTrigger value="rfis">RFIs</TabsTrigger>
-                <TabsTrigger value="qa">QA/ITP</TabsTrigger>
-                <TabsTrigger value="programme">Programme</TabsTrigger>
-                <TabsTrigger value="finance">Finance</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-8 lg:grid-cols-8">
+                <TabsTrigger value="dashboard" className="flex items-center gap-1">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </TabsTrigger>
+                <TabsTrigger value="programme" className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span className="hidden sm:inline">Programme</span>
+                </TabsTrigger>
+                <TabsTrigger value="tasks" className="flex items-center gap-1">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Tasks</span>
+                </TabsTrigger>
+                <TabsTrigger value="rfis" className="flex items-center gap-1">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">RFIs</span>
+                </TabsTrigger>
+                <TabsTrigger value="variations" className="flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Variations</span>
+                </TabsTrigger>
+                <TabsTrigger value="qa-itp" className="flex items-center gap-1">
+                  <ClipboardCheck className="h-4 w-4" />
+                  <span className="hidden sm:inline">QA/ITP</span>
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Documents</span>
+                </TabsTrigger>
+                <TabsTrigger value="notes" className="flex items-center gap-1">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">Notes</span>
+                </TabsTrigger>
+                {canAccess('finance') && (
+                  <TabsTrigger value="finance" className="flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="hidden sm:inline">Finance</span>
+                  </TabsTrigger>
+                )}
               </TabsList>
 
-              <TabsContent value="dashboard" className="mt-6">
-                <ProjectDashboard 
-                  projectData={selectedProject}
-                />
+              <TabsContent value="dashboard" className="mt-6 space-y-6">
+                {/* Dashboard Overview Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <Building2 className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                      <div className="text-2xl font-bold">{selectedProject.project_type || 'N/A'}</div>
+                      <div className="text-sm text-gray-600">Project Type</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <Calendar className="h-8 w-8 mx-auto text-green-500 mb-2" />
+                      <div className="text-2xl font-bold">
+                        {selectedProject.start_date ? new Date(selectedProject.start_date).toLocaleDateString() : 'Not Set'}
+                      </div>
+                      <div className="text-sm text-gray-600">Start Date</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <DollarSign className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
+                      <div className="text-2xl font-bold">
+                        {selectedProject.total_budget ? `$${selectedProject.total_budget.toLocaleString()}` : 'Not Set'}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Budget</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <Users className="h-8 w-8 mx-auto text-purple-500 mb-2" />
+                      <div className="text-2xl font-bold">Active</div>
+                      <div className="text-sm text-gray-600">Project Status</div>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
-              <TabsContent value="variations" className="mt-6">
-                <VariationManager
-                  projectName={selectedProject.name}
+              <TabsContent value="programme" className="mt-6">
+                <ProgrammeTracker 
+                  projectName={selectedProject.name} 
                   projectId={selectedProject.id}
+                  crossModuleData={crossModuleData}
                 />
               </TabsContent>
 
@@ -202,26 +289,77 @@ const Projects = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="qa" className="mt-6">
-                <QAITPTracker 
+              <TabsContent value="variations" className="mt-6">
+                <VariationManager
+                  projectName={selectedProject.name}
                   projectId={selectedProject.id}
-                  onNewInspection={handleNewInspection}
                 />
               </TabsContent>
 
-              <TabsContent value="programme" className="mt-6">
-                <ProgrammeTracker 
-                  projectName={selectedProject.name}
-                  projectId={selectedProject.id}
-                  crossModuleData={crossModuleData}
-                />
-              </TabsContent>
+              <TabsContent value="qa-itp" className="mt-6 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>Quality Assurance / Inspection Test Plan</CardTitle>
+                        <p className="text-muted-foreground">
+                          Create and track inspection hold points, collect evidence, and generate sign-off records
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs value={qaActiveTab} onValueChange={setQaActiveTab} className="w-full">
+                      <div className="flex justify-between items-center mb-4">
+                        <TabsList className="grid w-full max-w-md grid-cols-3">
+                          <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            Dashboard
+                          </TabsTrigger>
+                          <TabsTrigger value="qa-list" className="flex items-center gap-2">
+                            <List className="h-4 w-4" />
+                            QA/ITP List
+                          </TabsTrigger>
+                          <TabsTrigger value="actions" className="flex items-center gap-2">
+                            <CheckSquare className="h-4 w-4" />
+                            Action/Task List
+                          </TabsTrigger>
+                        </TabsList>
+                        <Button onClick={() => setActiveQAForm(true)} className="flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          Add ITP/QA
+                        </Button>
+                      </div>
 
-              <TabsContent value="finance" className="mt-6">
-                <FinanceManager 
-                  projectName={selectedProject.name}
-                  crossModuleData={crossModuleData}
-                />
+                      <TabsContent value="dashboard">
+                        <div className="text-center py-8">
+                          <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">QA Dashboard</h3>
+                          <p className="text-gray-600">Dashboard view coming soon...</p>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="qa-list">
+                        {activeQAForm ? (
+                          <QAITPForm onClose={() => setActiveQAForm(false)} />
+                        ) : (
+                          <QAITPTracker 
+                            onNewInspection={() => setActiveQAForm(true)} 
+                            projectId={selectedProject.id}
+                          />
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="actions">
+                        <div className="text-center py-8">
+                          <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Action/Task List</h3>
+                          <p className="text-gray-600">Action and task management coming soon...</p>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="documents" className="mt-6">
@@ -235,6 +373,15 @@ const Projects = () => {
                   projectName={selectedProject.name}
                 />
               </TabsContent>
+
+              {canAccess('finance') && (
+                <TabsContent value="finance" className="mt-6">
+                  <FinanceManager 
+                    projectName={selectedProject.name}
+                    crossModuleData={crossModuleData}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         </main>
