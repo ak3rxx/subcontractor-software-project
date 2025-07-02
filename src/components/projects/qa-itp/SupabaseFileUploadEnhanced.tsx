@@ -35,20 +35,19 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
   const { toast } = useToast();
   
   const {
+    uploadedFiles,
+    uploading,
+    hasUploadFailures,
     uploadFiles,
-    deleteFile,
-    isUploading,
-    uploadProgress,
-    uploadError
+    removeFile
   } = useSupabaseFileUpload({
-    bucket: 'qainspectionfiles',
-    basePath: inspectionId ? `inspections/${inspectionId}${checklistItemId ? `/checklist/${checklistItemId}` : ''}` : 'temp'
+    bucket: 'qainspectionfiles'
   });
 
   // Update parent about upload status
   React.useEffect(() => {
-    onUploadStatusChange?.(isUploading, !!uploadError);
-  }, [isUploading, uploadError, onUploadStatusChange]);
+    onUploadStatusChange?.(uploading, hasUploadFailures);
+  }, [uploading, hasUploadFailures, onUploadStatusChange]);
 
   const handleFileSelect = useCallback(async (selectedFiles: File[]) => {
     if (disabled) return;
@@ -63,7 +62,7 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
     }
 
     try {
-      const uploadedFiles = await uploadFiles(selectedFiles);
+      const uploadedFiles = await uploadFiles(selectedFiles, inspectionId || undefined, checklistItemId);
       const newFiles = [...files, ...uploadedFiles];
       onFilesChange(newFiles);
       
@@ -79,7 +78,7 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
         variant: "destructive"
       });
     }
-  }, [files, uploadFiles, onFilesChange, maxFiles, toast, disabled]);
+  }, [files, uploadFiles, onFilesChange, maxFiles, toast, disabled, inspectionId, checklistItemId]);
 
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
@@ -121,7 +120,7 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
     if (disabled) return;
     
     try {
-      await deleteFile(fileToRemove.path);
+      await removeFile(fileToRemove.id);
       const updatedFiles = files.filter(file => file.id !== fileToRemove.id);
       onFilesChange(updatedFiles);
       
@@ -166,7 +165,7 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer
               ${isDragOver ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-gray-400'}
-              ${isUploading ? 'pointer-events-none opacity-50' : ''}
+              ${uploading ? 'pointer-events-none opacity-50' : ''}
             `}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -175,7 +174,7 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
           >
             <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
             <p className="text-sm text-gray-600">
-              {isUploading ? 'Uploading...' : 'Drop files here or click to browse'}
+              {uploading ? 'Uploading...' : 'Drop files here or click to browse'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
               Maximum {maxFiles} files • {accept}
@@ -188,27 +187,26 @@ const SupabaseFileUploadEnhanced: React.FC<SupabaseFileUploadEnhancedProps> = ({
               accept={accept}
               onChange={handleFileInputChange}
               className="hidden"
-              disabled={isUploading || disabled}
+              disabled={uploading || disabled}
             />
           </div>
         )}
 
         {/* Upload Progress */}
-        {isUploading && (
+        {uploading && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span>Uploading files...</span>
-              <span>{Math.round(uploadProgress)}%</span>
             </div>
-            <Progress value={uploadProgress} className="w-full" />
+            <Progress value={0} className="w-full" />
           </div>
         )}
 
         {/* Upload Error */}
-        {uploadError && (
+        {hasUploadFailures && (
           <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg">
             <AlertCircle className="h-4 w-4 text-red-500" />
-            <span className="text-sm text-red-700">{uploadError}</span>
+            <span className="text-sm text-red-700">Some files failed to upload</span>
           </div>
         )}
 

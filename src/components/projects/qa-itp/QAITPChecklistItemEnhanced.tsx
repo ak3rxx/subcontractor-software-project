@@ -1,12 +1,12 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import SupabaseFileUploadEnhanced from './SupabaseFileUploadEnhanced';
 import { ChecklistItem } from './QAITPTemplates';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Lock, Edit } from 'lucide-react';
 
 interface QAITPChecklistItemEnhancedProps {
   item: ChecklistItem;
@@ -27,6 +27,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
   isEditing = false,
   onRecordChange
 }) => {
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const handleFileChange = useCallback((files: SupabaseUploadedFile[]) => {
     if (!isEditing) return;
@@ -45,7 +46,11 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
       );
     }
     
+    setHasUnsavedChanges(true);
     onChecklistChange(item.id, 'evidenceFiles', files);
+    
+    // Clear unsaved changes flag after a delay
+    setTimeout(() => setHasUnsavedChanges(false), 2000);
   }, [item.id, onChecklistChange, onRecordChange, item.description, item.evidenceFiles, isEditing]);
 
   const handleStatusChange = useCallback((status: string) => {
@@ -64,7 +69,11 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
       );
     }
     
+    setHasUnsavedChanges(true);
     onChecklistChange(item.id, 'status', status);
+    
+    // Clear unsaved changes flag after a delay
+    setTimeout(() => setHasUnsavedChanges(false), 2000);
   }, [item.id, onChecklistChange, onRecordChange, item.status, item.description, isEditing]);
 
   const handleCommentsChange = useCallback((comments: string) => {
@@ -83,7 +92,11 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
       );
     }
     
+    setHasUnsavedChanges(true);
     onChecklistChange(item.id, 'comments', comments);
+    
+    // Clear unsaved changes flag after a delay
+    setTimeout(() => setHasUnsavedChanges(false), 2000);
   }, [item.id, onChecklistChange, onRecordChange, item.comments, item.description, isEditing]);
 
   // Ensure evidenceFiles is always an array of SupabaseUploadedFile objects
@@ -111,16 +124,22 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
   };
 
   return (
-    <div className={`border rounded-lg p-4 space-y-4 bg-card ${!isEditing ? 'opacity-75' : ''}`}>
+    <div className={`border rounded-lg p-4 space-y-4 bg-card transition-all ${
+      hasUnsavedChanges ? 'border-orange-300 bg-orange-50/50' : ''
+    } ${!isEditing ? 'opacity-75' : ''}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h4 className="font-medium">{item.description}</h4>
             {getStatusIcon()}
+            {hasUnsavedChanges && (
+              <Edit className="h-3 w-3 text-orange-500 animate-pulse" />
+            )}
             {!isEditing && (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                <Lock className="h-3 w-3" />
                 Read Only
-              </span>
+              </div>
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">{item.requirements}</p>
@@ -141,6 +160,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
                 value="pass" 
                 id={`${item.id}-pass`} 
                 disabled={!isEditing}
+                className={!isEditing ? 'opacity-50 cursor-not-allowed' : ''}
               />
               <Label 
                 htmlFor={`${item.id}-pass`} 
@@ -154,6 +174,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
                 value="fail" 
                 id={`${item.id}-fail`} 
                 disabled={!isEditing}
+                className={!isEditing ? 'opacity-50 cursor-not-allowed' : ''}
               />
               <Label 
                 htmlFor={`${item.id}-fail`} 
@@ -167,6 +188,7 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
                 value="na" 
                 id={`${item.id}-na`} 
                 disabled={!isEditing}
+                className={!isEditing ? 'opacity-50 cursor-not-allowed' : ''}
               />
               <Label 
                 htmlFor={`${item.id}-na`} 
@@ -187,7 +209,9 @@ const QAITPChecklistItemEnhanced: React.FC<QAITPChecklistItemEnhancedProps> = ({
             placeholder={isEditing ? "Add comments..." : "No comments"}
             rows={2}
             disabled={!isEditing}
-            className={!isEditing ? 'opacity-75 cursor-not-allowed' : ''}
+            className={`transition-all ${!isEditing ? 'opacity-75 cursor-not-allowed bg-muted' : ''} ${
+              hasUnsavedChanges ? 'border-orange-300' : ''
+            }`}
           />
         </div>
 

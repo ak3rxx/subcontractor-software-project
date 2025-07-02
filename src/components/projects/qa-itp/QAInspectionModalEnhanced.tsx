@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +31,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   const [activeTab, setActiveTab] = useState('details');
   const [saveLoading, setSaveLoading] = useState(false);
   const [currentInspection, setCurrentInspection] = useState(inspection);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Initialize edit data when inspection changes
   useEffect(() => {
@@ -58,10 +58,11 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   const handleEdit = useCallback(() => {
     console.log('Starting edit mode for inspection:', currentInspection?.id);
     setIsEditing(true);
+    setHasUnsavedChanges(false);
     
     // Record the start of editing session
     if (recordChange) {
-      recordChange('edit_session', 'inactive', 'active', 'update');
+      recordChange('edit_session', 'inactive', 'active', 'session_start');
     }
   }, [currentInspection, recordChange]);
 
@@ -99,35 +100,23 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
             field,
             String(oldValue || ''),
             String(newValue || ''),
-            'update'
+            'field_update'
           );
         }
       }
 
-      // Prepare the update data
+      // Prepare the update data (excluding checklist items as they're saved in real-time)
       const updateData = { ...editData };
+      delete updateData.checklistItems; // Remove checklist items as they're saved in real-time
       
-      // Handle checklist items if they exist
-      if (editData.checklistItems) {
-        console.log('Processing checklist items:', editData.checklistItems);
-        const checklistItems = editData.checklistItems.map((item: any) => ({
-          item_id: item.id,
-          description: item.description,
-          requirements: item.requirements,
-          status: item.status || '',
-          comments: item.comments || '',
-          evidence_files: item.evidenceFiles || []
-        }));
-        updateData.checklistItems = checklistItems;
-      }
-
       console.log('Calling updateInspection with data:', updateData);
-      await updateInspection(currentInspection.id, updateData, updateData.checklistItems);
+      await updateInspection(currentInspection.id, updateData);
       
       // Update local state
       const updatedInspection = { ...currentInspection, ...editData };
       setCurrentInspection(updatedInspection);
       setIsEditing(false);
+      setHasUnsavedChanges(false);
       
       // Notify parent component
       if (onInspectionUpdate) {
@@ -136,7 +125,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
 
       // Record successful save
       if (recordChange) {
-        await recordChange('edit_session', 'active', 'saved', 'update');
+        await recordChange('edit_session', 'active', 'saved', 'session_end');
       }
       
       console.log('Save completed successfully');
@@ -150,7 +139,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
       
       // Record failed save
       if (recordChange) {
-        await recordChange('edit_session', 'active', 'failed', 'update');
+        await recordChange('edit_session', 'active', 'failed', 'session_error');
       }
       
       toast({
@@ -166,6 +155,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   const handleCancel = useCallback(() => {
     console.log('Canceling edit mode');
     setIsEditing(false);
+    setHasUnsavedChanges(false);
     
     // Reset edit data to current inspection values
     if (currentInspection) {
@@ -187,7 +177,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
 
     // Record cancel action
     if (recordChange) {
-      recordChange('edit_session', 'active', 'cancelled', 'update');
+      recordChange('edit_session', 'active', 'cancelled', 'session_cancel');
     }
   }, [currentInspection, recordChange]);
 
@@ -198,6 +188,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
       console.log('Updated edit data:', updated);
       return updated;
     });
+    setHasUnsavedChanges(true);
   }, []);
 
   const getStatusBadge = (status: string) => {
@@ -257,14 +248,21 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
           </div>
         </DialogHeader>
 
-        {/* Prominent Save Button Bar - Only show when editing */}
+        {/* Enhanced Save Button Bar */}
         {isEditing && (
-          <div className="flex-shrink-0 bg-muted/50 border border-border rounded-lg p-4 mb-4">
+          <div className={`flex-shrink-0 border rounded-lg p-4 mb-4 transition-all ${
+            hasUnsavedChanges ? 'bg-orange-50 border-orange-200' : 'bg-muted/50 border-border'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                <div className={`w-2 h-2 rounded-full ${
+                  hasUnsavedChanges ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
+                }`} />
                 <span className="text-sm font-medium text-muted-foreground">
-                  Editing Mode - Changes will be saved across all tabs
+                  {hasUnsavedChanges 
+                    ? 'Editing Mode - Unsaved changes in Details tab' 
+                    : 'Editing Mode - Checklist changes auto-saved'
+                  }
                 </span>
               </div>
               <div className="flex gap-2">
@@ -272,9 +270,9 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={saveLoading}>
+                <Button onClick={handleSave} disabled={saveLoading || !hasUnsavedChanges}>
                   <Save className="h-4 w-4 mr-2" />
-                  {saveLoading ? 'Saving...' : 'Save Changes'}
+                  {saveLoading ? 'Saving...' : 'Save Details'}
                 </Button>
               </div>
             </div>
@@ -296,6 +294,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
               setCurrentInspection(updatedInspection);
               if (onInspectionUpdate) onInspectionUpdate(updatedInspection);
             }}
+            recordChange={recordChange}
           />
         </div>
       </DialogContent>
