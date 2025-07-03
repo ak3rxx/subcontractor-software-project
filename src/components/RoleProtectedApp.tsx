@@ -1,9 +1,5 @@
-
 import React from 'react';
-import { useRoleValidation } from '@/hooks/useRoleValidation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PermissionDataProvider } from '@/permissions';
-import RestrictedUserLayout from '@/components/RestrictedUserLayout';
 
 interface RoleProtectedAppProps {
   children: React.ReactNode;
@@ -11,10 +7,9 @@ interface RoleProtectedAppProps {
 
 const RoleProtectedApp: React.FC<RoleProtectedAppProps> = ({ children }) => {
   const { user, loading: authLoading } = useAuth();
-  const { validation, loading: validationLoading, isValid, needsAssignment } = useRoleValidation();
 
-  // Show loading while auth or validation is loading
-  if (authLoading || validationLoading) {
+  // Show loading while auth is loading
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -30,37 +25,9 @@ const RoleProtectedApp: React.FC<RoleProtectedAppProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // If validation data doesn't exist but user is authenticated, 
-  // proceed with normal app (skip role validation for now)
-  if (!validation) {
-    console.log('No validation data found - proceeding with normal app flow');
-    return (
-      <PermissionDataProvider>
-        {children}
-      </PermissionDataProvider>
-    );
-  }
-
-  // If user has valid role, show normal app with permission context
-  if (isValid) {
-    return (
-      <PermissionDataProvider>
-        {children}
-      </PermissionDataProvider>
-    );
-  }
-
-  // If user needs role assignment, show restricted layout
-  if (needsAssignment || validation?.validation_status === 'pending_assignment') {
-    return <RestrictedUserLayout />;
-  }
-
-  // Default to showing normal app with permission context
-  return (
-    <PermissionDataProvider>
-      {children}
-    </PermissionDataProvider>
-  );
+  // Emergency bypass: just proceed with normal app for authenticated users
+  console.log('Emergency bypass: authenticated user accessing app');
+  return <>{children}</>;
 };
 
 export default RoleProtectedApp;
