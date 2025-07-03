@@ -103,14 +103,8 @@ export const useRoleValidation = () => {
         return false;
       }
 
-      // Update validation status to pending_assignment
-      await supabase
-        .from('user_role_validation')
-        .update({ 
-          validation_status: 'pending_assignment',
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+      // Note: Validation status update should be handled by admin/system
+      console.log('Role assignment request submitted - validation status should be updated by admin');
 
       toast({
         title: "Success",
@@ -135,21 +129,17 @@ export const useRoleValidation = () => {
         .eq('id', user.id)
         .single();
 
-      if (!profile) return;
+      if (!profile || !profile.role) {
+        console.log('No profile or role found for user');
+        return;
+      }
 
       const validRoles = ['developer', 'org_admin', 'project_manager', 'estimator', 'admin', 'site_supervisor', 'subcontractor', 'client'];
       const isValid = validRoles.includes(profile.role);
 
-      const newStatus: ValidationStatus = isValid ? 'valid' : 'invalid';
+      console.log('Role validation check:', profile.role, 'isValid:', isValid);
 
-      await supabase
-        .from('user_role_validation')
-        .upsert({
-          user_id: user.id,
-          validation_status: newStatus,
-          last_validated_at: new Date().toISOString()
-        });
-
+      // Just fetch the current validation status - don't try to update it
       fetchValidation();
     } catch (error) {
       console.error('Error validating role:', error);
@@ -160,6 +150,27 @@ export const useRoleValidation = () => {
     fetchValidation();
   }, [user]);
 
+  // Check if user has a valid role in their profile
+  const hasValidRoleInProfile = async () => {
+    if (!user) return false;
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.role) return false;
+
+      const validRoles = ['developer', 'org_admin', 'project_manager', 'estimator', 'admin', 'site_supervisor', 'subcontractor', 'client'];
+      return validRoles.includes(profile.role);
+    } catch (error) {
+      console.error('Error checking profile role:', error);
+      return false;
+    }
+  };
+
   return {
     validation,
     loading,
@@ -167,6 +178,7 @@ export const useRoleValidation = () => {
     validateCurrentRole,
     refetch: fetchValidation,
     isValid: validation?.validation_status === 'valid',
-    needsAssignment: validation?.validation_status === 'invalid' || validation?.validation_status === 'unassigned'
+    needsAssignment: validation?.validation_status === 'invalid' || validation?.validation_status === 'unassigned',
+    hasValidRoleInProfile
   };
 };

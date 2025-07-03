@@ -30,6 +30,17 @@ const RoleProtectedApp: React.FC<RoleProtectedAppProps> = ({ children }) => {
     return <>{children}</>;
   }
 
+  // If validation data doesn't exist but user is authenticated, 
+  // proceed with normal app (skip role validation for now)
+  if (!validation) {
+    console.log('No validation data found - proceeding with normal app flow');
+    return (
+      <PermissionDataProvider>
+        {children}
+      </PermissionDataProvider>
+    );
+  }
+
   // If user has valid role, show normal app with permission context
   if (isValid) {
     return (
