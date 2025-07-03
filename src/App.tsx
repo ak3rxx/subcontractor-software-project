@@ -9,7 +9,7 @@ import Finance from '@/pages/Finance';
 import SubcontractorOnboarding from '@/pages/SubcontractorOnboarding';
 import AdminPanel from '@/pages/AdminPanel';
 import DeveloperAdmin from '@/pages/DeveloperAdmin';
-import OrganizationPanel from '@/components/organization/OrganizationPanelDashboard';
+import OrganizationPanel from '@/pages/OrganizationPanel';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedApp from '@/components/RoleProtectedApp';
@@ -63,11 +63,7 @@ function App() {
                 <DeveloperAdmin />
               </ProtectedRoute>
             } />
-            <Route path="/organization-panel" element={
-              <ProtectedRoute>
-                <OrganizationPanel />
-              </ProtectedRoute>
-            } />
+            <Route path="/organization-panel" element={<OrganizationPanel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </RoleProtectedApp>

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, FileText, Calendar, CreditCard, BarChart3 } from 'lucide-react';
+import TopNav from '@/components/TopNav';
 import FinanceDashboard from '@/components/finance/FinanceDashboard';
 import InvoiceManager from '@/components/finance/invoices/InvoiceManager';
 import ProgressClaimManager from '@/components/finance/progress-claims/ProgressClaimManager';
@@ -14,11 +15,7 @@ const Finance = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold">Finance Management</h1>
-        </div>
-      </div>
+      <TopNav />
       <main className="flex-1">
         <div className="container mx-auto p-6 space-y-6">
           {/* Header */}

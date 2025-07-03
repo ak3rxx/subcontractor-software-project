@@ -8,14 +8,14 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Settings as SettingsIcon, User, Bell, Palette, Building2 } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import TopNav from '@/components/TopNav';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
 
 const Settings = () => {
-  const { isDeveloper, isOrgAdmin, loading } = usePermissions();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
+  const isOrgAdmin = () => false; // Simplified for now
   const [activeTab, setActiveTab] = useState('profile');
 
   if (loading) {

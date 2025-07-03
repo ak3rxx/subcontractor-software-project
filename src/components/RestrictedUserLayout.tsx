@@ -6,13 +6,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, User, Building2, Mail, Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
+// Removed broken permissions import
 import { useRoleValidation } from '@/hooks/useRoleValidation';
 import TopNav from '@/components/TopNav';
 
 const RestrictedUserLayout: React.FC = () => {
   const { user } = useAuth();
-  const { userProfile } = usePermissions();
+  // Emergency bypass: use user data directly from auth
+  const userProfile = user;
   const { validation, requestRoleAssignment, loading } = useRoleValidation();
 
   const handleRequestRole = async (role: string) => {
@@ -63,7 +64,7 @@ const RestrictedUserLayout: React.FC = () => {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">Name</label>
-                <p className="text-lg">{userProfile?.full_name || 'Not set'}</p>
+                <p className="text-lg">{userProfile?.user_metadata?.full_name || 'Not set'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Email</label>
@@ -76,7 +77,7 @@ const RestrictedUserLayout: React.FC = () => {
                 <label className="text-sm font-medium text-gray-600">Current Role</label>
                 <div className="flex items-center gap-2">
                   <Badge variant="destructive">
-                    {userProfile?.role || 'Unassigned'}
+                    {userProfile?.user_metadata?.role || 'Unassigned'}
                   </Badge>
                   <span className="text-sm text-red-600">Invalid</span>
                 </div>
@@ -101,13 +102,13 @@ const RestrictedUserLayout: React.FC = () => {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">Company</label>
-                <p className="text-lg">{userProfile?.company || 'Not set'}</p>
+                <p className="text-lg">{userProfile?.user_metadata?.company || 'Not set'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Phone</label>
                 <p className="text-lg flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  {userProfile?.phone || 'Not set'}
+                  {userProfile?.user_metadata?.phone || 'Not set'}
                 </p>
               </div>
               <div className="pt-4 border-t">

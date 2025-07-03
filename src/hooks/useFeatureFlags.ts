@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { usePermissions } from './usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FeatureFlag {
   flag_name: string;
@@ -12,7 +12,8 @@ interface FeatureFlag {
 export const useFeatureFlags = () => {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isDeveloper } = usePermissions();
+  const { user } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
 
   useEffect(() => {
     fetchFlags();

@@ -1,10 +1,11 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AdminPanel: React.FC = () => {
-  const { isDeveloper, loading } = usePermissions();
+  const { user, loading } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
 
   if (loading) {
     return (

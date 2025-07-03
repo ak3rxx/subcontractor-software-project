@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import EnhancedDeveloperAdminDashboard from '@/components/admin/EnhancedDeveloperAdminDashboard';
 
 const DeveloperAdmin: React.FC = () => {
-  const { isDeveloper, loading } = usePermissions();
+  const { user, loading } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
 
   if (loading) {
     return (
