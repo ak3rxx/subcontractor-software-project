@@ -4,7 +4,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import SupabaseFileUpload from './SupabaseFileUpload';
-import QAFieldAuditTrail from './QAFieldAuditTrail';
+// Removed QAFieldAuditTrail for simplicity
 import { ChecklistItem } from './QAITPTemplates';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
@@ -147,14 +147,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           checklistItemId={item.id}
         />
 
-        {/* Show real-time audit trail for this checklist item */}
-        {inspectionId && (
-          <QAFieldAuditTrail
-            inspectionId={inspectionId}
-            fieldName={item.id}
-            className="mt-2 bg-muted/20"
-          />
-        )}
+        {/* Real-time audit trail removed for simplicity - available in main modal */}
       </div>
     </div>
   );

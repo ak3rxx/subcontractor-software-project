@@ -9,7 +9,7 @@ import { Plus, FileText, Eye, Download, Trash2, Filter, Search, X } from 'lucide
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { format } from 'date-fns';
 import QAITPForm from './QAITPForm';
-import QAInspectionModalEnhanced from './QAInspectionModalEnhanced';
+import QAInspectionModal from './QAInspectionModal';
 
 interface QATrackerEnhancedProps {
   onNewInspection: () => void;
@@ -485,12 +485,14 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
       )}
 
       {selectedInspection && (
-        <QAInspectionModalEnhanced
+        <QAInspectionModal
           isOpen={!!selectedInspection}
           onClose={() => setSelectedInspection(null)}
           inspection={selectedInspection}
-          onInspectionUpdate={(updated) => {
-            setSelectedInspection(updated);
+          onEdit={() => {
+            setEditingInspection(selectedInspection);
+            setSelectedInspection(null);
+            setShowCreateForm(true);
           }}
         />
       )}

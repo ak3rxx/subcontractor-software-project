@@ -5,7 +5,7 @@ import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useToast } from '@/hooks/use-toast';
 import { useProjects } from '@/hooks/useProjects';
 import { ChecklistItem, templates } from './QAITPTemplates';
-import QAITPChecklistItemEnhanced from './QAITPChecklistItemEnhanced';
+import QAITPChecklistItem from './QAITPChecklistItem';
 import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
 import { AlertCircle, Save, X } from 'lucide-react';
@@ -276,7 +276,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Inspection Checklist</h3>
             {filteredChecklist.map((item) => (
-              <QAITPChecklistItemEnhanced
+              <QAITPChecklistItem
                 key={item.id}
                 item={item}
                 onChecklistChange={handleChecklistChange}
