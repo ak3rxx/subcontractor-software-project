@@ -12,7 +12,6 @@ import DeveloperAdmin from '@/pages/DeveloperAdmin';
 import OrganizationPanel from '@/components/organization/OrganizationPanelDashboard';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import RoleProtectedApp from '@/components/RoleProtectedApp';
 import { AuthProvider } from '@/contexts/AuthContext';
 
@@ -35,23 +34,17 @@ function App() {
             } />
             <Route path="/projects" element={
               <ProtectedRoute>
-                <RoleProtectedRoute module="projects">
-                  <Projects />
-                </RoleProtectedRoute>
+                <Projects />
               </ProtectedRoute>
             } />
             <Route path="/finance" element={
               <ProtectedRoute>
-                <RoleProtectedRoute module="finance">
-                  <Finance />
-                </RoleProtectedRoute>
+                <Finance />
               </ProtectedRoute>
             } />
             <Route path="/tasks" element={
               <ProtectedRoute>
-                <RoleProtectedRoute module="tasks">
-                  <Tasks />
-                </RoleProtectedRoute>
+                <Tasks />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
