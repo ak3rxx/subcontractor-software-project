@@ -6,11 +6,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { NavLink } from 'react-router-dom';
 import { LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissionChecks } from '@/permissions';
 
 const UserMenu = () => {
   const { user, signOut } = useAuth();
-  const { isDeveloper, isOrgAdmin } = usePermissionChecks();
+  
+  // Emergency bypass: simplified role checks
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
+  const isOrgAdmin = () => false; // Simplified for emergency recovery
 
   const getUserInitials = () => {
     if (user?.email) {
