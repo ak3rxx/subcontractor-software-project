@@ -35,10 +35,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
     onDataChange({ [field]: value });
   };
 
-  const displayData = isEditing ? editData : inspection;
+  const displayData = isEditing ? { ...inspection, ...editData } : inspection;
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 h-full overflow-y-auto">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">

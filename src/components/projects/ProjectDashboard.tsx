@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Building2, FileText, Users, Calendar, DollarSign, ClipboardCheck, MessageSquare, Settings, BarChart3, AlertTriangle, Plus, List, CheckSquare, Gavel } from 'lucide-react';
-import QATrackerEnhanced from './qa-itp/QATrackerEnhanced';
+import QATrackerRestored from './qa-itp/QATrackerRestored';
 import QAITPForm from './qa-itp/QAITPForm';
 import TaskManager from './TaskManager';
 import TeamNotes from './TeamNotes';
@@ -222,7 +222,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
                       projectId={projectData.id}
                     />
                   ) : (
-                    <QATrackerEnhanced 
+                    <QATrackerRestored 
                       onNewInspection={() => setActiveQAForm(true)} 
                       projectId={projectData.id}
                     />
