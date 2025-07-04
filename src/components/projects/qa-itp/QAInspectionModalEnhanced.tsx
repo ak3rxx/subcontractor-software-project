@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -310,4 +310,4 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   );
 };
 
-export default QAInspectionModalEnhanced;
+export default memo(QAInspectionModalEnhanced);

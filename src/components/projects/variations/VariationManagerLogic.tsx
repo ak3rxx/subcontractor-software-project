@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useVariationsRefactored } from '@/hooks/variations/useVariationsRefactored';
 import { useVariationOptimizations } from '@/hooks/variations/useVariationOptimizations';
 import { useAuth } from '@/hooks/useAuth';
@@ -82,9 +82,34 @@ export const VariationManagerLogic: React.FC<VariationManagerLogicProps> = ({
   const { toast } = useToast();
   const { user, isDeveloper, hasRole, canAccess } = useAuth();
   
-  // Comprehensive permission checks using the proper auth system
-  const canEdit = () => user && (isDeveloper() || hasRole('org_admin') || hasRole('project_manager'));
-  const canAdmin = () => user && (isDeveloper() || hasRole('org_admin'));
+  // Memoized permission checks for performance
+  const permissions = useMemo(() => {
+    if (!user) return {
+      canEdit: false,
+      canAdmin: false,
+      canCreateVariations: false,
+      canEditVariations: false,
+      canSendEmails: false,
+      canViewVariations: false
+    };
+    
+    const isDevMode = isDeveloper();
+    const isOrgAdmin = hasRole('org_admin');
+    const isPM = hasRole('project_manager');
+    const canAccVariations = canAccess('variations');
+    
+    const canEdit = isDevMode || isOrgAdmin || isPM;
+    const canAdmin = isDevMode || isOrgAdmin;
+    
+    return {
+      canEdit,
+      canAdmin,
+      canCreateVariations: canEdit,
+      canEditVariations: canEdit || canAdmin,
+      canSendEmails: canAdmin,
+      canViewVariations: isDevMode || canAccVariations
+    };
+  }, [user, isDeveloper, hasRole, canAccess]);
   
   const [showForm, setShowForm] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
@@ -92,12 +117,6 @@ export const VariationManagerLogic: React.FC<VariationManagerLogicProps> = ({
   const [editingVariation, setEditingVariation] = useState<Variation | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [activeTab, setActiveTab] = useState<'list' | 'analytics'>('list');
-
-  // Enhanced permission checks using comprehensive auth
-  const canCreateVariations = isDeveloper() || canEdit();
-  const canEditVariations = isDeveloper() || canEdit() || canAdmin();
-  const canSendEmails = isDeveloper() || canAdmin();
-  const canViewVariations = isDeveloper() || canAccess('variations');
 
   return (
     <>
@@ -124,10 +143,10 @@ export const VariationManagerLogic: React.FC<VariationManagerLogicProps> = ({
         setFilters,
         
         // Permissions
-        canCreateVariations,
-        canEditVariations,
-        canSendEmails,
-        canViewVariations,
+        canCreateVariations: permissions.canCreateVariations,
+        canEditVariations: permissions.canEditVariations,
+        canSendEmails: permissions.canSendEmails,
+        canViewVariations: permissions.canViewVariations,
         
         // State
         showForm,

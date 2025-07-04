@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Variation } from '@/types/variations';
 import { variationService } from '@/services/variationService';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,10 @@ export const useVariationData = (projectId: string) => {
   const { toast } = useToast();
 
   const fetchVariations = useCallback(async (forceRefresh = false) => {
-    if (!projectId) return;
+    if (!projectId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);

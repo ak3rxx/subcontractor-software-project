@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { VariationManagerLogic } from './VariationManagerLogic';
 import { useVariationActionHandlers } from '@/hooks/variations/useVariationActionHandlers';
 import VariationManagerHeader from './sections/VariationManagerHeader';
@@ -166,4 +166,4 @@ const VariationManager: React.FC<VariationManagerProps> = ({
   );
 };
 
-export default VariationManager;
+export default memo(VariationManager);
