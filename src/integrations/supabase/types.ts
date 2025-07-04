@@ -365,6 +365,53 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_states: {
+        Row: {
+          completed_steps: Json | null
+          created_at: string | null
+          current_step: string | null
+          id: string
+          is_completed: boolean | null
+          organization_id: string
+          role: string
+          tour_preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_steps?: Json | null
+          created_at?: string | null
+          current_step?: string | null
+          id?: string
+          is_completed?: boolean | null
+          organization_id: string
+          role: string
+          tour_preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_steps?: Json | null
+          created_at?: string | null
+          current_step?: string | null
+          id?: string
+          is_completed?: boolean | null
+          organization_id?: string
+          role?: string
+          tour_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_states_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_categories: {
         Row: {
           category_name: string
@@ -457,6 +504,53 @@ export type Database = {
           },
         ]
       }
+      organization_settings: {
+        Row: {
+          created_at: string | null
+          default_folder_structure: Json | null
+          email_templates: Json | null
+          id: string
+          logo_url: string | null
+          notification_settings: Json | null
+          organization_id: string
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_folder_structure?: Json | null
+          email_templates?: Json | null
+          id?: string
+          logo_url?: string | null
+          notification_settings?: Json | null
+          organization_id: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_folder_structure?: Json | null
+          email_templates?: Json | null
+          id?: string
+          logo_url?: string | null
+          notification_settings?: Json | null
+          organization_id?: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_users: {
         Row: {
           created_at: string | null
@@ -515,35 +609,56 @@ export type Database = {
       organizations: {
         Row: {
           active_users_count: number
+          address: string | null
+          branding_settings: Json | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string | null
+          emergency_contact: string | null
           id: string
+          is_trial: boolean | null
           license_count: number
           name: string
           slug: string
           subscription_end_date: string | null
           subscription_status: string | null
+          trial_end_date: string | null
           updated_at: string | null
         }
         Insert: {
           active_users_count?: number
+          address?: string | null
+          branding_settings?: Json | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
+          emergency_contact?: string | null
           id?: string
+          is_trial?: boolean | null
           license_count?: number
           name: string
           slug: string
           subscription_end_date?: string | null
           subscription_status?: string | null
+          trial_end_date?: string | null
           updated_at?: string | null
         }
         Update: {
           active_users_count?: number
+          address?: string | null
+          branding_settings?: Json | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
+          emergency_contact?: string | null
           id?: string
+          is_trial?: boolean | null
           license_count?: number
           name?: string
           slug?: string
           subscription_end_date?: string | null
           subscription_status?: string | null
+          trial_end_date?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1383,29 +1498,43 @@ export type Database = {
           },
         ]
       }
-      role_permissions: {
+      sample_projects: {
         Row: {
-          created_at: string
+          created_at: string | null
+          folder_structure: Json | null
           id: string
-          module: string
-          permission_level: string
-          role: string
+          organization_id: string
+          project_name: string
+          project_type: string | null
+          template_data: Json | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
+          folder_structure?: Json | null
           id?: string
-          module: string
-          permission_level: string
-          role: string
+          organization_id: string
+          project_name?: string
+          project_type?: string | null
+          template_data?: Json | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
+          folder_structure?: Json | null
           id?: string
-          module?: string
-          permission_level?: string
-          role?: string
+          organization_id?: string
+          project_name?: string
+          project_type?: string | null
+          template_data?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sample_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_diagnostics: {
         Row: {
@@ -1584,47 +1713,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      user_role_validation: {
-        Row: {
-          created_at: string
-          id: string
-          last_validated_at: string | null
-          notification_sent: boolean | null
-          organization_id: string | null
-          updated_at: string
-          user_id: string
-          validation_status: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_validated_at?: string | null
-          notification_sent?: boolean | null
-          organization_id?: string | null
-          updated_at?: string
-          user_id: string
-          validation_status?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_validated_at?: string | null
-          notification_sent?: boolean | null
-          organization_id?: string | null
-          updated_at?: string
-          user_id?: string
-          validation_status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_role_validation_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       variation_attachments: {
         Row: {
@@ -2104,6 +2192,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string[]
       }
+      get_user_primary_org: {
+        Args: { user_id?: string }
+        Returns: string
+      }
+      get_user_role_in_org: {
+        Args: { org_id: string; user_id?: string }
+        Returns: string
+      }
       get_variation_audit_history: {
         Args: { p_variation_id: string }
         Returns: {
@@ -2150,6 +2246,10 @@ export type Database = {
       }
       is_org_admin: {
         Args: { org_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_org_admin_simple: {
+        Args: { org_id: string; user_id?: string }
         Returns: boolean
       }
       log_variation_change: {

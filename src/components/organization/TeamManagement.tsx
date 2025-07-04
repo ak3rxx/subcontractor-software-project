@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { UserPlus, Mail, Trash2, Edit, AlertTriangle } from 'lucide-react';
-import { UserRole } from '@/hooks/usePermissions';
+type UserRole = 'project_manager' | 'estimator' | 'admin' | 'site_supervisor' | 'subcontractor' | 'client';
 import RoleAssignmentAlerts from './RoleAssignmentAlerts';
-import { useRoleAssignmentRequests } from '@/hooks/useRoleAssignmentRequests';
 
 interface TeamMember {
   id: string;
@@ -25,7 +24,7 @@ const TeamManagement: React.FC = () => {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('project_manager');
-  const { pendingCount } = useRoleAssignmentRequests();
+  const pendingCount = 0; // Simplified for now
 
   // Mock data - in real implementation, this would come from the database
   const [teamMembers] = useState<TeamMember[]>([

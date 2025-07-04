@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 import VariationApprovalActions from './VariationApprovalActions';
 import VariationStatusInfo from './VariationStatusInfo';
@@ -25,7 +25,8 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   isBlocked
 }) => {
   const { user } = useAuth();
-  const { isDeveloper, canEdit, canAdmin } = usePermissions();
+  const { canEdit, canAdmin } = useSimplePermissions();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
   const { 
     auditTrail, 
     loading: auditLoading, 

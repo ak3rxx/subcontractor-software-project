@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Settings, Building2, Users, AlertTriangle, Activity, CreditCard, UserPlus } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-import PermissionMatrix from '@/components/admin/PermissionMatrix';
+// Permission matrix temporarily removed
 import FeatureFlagManager from '@/components/admin/FeatureFlagManager';
 import TestUserMode from '@/components/admin/TestUserMode';
 import SystemDiagnostics from '@/components/admin/SystemDiagnostics';
@@ -31,7 +31,7 @@ const EnhancedDeveloperAdminDashboard: React.FC = () => {
       case 'issues':
         return <IssueManagement />;
       case 'permissions':
-        return <PermissionMatrix />;
+        return <div className="text-center p-8"><p className="text-gray-600">Permission management being rebuilt...</p></div>;
       case 'features':
         return <FeatureFlagManager />;
       case 'testing':

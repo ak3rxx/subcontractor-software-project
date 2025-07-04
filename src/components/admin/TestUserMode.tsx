@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { User, RotateCcw } from 'lucide-react';
-import { UserRole } from '@/hooks/usePermissions';
+type UserRole = 'developer' | 'org_admin' | 'project_manager' | 'estimator' | 'admin' | 'site_supervisor' | 'subcontractor' | 'client';
 
 const TestUserMode: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('project_manager');

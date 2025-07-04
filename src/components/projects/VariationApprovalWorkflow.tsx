@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, RotateCcw } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import PermissionGate from '@/components/PermissionGate';
 
 interface VariationApprovalWorkflowProps {
@@ -22,7 +23,10 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   onUpdate
 }) => {
   const { toast } = useToast();
-  const { isDeveloper, canEdit, canAdmin, userProfile } = usePermissions();
+  const { canEdit, canAdmin } = useSimplePermissions();
+  const { user } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
+  const userProfile = user;
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [retractionReason, setRetractionReason] = useState('');
@@ -30,16 +34,16 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Enhanced permission checks using the permission system
-  const canApprove = isDeveloper() || canAdmin('variations') || canEdit('variations');
-  const canRetract = (isDeveloper() || canAdmin('variations')) && variation.status === 'approved';
-  const canSubmitForApproval = variation.status === 'draft' && (isDeveloper() || canEdit('variations'));
+  const canApprove = isDeveloper() || canAdmin() || canEdit();
+  const canRetract = (isDeveloper() || canAdmin()) && variation.status === 'approved';
+  const canSubmitForApproval = variation.status === 'draft' && (isDeveloper() || canEdit());
   const showApprovalActions = canApprove && variation.status === 'pending_approval';
 
   console.log('Permission check:', {
     userProfile,
     isDeveloper: isDeveloper(),
-    canEdit: canEdit('variations'),
-    canAdmin: canAdmin('variations'),
+    canEdit: canEdit(),
+    canAdmin: canAdmin(),
     canApprove,
     canRetract,
     canSubmitForApproval,
@@ -292,7 +296,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
         <Separator />
 
         {/* Submission Section */}
-        <PermissionGate module="variations" requiredLevel="write">
+        <PermissionGate>
           {canSubmitForApproval && (
             <div className="space-y-4">
               <h4 className="font-medium text-sm">Ready to Submit for Approval?</h4>
@@ -313,7 +317,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
         </PermissionGate>
 
         {/* Approval Actions */}
-        <PermissionGate module="variations" requiredLevel="admin">
+        <PermissionGate>
           {showApprovalActions && (
             <div className="space-y-4">
               <h4 className="font-medium text-sm">Approval Decision</h4>
@@ -371,7 +375,7 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
         </PermissionGate>
 
         {/* Retraction Section - Only for Admin Level Users */}
-        <PermissionGate module="variations" requiredLevel="admin">
+        <PermissionGate>
           {canRetract && (
             <>
               <Separator />

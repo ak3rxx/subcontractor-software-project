@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Save, Trash2 } from 'lucide-react';
-import { UserRole } from '@/hooks/usePermissions';
+type UserRole = 'project_manager' | 'estimator' | 'admin' | 'site_supervisor' | 'subcontractor' | 'client';
 
 interface OnboardingStep {
   id: string;

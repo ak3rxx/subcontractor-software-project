@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Calendar, DollarSign, Clock, User, Mail, FileText, Edit, Check, X, Download, Paperclip } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useToast } from '@/hooks/use-toast';
 import PermissionGate from '@/components/PermissionGate';
 import VariationApprovalWorkflow from './VariationApprovalWorkflow';
@@ -51,7 +51,9 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
 }) => {
   // All hooks must be called at the top
   const { toast } = useToast();
-  const { isDeveloper, canEdit } = usePermissions();
+  const { canEdit } = useSimplePermissions();
+  const { user } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
 

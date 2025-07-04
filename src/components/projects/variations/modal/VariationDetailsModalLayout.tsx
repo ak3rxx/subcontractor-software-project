@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, Edit, Save, X } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 import { useVariationFieldAudit } from '@/hooks/useVariationFieldAudit';
@@ -28,7 +28,9 @@ const VariationDetailsModalLayout: React.FC<VariationDetailsModalLayoutProps> = 
   onVariationUpdate
 }) => {
   const { toast } = useToast();
-  const { isDeveloper, canEdit } = usePermissions();
+  const { canEdit } = useSimplePermissions();
+  const { user } = useAuth();
+  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');

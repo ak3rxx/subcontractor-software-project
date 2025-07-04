@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Settings, Users, Flag, TestTube, Activity, BookOpen, Shield } from 'lucide-react';
-import PermissionMatrix from '@/components/admin/PermissionMatrix';
+// Permission matrix temporarily removed
 import FeatureFlagManager from '@/components/admin/FeatureFlagManager';
 import TestUserMode from '@/components/admin/TestUserMode';
 import SystemDiagnostics from '@/components/admin/SystemDiagnostics';
@@ -135,7 +135,9 @@ const DeveloperAdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="permissions">
-          <PermissionMatrix />
+          <div className="text-center p-8">
+            <p className="text-gray-600">Permission management being rebuilt...</p>
+          </div>
         </TabsContent>
 
         <TabsContent value="features">
