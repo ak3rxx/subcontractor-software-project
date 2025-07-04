@@ -8,6 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Save, Trash2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 type UserRole = 'project_manager' | 'estimator' | 'admin' | 'site_supervisor' | 'subcontractor' | 'client';
 
 interface OnboardingStep {
@@ -20,6 +23,8 @@ interface OnboardingStep {
 
 const OnboardingEditor: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('project_manager');
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [steps, setSteps] = useState<OnboardingStep[]>([
     {
       id: '1',
@@ -74,9 +79,63 @@ const OnboardingEditor: React.FC = () => {
     setSteps(steps.filter(step => step.id !== id));
   };
 
-  const saveOnboarding = () => {
-    // In real implementation, save to database
-    console.log('Saving onboarding for role:', selectedRole, steps);
+  const saveOnboarding = async () => {
+    try {
+      // Get current user's organization
+      const { data: orgUser } = await supabase
+        .from('organization_users')
+        .select('organization_id')
+        .eq('user_id', user?.id)
+        .eq('status', 'active')
+        .single();
+
+      if (!orgUser) {
+        toast({
+          title: "Error",
+          description: "Organization not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get current organization settings
+      const { data: orgSettings } = await supabase
+        .from('organization_settings')
+        .select('notification_settings')
+        .eq('organization_id', orgUser.organization_id)
+        .single();
+
+      // Save onboarding configuration
+      const currentSettings = (orgSettings?.notification_settings as any) || {};
+      const currentFlows = currentSettings.onboarding_flows || {};
+      
+      const { error } = await supabase
+        .from('organization_settings')
+        .update({
+          notification_settings: {
+            ...currentSettings,
+            onboarding_flows: {
+              ...currentFlows,
+              [selectedRole]: steps
+            }
+          }
+        })
+        .eq('organization_id', orgUser.organization_id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Onboarding flow saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving onboarding:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save onboarding flow",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

@@ -15,6 +15,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedApp from '@/components/RoleProtectedApp';
 import InvitationAcceptance from '@/pages/InvitationAcceptance';
 import OrganizationOnboarding from '@/components/organization/OrganizationOnboarding';
+import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider';
 // AuthProvider removed - using direct useAuth hook instead
 
 // Add these imports for the new routes
@@ -25,7 +26,8 @@ function App() {
   return (
     <Router>
       <RoleProtectedApp>
-        <Routes>
+        <OnboardingProvider>
+          <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={
@@ -80,7 +82,8 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </OnboardingProvider>
       </RoleProtectedApp>
     </Router>
   );
