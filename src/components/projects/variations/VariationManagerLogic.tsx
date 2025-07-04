@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useVariationsRefactored } from '@/hooks/variations/useVariationsRefactored';
 import { useVariationOptimizations } from '@/hooks/variations/useVariationOptimizations';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Variation } from '@/types/variations';
 
@@ -80,13 +80,11 @@ export const VariationManagerLogic: React.FC<VariationManagerLogicProps> = ({
   } = useVariationOptimizations(variations);
 
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isDeveloper, hasRole, canAccess } = useAuth();
   
-  // Emergency bypass: simple permission checks
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  const canEdit = () => user ? true : false;
-  const canAdmin = () => user ? true : false;
-  const canAccess = () => user ? true : false;
+  // Comprehensive permission checks using the proper auth system
+  const canEdit = () => user && (isDeveloper() || hasRole('org_admin') || hasRole('project_manager'));
+  const canAdmin = () => user && (isDeveloper() || hasRole('org_admin'));
   
   const [showForm, setShowForm] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
@@ -95,11 +93,11 @@ export const VariationManagerLogic: React.FC<VariationManagerLogicProps> = ({
   const [formKey, setFormKey] = useState(0);
   const [activeTab, setActiveTab] = useState<'list' | 'analytics'>('list');
 
-  // Enhanced permission checks using simplified auth
+  // Enhanced permission checks using comprehensive auth
   const canCreateVariations = isDeveloper() || canEdit();
   const canEditVariations = isDeveloper() || canEdit() || canAdmin();
   const canSendEmails = isDeveloper() || canAdmin();
-  const canViewVariations = isDeveloper() || canAccess();
+  const canViewVariations = isDeveloper() || canAccess('variations');
 
   return (
     <>

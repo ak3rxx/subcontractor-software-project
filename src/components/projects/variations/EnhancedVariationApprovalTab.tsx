@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 import VariationApprovalActions from './VariationApprovalActions';
@@ -24,9 +24,8 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   onStatusChange,
   isBlocked
 }) => {
-  const { user } = useAuth();
+  const { user, isDeveloper, hasRole } = useAuth();
   const { canEdit, canAdmin } = useSimplePermissions();
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
   const { 
     auditTrail, 
     loading: auditLoading, 
@@ -40,11 +39,12 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
   const lastUpdateTimestampRef = useRef<string>('');
   const statusChangeInProgressRef = useRef(false);
 
-  // Enhanced permission checks
-  const userRole = user?.role || 'user';
+  // Enhanced permission checks using comprehensive auth system
+  const userRole = user?.primaryRole || 'user';
   const userEmail = user?.email || '';
-  const isFullAccessUser = userEmail === 'huy.nguyen@dcsquared.com.au';
-  const isProjectManager = userRole === 'project_manager';
+  const isFullAccessUser = isDeveloper();
+  const isProjectManager = hasRole('project_manager');
+  const isOrgAdmin = hasRole('org_admin');
 
   // Optimized status change handler - prevents cascading refreshes
   const handleStatusChange = async () => {

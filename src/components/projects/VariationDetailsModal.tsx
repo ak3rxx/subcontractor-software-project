@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Calendar, DollarSign, Clock, User, Mail, FileText, Edit, Check, X, Download, Paperclip } from 'lucide-react';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import PermissionGate from '@/components/PermissionGate';
 import VariationApprovalWorkflow from './VariationApprovalWorkflow';
@@ -174,14 +174,14 @@ const VariationDetailsModal: React.FC<VariationDetailsModalProps> = ({
               </DialogDescription>
             </div>
             <div className="flex gap-2">
-              <PermissionGate>
-                {!isEditing && variation.status === 'draft' && (
-                  <Button variant="outline" size="sm" onClick={handleEdit}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                )}
-              </PermissionGate>
+            <PermissionGate>
+              {!isEditing && variation.status === 'draft' && (
+                <Button variant="outline" size="sm" onClick={handleEdit}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+            </PermissionGate>
             </div>
           </div>
         </DialogHeader>

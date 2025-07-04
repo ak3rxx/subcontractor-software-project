@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, Download, Trash2, Loader2 } from 'lucide-react';
 import { useVariationFileManagement } from '@/hooks/useVariationFileManagement';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface VariationFilesTabProps {
   variation: any;
@@ -29,8 +29,7 @@ const VariationFilesTab: React.FC<VariationFilesTabProps> = ({
   } = useVariationFileManagement();
   
   const { canEdit } = useSimplePermissions();
-  const { user } = useAuth();
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
+  const { user, isDeveloper } = useAuth();
   const canUploadFiles = (isDeveloper() || canEdit()) && !isBlocked;
 
   const { files, loading } = getFiles(variation?.id);

@@ -1,17 +1,17 @@
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useVariationEditPermissions = (variation: any) => {
-  const { user } = useAuth();
+  const { user, isDeveloper, hasRole } = useAuth();
   
-  // Emergency bypass: simple permission checks
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  const canEdit = () => user ? true : false;
-  const canAdmin = () => user ? true : false;
-  const isProjectManager = () => user ? true : false;
+  // Comprehensive permission checks using the proper auth system
+  const isOrgAdmin = () => hasRole('org_admin');
+  const isProjectManager = () => hasRole('project_manager');
+  const canEdit = () => user && (isDeveloper() || isOrgAdmin() || isProjectManager());
+  const canAdmin = () => user && (isDeveloper() || isOrgAdmin());
 
   // Users who can edit during pending approval (have approval workflow access)
-  const canEditDuringPendingApproval = isDeveloper() || canAdmin() || canEdit() || isProjectManager();
+  const canEditDuringPendingApproval = isDeveloper() || canAdmin() || canEdit();
   
   // Check if variation is in a locked status
   const isStatusLocked = ['approved', 'rejected'].includes(variation?.status);
@@ -31,10 +31,10 @@ export const useVariationEditPermissions = (variation: any) => {
     
     // For other statuses, check normal edit permissions
     if (isStatusLocked) {
-      return canEdit() || isProjectManager();
+      return canEdit();
     }
     
-    return canEdit() || isProjectManager();
+    return canEdit();
   };
 
   const getEditBlockedReason = () => {
