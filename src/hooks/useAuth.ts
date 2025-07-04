@@ -124,6 +124,31 @@ export const useAuth = () => {
     return true;
   };
 
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    return { error };
+  };
+
+  const signUp = async (email: string, password: string, userData: any) => {
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          ...userData,
+          company: userData.company || `${userData.full_name}'s Organization`
+        }
+      }
+    });
+    return { error };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -135,6 +160,8 @@ export const useAuth = () => {
     isOrgAdmin,
     isDeveloper,
     canAccess,
+    signIn,
+    signUp,
     signOut,
     // Legacy compatibility
     canCreateVariations: () => !!user,

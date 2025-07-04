@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, XCircle, Clock, Send, MessageSquare, User, Calendar, RotateCcw } from 'lucide-react';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import PermissionGate from '@/components/PermissionGate';
 
 interface VariationApprovalWorkflowProps {

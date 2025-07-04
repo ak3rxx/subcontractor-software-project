@@ -1,6 +1,6 @@
 
 import { useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Variation, VariationFormData } from '@/types/variations';
 import { variationService } from '@/services/variationService';

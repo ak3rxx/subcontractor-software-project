@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Settings as SettingsIcon, User, Bell, Palette, Building2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import TopNav from '@/components/TopNav';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
 

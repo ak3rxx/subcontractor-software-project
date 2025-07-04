@@ -8,7 +8,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import TopNav from '@/components/TopNav';
 import ProjectSetup from '@/components/projects/ProjectSetup';
 import VariationManager from '@/components/projects/variations/VariationManager';
