@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useOnboarding } from './OnboardingProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { HelpCircle, Play, Settings } from 'lucide-react';
+import { HelpCircle, Play, X } from 'lucide-react';
 
 interface EnhancedOnboardingIntegrationProps {
   children: React.ReactNode;
@@ -24,6 +24,17 @@ const EnhancedOnboardingIntegration: React.FC<EnhancedOnboardingIntegrationProps
   } = useOnboarding();
   
   const { user, isDeveloper } = useAuth();
+  
+  // State for controlling card visibility
+  const [isCardVisible, setIsCardVisible] = useState(() => {
+    const saved = localStorage.getItem('onboarding-controls-visible');
+    return saved !== 'false'; // Default to visible unless explicitly hidden
+  });
+
+  const handleDismissCard = () => {
+    setIsCardVisible(false);
+    localStorage.setItem('onboarding-controls-visible', 'false');
+  };
 
   // Auto-mark basic steps as completed when user visits a module
   useEffect(() => {
@@ -75,7 +86,7 @@ const EnhancedOnboardingIntegration: React.FC<EnhancedOnboardingIntegrationProps
       {children}
       
       {/* Onboarding Controls - Only show for authenticated users */}
-      {user?.id && (
+      {user?.id && isCardVisible && (
         <Card className="fixed bottom-4 left-4 w-80 shadow-lg z-40 border-primary/20" data-tour="onboarding-controls">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -87,11 +98,22 @@ const EnhancedOnboardingIntegration: React.FC<EnhancedOnboardingIntegrationProps
                   {getModuleDisplayName(currentModule)}
                 </Badge>
               </div>
-              {isDeveloper() && (
-                <Badge variant="destructive" className="text-xs">
-                  Dev
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {isDeveloper() && (
+                  <Badge variant="destructive" className="text-xs">
+                    Dev
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDismissCard}
+                  className="h-6 w-6 p-0 hover:bg-muted"
+                  aria-label="Close onboarding controls"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-2">
