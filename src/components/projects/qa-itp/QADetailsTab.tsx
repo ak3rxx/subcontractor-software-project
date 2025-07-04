@@ -23,8 +23,15 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
   onDataChange,
   recordChange
 }) => {
+  console.log('QA Details Tab: Rendering', {
+    inspectionId: inspection?.id,
+    isEditing,
+    editDataKeys: Object.keys(editData || {}),
+    hasOnDataChange: !!onDataChange
+  });
+
   const handleFieldChange = (field: string, value: any) => {
-    console.log(`Field change: ${field} = ${value}`);
+    console.log(`QA Details Tab: Field change ${field} = ${value}`);
     
     // Record audit trail if in editing mode
     if (isEditing && recordChange) {

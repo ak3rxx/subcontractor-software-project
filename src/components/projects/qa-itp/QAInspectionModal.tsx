@@ -42,6 +42,8 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   inspection,
   onUpdate
 }) => {
+  console.log('QA Modal: Rendering with inspection:', inspection?.id, 'isOpen:', isOpen);
+  
   const { updateInspection } = useQAInspectionsSimple(inspection?.project_id);
   const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();

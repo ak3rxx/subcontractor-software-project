@@ -46,6 +46,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
       return;
     }
 
+    console.log('QA: Fetching inspections for project:', projectId);
     try {
       let query = supabase
         .from('qa_inspections')
@@ -77,13 +78,14 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         overall_status: item.overall_status as QAInspection['overall_status']
       }));
       setInspections(transformedData);
+      console.log('QA: Fetched', transformedData.length, 'inspections');
     } catch (error) {
       console.error('Unexpected error:', error);
       setInspections([]);
     } finally {
       setLoading(false);
     }
-  }, [user, projectId, toast]);
+  }, [user, projectId]);
 
   const createInspection = useCallback(async (
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
@@ -350,6 +352,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
 
   // Initial fetch and real-time subscription
   useEffect(() => {
+    console.log('QA: Setting up subscription for project:', projectId, 'user:', user?.id);
     fetchInspections();
 
     // Only subscribe if we have a valid user and project ID
@@ -359,6 +362,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
 
     // Create unique channel name to avoid conflicts
     const channelName = `qa_inspections_${projectId}_${user.id}`;
+    console.log('QA: Creating channel:', channelName);
     
     // Subscribe to real-time changes with proper cleanup
     const channel = supabase
@@ -371,18 +375,19 @@ export const useQAInspectionsSimple = (projectId?: string) => {
           filter: `project_id=eq.${projectId}`
         }, 
         () => {
-          console.log('QA inspection changed, refreshing list...');
+          console.log('QA: Real-time change detected, refreshing...');
           fetchInspections();
         }
       )
       .subscribe();
 
     return () => {
+      console.log('QA: Cleaning up subscription:', channelName);
       // Proper cleanup to prevent "tried to subscribe multiple times" error
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [fetchInspections, projectId, user]);
+  }, [projectId, user?.id]);
 
   return {
     inspections,
