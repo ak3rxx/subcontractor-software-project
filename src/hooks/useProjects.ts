@@ -50,13 +50,19 @@ const transformProjectData = (project: ProjectRow): Project => {
 export const useProjects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const fetchProjects = async () => {
-    if (!user) return;
+    if (!user) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
 
     try {
+      setError(null);
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -65,6 +71,7 @@ export const useProjects = () => {
 
       if (error) {
         console.error('Error fetching projects:', error);
+        setError(error.message);
         if (!error.message.includes('policy') && !error.message.includes('permission')) {
           toast({
             title: "Error",
@@ -80,6 +87,8 @@ export const useProjects = () => {
       setProjects(transformedProjects);
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage);
       setProjects([]);
     } finally {
       setLoading(false);
@@ -204,12 +213,19 @@ export const useProjects = () => {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, [user]);
+    // Only fetch if we have a user and haven't already started loading
+    if (user && loading) {
+      fetchProjects();
+    } else if (!user) {
+      setLoading(false);
+      setProjects([]);
+    }
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-fetches
 
   return {
     projects,
     loading,
+    error,
     createProject,
     updateProject,
     refetch: fetchProjects

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense, memo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,19 +10,32 @@ import { useToast } from '@/hooks/use-toast';
 import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 import { useAuth } from '@/hooks/useAuth';
 import TopNav from '@/components/TopNav';
-import ProjectSetup from '@/components/projects/ProjectSetup';
-import VariationManager from '@/components/projects/variations/VariationManager';
-import TaskManager from '@/components/projects/TaskManager';
-import RFIManager from '@/components/projects/RFIManager';
-import QATrackerEnhanced from '@/components/projects/qa-itp/QATrackerEnhanced';
-import QAITPForm from '@/components/projects/qa-itp/QAITPForm';
-import ProgrammeTracker from '@/components/projects/ProgrammeTracker';
-import FinanceManager from '@/components/projects/finance/FinanceManager';
-import DocumentManager from '@/components/projects/DocumentManager';
-import TeamNotes from '@/components/projects/TeamNotes';
+import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 
-const Projects = () => {
-  const { projects, loading, createProject } = useProjects();
+// Lazy load heavy components for better performance
+const ProjectSetup = lazy(() => import('@/components/projects/ProjectSetup'));
+const VariationManager = lazy(() => import('@/components/projects/variations/VariationManager'));
+const TaskManager = lazy(() => import('@/components/projects/TaskManager'));
+const RFIManager = lazy(() => import('@/components/projects/RFIManager'));
+const QATrackerEnhanced = lazy(() => import('@/components/projects/qa-itp/QATrackerEnhanced'));
+const QAITPForm = lazy(() => import('@/components/projects/qa-itp/QAITPForm'));
+const ProgrammeTracker = lazy(() => import('@/components/projects/ProgrammeTracker'));
+const FinanceManager = lazy(() => import('@/components/projects/finance/FinanceManager'));
+const DocumentManager = lazy(() => import('@/components/projects/DocumentManager'));
+const TeamNotes = lazy(() => import('@/components/projects/TeamNotes'));
+
+// Loading component for lazy loaded modules
+const ModuleLoader = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+      <p className="mt-2 text-sm text-muted-foreground">Loading module...</p>
+    </div>
+  </div>
+);
+
+const Projects = memo(() => {
+  const { projects, loading, error, createProject } = useProjects();
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -34,10 +47,10 @@ const Projects = () => {
   const { getCrossModuleData, getCrossModuleAction } = useCrossModuleNavigation();
   const { user } = useAuth();
   
-  // Emergency bypass: simple role check
-  const canAccess = (module: string) => {
-    return user ? true : false; // All authenticated users can access all modules for now
-  };
+  // Memoized permission check for performance
+  const canAccess = useCallback((module: string) => {
+    return !!user; // All authenticated users can access all modules for now
+  }, [user]);
 
   // Handle URL parameters for cross-module integration
   useEffect(() => {
@@ -75,7 +88,7 @@ const Projects = () => {
     }
   };
 
-  const handleCreateProject = async (projectData: any) => {
+  const handleCreateProject = useCallback(async (projectData: any) => {
     const newProject = await createProject(projectData);
     if (newProject) {
       setSelectedProject(newProject);
@@ -85,11 +98,16 @@ const Projects = () => {
       // Update URL to show the new project
       navigate(`/projects?id=${newProject.id}&tab=dashboard`);
     }
-  };
+  }, [createProject, navigate]);
 
-  const handleNewInspection = () => {
+  const handleNewInspection = useCallback(() => {
     setActiveQAForm(true);
-  };
+  }, []);
+
+  const handleBackToProjects = useCallback(() => {
+    setSelectedProject(null);
+    navigate('/projects');
+  }, [navigate]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -106,22 +124,39 @@ const Projects = () => {
     }
   };
 
-  const handleBackToProjects = () => {
-    setSelectedProject(null);
-    navigate('/projects');
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <TopNav />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading projects...</p>
-          </div>
-        </main>
-      </div>
+      <NavigationErrorBoundary>
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <TopNav />
+          <main className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading projects...</p>
+            </div>
+          </main>
+        </div>
+      </NavigationErrorBoundary>
+    );
+  }
+
+  if (error) {
+    return (
+      <NavigationErrorBoundary>
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <TopNav />
+          <main className="flex-1 flex items-center justify-center">
+            <div className="text-center max-w-md">
+              <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Unable to Load Projects</h3>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </main>
+        </div>
+      </NavigationErrorBoundary>
     );
   }
 
@@ -129,10 +164,11 @@ const Projects = () => {
     const crossModuleData = getCrossModuleData();
     
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <TopNav />
-        <main className="flex-1">
-          <div className="container mx-auto px-4 py-8">
+      <NavigationErrorBoundary>
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <TopNav />
+          <main className="flex-1">
+            <div className="container mx-auto px-4 py-8">
             {/* Project Information Header */}
             <Card className="mb-6">
               <CardHeader>
@@ -274,32 +310,40 @@ const Projects = () => {
               </TabsContent>
 
               <TabsContent value="programme" className="mt-6">
-                <ProgrammeTracker 
-                  projectName={selectedProject.name} 
-                  projectId={selectedProject.id}
-                  crossModuleData={crossModuleData}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <ProgrammeTracker 
+                    projectName={selectedProject.name} 
+                    projectId={selectedProject.id}
+                    crossModuleData={crossModuleData}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="tasks" className="mt-6">
-                <TaskManager 
-                  projectName={selectedProject.name}
-                  crossModuleData={crossModuleData}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <TaskManager 
+                    projectName={selectedProject.name}
+                    crossModuleData={crossModuleData}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="rfis" className="mt-6">
-                <RFIManager 
-                  projectName={selectedProject.name}
-                  crossModuleData={crossModuleData}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <RFIManager 
+                    projectName={selectedProject.name}
+                    crossModuleData={crossModuleData}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="variations" className="mt-6" data-tour="variations-section">
-                <VariationManager
-                  projectName={selectedProject.name}
-                  projectId={selectedProject.id}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <VariationManager
+                    projectName={selectedProject.name}
+                    projectId={selectedProject.id}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="qa-itp" className="mt-6 space-y-6" data-tour="qa-section">
@@ -342,17 +386,19 @@ const Projects = () => {
                       </TabsContent>
 
                       <TabsContent value="qa-list">
-                        {activeQAForm ? (
-                          <QAITPForm 
-                            onClose={() => setActiveQAForm(false)} 
-                            projectId={selectedProject.id}
-                          />
-                        ) : (
-                          <QATrackerEnhanced 
-                            onNewInspection={() => setActiveQAForm(true)} 
-                            projectId={selectedProject.id}
-                          />
-                        )}
+                        <Suspense fallback={<ModuleLoader />}>
+                          {activeQAForm ? (
+                            <QAITPForm 
+                              onClose={() => setActiveQAForm(false)} 
+                              projectId={selectedProject.id}
+                            />
+                          ) : (
+                            <QATrackerEnhanced 
+                              onNewInspection={() => setActiveQAForm(true)} 
+                              projectId={selectedProject.id}
+                            />
+                          )}
+                        </Suspense>
                       </TabsContent>
 
                       <TabsContent value="actions">
@@ -368,37 +414,45 @@ const Projects = () => {
               </TabsContent>
 
               <TabsContent value="documents" className="mt-6">
-                <DocumentManager 
-                  projectName={selectedProject.name}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <DocumentManager 
+                    projectName={selectedProject.name}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="notes" className="mt-6">
-                <TeamNotes 
-                  projectName={selectedProject.name}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <TeamNotes 
+                    projectName={selectedProject.name}
+                  />
+                </Suspense>
               </TabsContent>
 
               {canAccess('finance') && (
                 <TabsContent value="finance" className="mt-6" data-tour="finance-section">
-                  <FinanceManager 
-                    projectName={selectedProject.name}
-                    crossModuleData={crossModuleData}
-                  />
+                  <Suspense fallback={<ModuleLoader />}>
+                    <FinanceManager 
+                      projectName={selectedProject.name}
+                      crossModuleData={crossModuleData}
+                    />
+                  </Suspense>
                 </TabsContent>
               )}
             </Tabs>
-          </div>
-        </main>
-      </div>
+            </div>
+          </main>
+        </div>
+      </NavigationErrorBoundary>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <TopNav />
-      <main className="flex-1">
-        <div className="container mx-auto px-4 py-8">
+    <NavigationErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <TopNav />
+        <main className="flex-1">
+          <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
@@ -416,10 +470,12 @@ const Projects = () => {
                 <CardTitle>Create New Project</CardTitle>
               </CardHeader>
               <CardContent>
-                <ProjectSetup 
-                  onClose={() => setShowNewProject(false)}
-                  onProjectCreated={handleCreateProject}
-                />
+                <Suspense fallback={<ModuleLoader />}>
+                  <ProjectSetup 
+                    onClose={() => setShowNewProject(false)}
+                    onProjectCreated={handleCreateProject}
+                  />
+                </Suspense>
               </CardContent>
             </Card>
           )}
@@ -484,10 +540,13 @@ const Projects = () => {
               ))}
             </div>
           )}
-        </div>
-      </main>
-    </div>
+          </div>
+        </main>
+      </div>
+    </NavigationErrorBoundary>
   );
-};
+});
+
+Projects.displayName = 'Projects';
 
 export default Projects;

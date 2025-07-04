@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Building2, CheckCircle, Clock, DollarSign, FileText, 
   Users, Calendar, AlertTriangle, BarChart3, Shield,
@@ -13,7 +13,7 @@ import {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
 
   // Only redirect if user is authenticated, no loading state needed
   useEffect(() => {

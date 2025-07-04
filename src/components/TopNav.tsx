@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 import Logo from '@/components/navigation/Logo';
@@ -7,7 +7,7 @@ import DesktopNavigation from '@/components/navigation/DesktopNavigation';
 import UserMenu from '@/components/navigation/UserMenu';
 import MobileMenu from '@/components/navigation/MobileMenu';
 
-const TopNav = () => {
+const TopNav = memo(() => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -42,6 +42,8 @@ const TopNav = () => {
       />
     </nav>
   );
-};
+});
+
+TopNav.displayName = 'TopNav';
 
 export default TopNav;

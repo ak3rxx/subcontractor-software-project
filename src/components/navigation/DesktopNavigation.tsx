@@ -1,15 +1,17 @@
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { navigationItems } from './NavigationItems';
 
-const DesktopNavigation = () => {
+const DesktopNavigation = memo(() => {
   const { user } = useAuth();
   
-  // Emergency bypass: show all nav items to authenticated users
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  const isOrgAdmin = () => false; // Simplified for emergency recovery
+  // Memoize permission checks for performance
+  const permissions = useMemo(() => ({
+    isDeveloper: user?.email === 'huy.nguyen@dcsquared.com.au',
+    isOrgAdmin: false // Simplified for emergency recovery
+  }), [user?.email]);
 
   return (
     <div className="hidden md:flex items-center space-x-1">
@@ -44,7 +46,7 @@ const DesktopNavigation = () => {
       </NavLink>
 
       {/* Admin Panel - Developer only (emergency bypass) */}
-      {isDeveloper() && (
+      {permissions.isDeveloper && (
         <NavLink
           to="/admin-panel"
           className={({ isActive }) =>
@@ -60,6 +62,8 @@ const DesktopNavigation = () => {
       )}
     </div>
   );
-};
+});
+
+DesktopNavigation.displayName = 'DesktopNavigation';
 
 export default DesktopNavigation;

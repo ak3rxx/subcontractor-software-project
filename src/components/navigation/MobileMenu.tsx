@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { navigationItems } from './NavigationItems';
@@ -9,12 +9,14 @@ interface MobileMenuProps {
   onClose: () => void;
 }
 
-const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
+const MobileMenu: React.FC<MobileMenuProps> = memo(({ isOpen, onClose }) => {
   const { user } = useAuth();
   
-  // Emergency bypass: simplified role checks
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  const isOrgAdmin = () => false; // Simplified for emergency recovery
+  // Memoize permission checks for performance
+  const permissions = useMemo(() => ({
+    isDeveloper: user?.email === 'huy.nguyen@dcsquared.com.au',
+    isOrgAdmin: false // Simplified for emergency recovery
+  }), [user?.email]);
 
   if (!isOpen) return null;
 
@@ -52,7 +54,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
           Settings
         </NavLink>
 
-        {isDeveloper() && (
+        {permissions.isDeveloper && (
           <NavLink
             to="/admin-panel"
             className={({ isActive }) =>
@@ -70,6 +72,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       </div>
     </div>
   );
-};
+});
+
+MobileMenu.displayName = 'MobileMenu';
 
 export default MobileMenu;
