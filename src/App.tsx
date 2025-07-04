@@ -13,6 +13,7 @@ import OrganizationPanel from '@/pages/OrganizationPanel';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedApp from '@/components/RoleProtectedApp';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import InvitationAcceptance from '@/pages/InvitationAcceptance';
 import OrganizationOnboarding from '@/components/organization/OrganizationOnboarding';
 import { ProtectedOnboardingProvider } from '@/components/onboarding/ProtectedOnboardingProvider';
@@ -24,8 +25,9 @@ import Settings from '@/pages/Settings';
 
 function App() {
   return (
-    <Router>
-      <RoleProtectedApp>
+    <ErrorBoundary>
+      <Router>
+        <RoleProtectedApp>
         <Routes>
           {/* Public routes - no onboarding provider */}
           <Route path="/" element={<Index />} />
@@ -107,8 +109,9 @@ function App() {
           {/* 404 route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </RoleProtectedApp>
-    </Router>
+        </RoleProtectedApp>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

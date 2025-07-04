@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 interface OnboardingProgress {
@@ -16,7 +16,7 @@ export const useOnboardingState = (moduleId: string) => {
   const [userRole, setUserRole] = useState<string>('project_manager');
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
 
   useEffect(() => {
     const fetchOnboardingState = async () => {
