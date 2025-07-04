@@ -13,6 +13,8 @@ import OrganizationPanel from '@/pages/OrganizationPanel';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedApp from '@/components/RoleProtectedApp';
+import InvitationAcceptance from '@/pages/InvitationAcceptance';
+import OrganizationOnboarding from '@/components/organization/OrganizationOnboarding';
 // AuthProvider removed - using direct useAuth hook instead
 
 // Add these imports for the new routes
@@ -62,7 +64,21 @@ function App() {
               <DeveloperAdmin />
             </ProtectedRoute>
           } />
-          <Route path="/organization-panel" element={<OrganizationPanel />} />
+          <Route path="/organization-panel" element={
+            <ProtectedRoute>
+              <OrganizationPanel />
+            </ProtectedRoute>
+          } />
+          <Route path="/invitation" element={
+            <ProtectedRoute>
+              <InvitationAcceptance />
+            </ProtectedRoute>
+          } />
+          <Route path="/organization-onboarding" element={
+            <ProtectedRoute>
+              <OrganizationOnboarding />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </RoleProtectedApp>

@@ -2149,6 +2149,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_organization_invitation: {
+        Args: { invitation_token: string }
+        Returns: Json
+      }
       auto_approve_frequent_trades: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2192,6 +2196,18 @@ export type Database = {
       generate_variation_number: {
         Args: { project_uuid: string }
         Returns: string
+      }
+      get_organization_invitations: {
+        Args: { org_id: string }
+        Returns: {
+          id: string
+          email: string
+          role: string
+          status: string
+          created_at: string
+          expires_at: string
+          invited_by_name: string
+        }[]
       }
       get_qa_change_history: {
         Args: { p_inspection_id: string }

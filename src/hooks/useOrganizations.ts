@@ -107,33 +107,79 @@ export const useOrganizations = () => {
 
   const inviteUser = async (organizationId: string, email: string, role: string) => {
     try {
-      const { error } = await supabase
+      // Create invitation record first
+      const { data: invitationData, error: inviteError } = await supabase
         .from('organization_invitations')
         .insert({
           organization_id: organizationId,
           email,
           role,
           invited_by: user?.id
-        });
+        })
+        .select('invitation_token, organizations(name)')
+        .single();
 
-      if (error) {
-        console.error('Error inviting user:', error);
+      if (inviteError) {
+        console.error('Error creating invitation:', inviteError);
         toast({
           title: "Error",
-          description: "Failed to invite user",
+          description: "Failed to create invitation",
           variant: "destructive"
         });
         return false;
       }
 
-      toast({
-        title: "Success",
-        description: `Invitation sent to ${email}`
-      });
+      // Get user profile for invited_by name
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user?.id)
+        .single();
+
+      // Send invitation email via Edge Function
+      try {
+        const { data, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          body: {
+            email,
+            organizationName: (invitationData.organizations as any)?.name || 'Your Organization',
+            role,
+            invitedByName: profileData?.full_name || profileData?.email || 'A team member',
+            invitationToken: invitationData.invitation_token,
+            baseUrl: window.location.origin
+          }
+        });
+
+        if (emailError) {
+          console.error('Error sending invitation email:', emailError);
+          // Don't fail the whole process if email fails
+          toast({
+            title: "Invitation Created",
+            description: "Invitation created but email failed to send. Please share the invitation link manually.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: `Invitation sent to ${email}`
+          });
+        }
+      } catch (emailError) {
+        console.error('Email service error:', emailError);
+        toast({
+          title: "Invitation Created",
+          description: "Invitation created but email service is unavailable.",
+          variant: "destructive"
+        });
+      }
 
       return true;
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to invite user",
+        variant: "destructive"
+      });
       return false;
     }
   };

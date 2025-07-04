@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Users, FileText, Palette, FolderPlus, CheckSquare } from 'lucide-react';
-import TeamManagement from '@/components/organization/TeamManagement';
+import EnhancedTeamManagement from '@/components/organization/EnhancedTeamManagement';
 import DocumentCompliance from '@/components/organization/DocumentCompliance';
 import ProjectSetupDefaults from '@/components/organization/ProjectSetupDefaults';
 import BrandingControls from '@/components/organization/BrandingControls';
@@ -128,7 +128,7 @@ const OrganizationPanelDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="team">
-          <TeamManagement />
+          <EnhancedTeamManagement />
         </TabsContent>
 
         <TabsContent value="compliance">
