@@ -24,7 +24,7 @@ import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
 import QADetailsTab from './QADetailsTab';
-import QAChecklistTab from './QAChecklistTab';
+import QAChecklistEditableTab from './QAChecklistEditableTab';
 import QAAttachmentsTab from './QAAttachmentsTab';
 import QAChangeHistory from './QAChangeHistory';
 import QACrossModuleIntegration from './QACrossModuleIntegration';
@@ -287,9 +287,10 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
               </TabsContent>
 
               <TabsContent value="checklist" className="h-full">
-                <QAChecklistTab
+                <QAChecklistEditableTab
                   inspection={inspection}
                   isEditing={isEditing}
+                  onUpdate={onUpdate}
                 />
               </TabsContent>
 
