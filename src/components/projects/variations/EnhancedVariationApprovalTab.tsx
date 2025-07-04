@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 import VariationApprovalActions from './VariationApprovalActions';
@@ -191,9 +191,9 @@ const EnhancedVariationApprovalTab: React.FC<EnhancedVariationApprovalTabProps> 
             <h4 className="font-medium mb-2 text-blue-900">Your Permissions</h4>
             <div className="text-sm text-blue-800 space-y-1">
               <div>• Role: {userRole}</div>
-              {(isDeveloper() || canEdit('variations') || isProjectManager) && <div>• Can submit variations for approval</div>}
-              {(isDeveloper() || canAdmin('variations') || canEdit('variations') || isProjectManager) && <div>• Can approve/reject variations</div>}
-              {(isDeveloper() || canAdmin('variations') || isProjectManager) && <div>• Can unlock and revert approved/rejected variations</div>}
+              {(isDeveloper() || canEdit() || isProjectManager) && <div>• Can submit variations for approval</div>}
+              {(isDeveloper() || canAdmin() || canEdit() || isProjectManager) && <div>• Can approve/reject variations</div>}
+              {(isDeveloper() || canAdmin() || isProjectManager) && <div>• Can unlock and revert approved/rejected variations</div>}
               {isProjectManager && <div>• Project Manager override permissions enabled</div>}
             </div>
           </CardContent>

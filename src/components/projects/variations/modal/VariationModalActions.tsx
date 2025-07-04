@@ -24,7 +24,7 @@ const VariationModalActions: React.FC<VariationModalActionsProps> = ({
   onCancel
 }) => {
   return (
-    <PermissionGate module="variations" requiredLevel="write">
+    <PermissionGate>
       <div className="flex-shrink-0 border-t pt-4">
         {!isEditing && activeTab !== 'approval' && (
           <div className="flex justify-end">

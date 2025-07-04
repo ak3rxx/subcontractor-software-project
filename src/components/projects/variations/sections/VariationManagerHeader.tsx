@@ -39,7 +39,7 @@ const VariationManagerHeader: React.FC<VariationManagerHeaderProps> = ({
           </Tabs>
         )}
         
-        <PermissionGate module="variations" requiredLevel="write">
+        <PermissionGate>
           <Button onClick={onNewVariation}>
             <Plus className="h-4 w-4 mr-2" />
             New Variation
