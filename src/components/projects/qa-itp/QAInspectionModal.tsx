@@ -36,7 +36,7 @@ interface QAInspectionModalEnhancedProps {
   onUpdate?: (updatedInspection: any) => void;
 }
 
-const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
+const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo(({
   isOpen,
   onClose,
   inspection,
@@ -54,23 +54,25 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   const [saving, setSaving] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
-  // Initialize edit data when switching to edit mode
+  // Initialize edit data when switching to edit mode - memoized to prevent re-renders
   const handleEditClick = useCallback(() => {
+    if (!inspection) return;
+    
     setEditData({
-      project_name: inspection.project_name,
-      task_area: inspection.task_area,
-      location_reference: inspection.location_reference,
-      inspection_type: inspection.inspection_type,
-      template_type: inspection.template_type,
-      inspector_name: inspection.inspector_name,
-      inspection_date: inspection.inspection_date,
-      overall_status: inspection.overall_status,
-      digital_signature: inspection.digital_signature,
-      is_fire_door: inspection.is_fire_door
+      project_name: inspection.project_name || '',
+      task_area: inspection.task_area || '',
+      location_reference: inspection.location_reference || '',
+      inspection_type: inspection.inspection_type || '',
+      template_type: inspection.template_type || '',
+      inspector_name: inspection.inspector_name || '',
+      inspection_date: inspection.inspection_date || '',
+      overall_status: inspection.overall_status || '',
+      digital_signature: inspection.digital_signature || '',
+      is_fire_door: inspection.is_fire_door || false
     });
     setIsEditing(true);
     setUnsavedChanges(false);
-  }, [inspection]);
+  }, [inspection?.id]); // Only re-create when inspection ID changes
 
   const handleDataChange = useCallback((changes: any) => {
     setEditData(prev => ({ ...prev, ...changes }));
@@ -310,6 +312,6 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
       </DialogContent>
     </Dialog>
   );
-};
+});
 
-export default memo(QAInspectionModalEnhanced);
+export default QAInspectionModalEnhanced;

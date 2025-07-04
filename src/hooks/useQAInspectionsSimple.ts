@@ -37,24 +37,32 @@ export interface QAChecklistItem {
 export const useQAInspectionsSimple = (projectId?: string) => {
   const [inspections, setInspections] = useState<QAInspection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [subscriptionState, setSubscriptionState] = useState<{
+    isSubscribed: boolean;
+    channelName: string | null;
+  }>({ isSubscribed: false, channelName: null });
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchInspections = useCallback(async () => {
-    if (!user) {
+  // Stable fetch function - no dependencies that change frequently
+  const fetchInspections = useCallback(async (currentProjectId?: string, currentUser?: any) => {
+    const targetProjectId = currentProjectId || projectId;
+    const targetUser = currentUser || user;
+    
+    if (!targetUser) {
       setLoading(false);
       return;
     }
 
-    console.log('QA: Fetching inspections for project:', projectId);
+    console.log('QA: Fetching inspections for project:', targetProjectId);
     try {
       let query = supabase
         .from('qa_inspections')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (projectId) {
-        query = query.eq('project_id', projectId);
+      if (targetProjectId) {
+        query = query.eq('project_id', targetProjectId);
       }
 
       const { data, error } = await query;
@@ -85,7 +93,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [user, projectId]);
+  }, []); // No dependencies - stable function
 
   const createInspection = useCallback(async (
     inspectionData: Omit<QAInspection, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'inspection_number'>,
@@ -167,7 +175,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         description: "QA inspection created successfully"
       });
 
-      await fetchInspections();
+      await fetchInspections(projectId, user);
       return inspectionResult;
     } catch (error) {
       console.error('Error creating inspection:', error);
@@ -178,7 +186,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
       });
       return null;
     }
-  }, [user, toast, fetchInspections]);
+  }, [user, toast, fetchInspections, projectId]);
 
   const updateInspection = useCallback(async (
     inspectionId: string,
@@ -243,7 +251,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         description: "Inspection updated successfully"
       });
 
-      await fetchInspections();
+      await fetchInspections(projectId, user);
       return inspectionResult;
     } catch (error) {
       console.error('Error updating inspection:', error);
@@ -254,7 +262,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
       });
       return null;
     }
-  }, [user, toast, fetchInspections]);
+  }, [user, toast, fetchInspections, projectId]);
 
   const deleteInspection = useCallback(async (inspectionId: string) => {
     if (!user) return false;
@@ -286,7 +294,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         description: "Inspection deleted successfully"
       });
 
-      await fetchInspections();
+      await fetchInspections(projectId, user);
       return true;
     } catch (error) {
       console.error('Error deleting inspection:', error);
@@ -297,7 +305,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
       });
       return false;
     }
-  }, [user, toast, fetchInspections]);
+  }, [user, toast, fetchInspections, projectId]);
 
   const getChecklistItems = useCallback(async (inspectionId: string): Promise<QAChecklistItem[]> => {
     try {
@@ -353,16 +361,28 @@ export const useQAInspectionsSimple = (projectId?: string) => {
   // Initial fetch and real-time subscription
   useEffect(() => {
     console.log('QA: Setting up subscription for project:', projectId, 'user:', user?.id);
-    fetchInspections();
+    
+    // Fetch initial data
+    fetchInspections(projectId, user);
 
     // Only subscribe if we have a valid user and project ID
     if (!user || !projectId) {
+      console.log('QA: Skipping subscription - missing user or projectId');
+      return;
+    }
+
+    // Prevent multiple subscriptions
+    if (subscriptionState.isSubscribed) {
+      console.log('QA: Already subscribed, skipping');
       return;
     }
 
     // Create unique channel name to avoid conflicts
-    const channelName = `qa_inspections_${projectId}_${user.id}`;
+    const channelName = `qa_inspections_${projectId}_${Date.now()}`;
     console.log('QA: Creating channel:', channelName);
+    
+    // Update subscription state immediately
+    setSubscriptionState({ isSubscribed: true, channelName });
     
     // Subscribe to real-time changes with proper cleanup
     const channel = supabase
@@ -374,20 +394,30 @@ export const useQAInspectionsSimple = (projectId?: string) => {
           table: 'qa_inspections',
           filter: `project_id=eq.${projectId}`
         }, 
-        () => {
-          console.log('QA: Real-time change detected, refreshing...');
-          fetchInspections();
+        (payload) => {
+          console.log('QA: Real-time change detected:', payload.eventType);
+          // Debounce rapid changes
+          setTimeout(() => fetchInspections(projectId, user), 100);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('QA: Subscription status:', status);
+      });
 
     return () => {
       console.log('QA: Cleaning up subscription:', channelName);
+      setSubscriptionState({ isSubscribed: false, channelName: null });
+      
       // Proper cleanup to prevent "tried to subscribe multiple times" error
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [projectId, user?.id]);
+  }, [projectId, user?.id, fetchInspections]); // Include fetchInspections but it's stable
+
+  // Stable refetch function
+  const refetch = useCallback(() => {
+    fetchInspections(projectId, user);
+  }, [fetchInspections, projectId, user]);
 
   return {
     inspections,
@@ -397,6 +427,6 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     deleteInspection,
     getChecklistItems,
     getInspectionById,
-    refetch: fetchInspections
+    refetch
   };
 };
