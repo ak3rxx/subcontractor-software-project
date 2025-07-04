@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, Download, Trash2, Loader2 } from 'lucide-react';
 import { useVariationFileManagement } from '@/hooks/useVariationFileManagement';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VariationFilesTabProps {
   variation: any;

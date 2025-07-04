@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, Edit, Save, X } from 'lucide-react';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useVariationEditPermissions } from '@/hooks/useVariationEditPermissions';
 import { useVariationFieldAudit } from '@/hooks/useVariationFieldAudit';

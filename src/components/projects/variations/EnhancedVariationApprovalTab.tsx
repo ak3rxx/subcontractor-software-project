@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSimplePermissions } from '@/hooks/useSimplePermissions';
 import { useVariationAuditTrail } from '@/hooks/useVariationAuditTrail';
 import VariationApprovalActions from './VariationApprovalActions';
