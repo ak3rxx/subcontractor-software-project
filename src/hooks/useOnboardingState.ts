@@ -20,7 +20,15 @@ export const useOnboardingState = (moduleId: string) => {
 
   useEffect(() => {
     const fetchOnboardingState = async () => {
+      // Early return if no user - don't attempt database calls
       if (!user?.id) {
+        setProgress({
+          moduleId,
+          isCompleted: false,
+          showAgain: false, // Don't show onboarding for unauthenticated users
+          completedSteps: [],
+          currentStep: undefined
+        });
         setLoading(false);
         return;
       }
@@ -81,7 +89,11 @@ export const useOnboardingState = (moduleId: string) => {
   }, [user?.id, moduleId]);
 
   const updateProgress = async (updates: Partial<OnboardingProgress>) => {
-    if (!user?.id || !organizationId) return;
+    // Safe guard - don't attempt database updates without proper authentication
+    if (!user?.id || !organizationId) {
+      console.warn('Cannot update onboarding progress: user not authenticated or no organization');
+      return;
+    }
 
     const newProgress = { ...progress, ...updates } as OnboardingProgress;
     setProgress(newProgress);
@@ -143,7 +155,8 @@ export const useOnboardingState = (moduleId: string) => {
   };
 
   const shouldShowInteractiveTour = () => {
-    if (!progress) return true; // Show tour for new users
+    // Don't show tour for unauthenticated users
+    if (!user?.id || !progress) return false;
     return progress.showAgain && !progress.isCompleted;
   };
 

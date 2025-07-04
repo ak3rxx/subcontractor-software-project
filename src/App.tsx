@@ -15,7 +15,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedApp from '@/components/RoleProtectedApp';
 import InvitationAcceptance from '@/pages/InvitationAcceptance';
 import OrganizationOnboarding from '@/components/organization/OrganizationOnboarding';
-import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider';
+import { ProtectedOnboardingProvider } from '@/components/onboarding/ProtectedOnboardingProvider';
 // AuthProvider removed - using direct useAuth hook instead
 
 // Add these imports for the new routes
@@ -26,64 +26,87 @@ function App() {
   return (
     <Router>
       <RoleProtectedApp>
-        <OnboardingProvider>
-          <Routes>
+        <Routes>
+          {/* Public routes - no onboarding provider */}
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/subcontractor-onboarding" element={<SubcontractorOnboarding />} />
+          
+          {/* Protected routes - wrapped with onboarding provider */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <Dashboard />
+              <ProtectedOnboardingProvider>
+                <Dashboard />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/projects" element={
             <ProtectedRoute>
-              <Projects />
+              <ProtectedOnboardingProvider>
+                <Projects />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/finance" element={
             <ProtectedRoute>
-              <Finance />
+              <ProtectedOnboardingProvider>
+                <Finance />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/tasks" element={
             <ProtectedRoute>
-              <Tasks />
+              <ProtectedOnboardingProvider>
+                <Tasks />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/settings" element={
             <ProtectedRoute>
-              <Settings />
+              <ProtectedOnboardingProvider>
+                <Settings />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
-          <Route path="/subcontractor-onboarding" element={<SubcontractorOnboarding />} />
           <Route path="/admin-panel" element={
             <ProtectedRoute>
-              <AdminPanel />
+              <ProtectedOnboardingProvider>
+                <AdminPanel />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/developer-admin" element={
             <ProtectedRoute>
-              <DeveloperAdmin />
+              <ProtectedOnboardingProvider>
+                <DeveloperAdmin />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/organization-panel" element={
             <ProtectedRoute>
-              <OrganizationPanel />
+              <ProtectedOnboardingProvider>
+                <OrganizationPanel />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/invitation" element={
             <ProtectedRoute>
-              <InvitationAcceptance />
+              <ProtectedOnboardingProvider>
+                <InvitationAcceptance />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
           <Route path="/organization-onboarding" element={
             <ProtectedRoute>
-              <OrganizationOnboarding />
+              <ProtectedOnboardingProvider>
+                <OrganizationOnboarding />
+              </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
+          
+          {/* 404 route */}
           <Route path="*" element={<NotFound />} />
-          </Routes>
-        </OnboardingProvider>
+        </Routes>
       </RoleProtectedApp>
     </Router>
   );

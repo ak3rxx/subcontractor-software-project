@@ -29,6 +29,11 @@ interface OnboardingProviderProps {
 }
 
 const getModuleFromPath = (pathname: string): string => {
+  // Only handle authenticated routes - return default for public routes
+  if (pathname === '/' || pathname === '/auth' || pathname === '/subcontractor-onboarding') {
+    return 'dashboard'; // Default module for public routes
+  }
+
   const pathMap: Record<string, string> = {
     '/dashboard': 'dashboard',
     '/projects': 'projects',
