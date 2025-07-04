@@ -317,8 +317,8 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
         </PermissionGate>
 
         {/* Approval Actions */}
-        <PermissionGate>
-          {showApprovalActions && (
+        {showApprovalActions && (
+          <PermissionGate permission="approve" showMessage={true} message="Only Project Managers and Org Admins can approve variations.">
             <div className="space-y-4">
               <h4 className="font-medium text-sm">Approval Decision</h4>
               
@@ -371,12 +371,12 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
                 </Button>
               </div>
             </div>
-          )}
-        </PermissionGate>
+          </PermissionGate>
+        )}
 
         {/* Retraction Section - Only for Admin Level Users */}
-        <PermissionGate>
-          {canRetract && (
+        {canRetract && (
+          <PermissionGate permission="admin" showMessage={true} message="Only administrators can retract approved variations.">
             <>
               <Separator />
               <div className="space-y-4">
@@ -424,8 +424,8 @@ const VariationApprovalWorkflow: React.FC<VariationApprovalWorkflowProps> = ({
                 </Button>
               </div>
             </>
-          )}
-        </PermissionGate>
+          </PermissionGate>
+        )}
 
         {/* Current Status Info */}
         {variation.status !== 'draft' && (

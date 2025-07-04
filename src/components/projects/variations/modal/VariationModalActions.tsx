@@ -24,10 +24,10 @@ const VariationModalActions: React.FC<VariationModalActionsProps> = ({
   onCancel
 }) => {
   return (
-    <PermissionGate>
-      <div className="flex-shrink-0 border-t pt-4">
-        {!isEditing && activeTab !== 'approval' && (
-          <div className="flex justify-end">
+    <div className="flex-shrink-0 border-t pt-4">
+      {!isEditing && activeTab !== 'approval' && (
+        <div className="flex justify-end">
+          <PermissionGate permission="edit" showMessage={false}>
             <Button 
               variant="outline" 
               onClick={onEdit}
@@ -36,10 +36,12 @@ const VariationModalActions: React.FC<VariationModalActionsProps> = ({
               <Edit className="h-4 w-4 mr-2" />
               {!canEditVariation ? 'Edit Blocked' : 'Edit Variation'}
             </Button>
-          </div>
-        )}
-        
-        {isEditing && canEditVariation && (
+          </PermissionGate>
+        </div>
+      )}
+      
+      {isEditing && canEditVariation && (
+        <PermissionGate permission="edit" showMessage={false}>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onCancel} disabled={saveLoading}>
               <X className="h-4 w-4 mr-2" />
@@ -50,9 +52,9 @@ const VariationModalActions: React.FC<VariationModalActionsProps> = ({
               {saveLoading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
-        )}
-      </div>
-    </PermissionGate>
+        </PermissionGate>
+      )}
+    </div>
   );
 };
 
