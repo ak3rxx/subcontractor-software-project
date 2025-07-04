@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useQAInspections } from '@/hooks/useQAInspections';
+import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import FileThumbnailViewer from './FileThumbnailViewer';
 
@@ -16,7 +16,7 @@ const QAChecklistTab: React.FC<QAChecklistTabProps> = ({
 }) => {
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { getChecklistItems } = useQAInspections();
+  const { getChecklistItems } = useQAInspectionsSimple();
 
   useEffect(() => {
     const fetchChecklistItems = async () => {

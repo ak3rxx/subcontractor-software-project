@@ -112,11 +112,19 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         return null;
       }
 
+      // Get user's organization
+      const { data: orgData } = await supabase
+        .from('organization_users')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
       const insertData = {
         ...inspectionData,
         inspection_number: numberData,
         created_by: user.id,
-        organization_id: null // Simplified for now
+        organization_id: orgData?.organization_id || null
       };
 
       const { data: inspectionResult, error: inspectionError } = await supabase
@@ -364,7 +372,7 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [projectId]); // Remove fetchInspections from deps to prevent loop
+  }, [fetchInspections, projectId]);
 
   return {
     inspections,

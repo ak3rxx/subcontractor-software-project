@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X, Download, FileText } from 'lucide-react';
-import { useQAInspections } from '@/hooks/useQAInspections';
+import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useToast } from '@/hooks/use-toast';
 import { exportMultipleInspectionsToPDF, downloadPDF, type ExportableInspection } from '@/utils/pdfExport';
 
@@ -14,7 +14,7 @@ interface QABulkExportProps {
 }
 
 const QABulkExport: React.FC<QABulkExportProps> = ({ onClose, selectedInspectionIds = [] }) => {
-  const { inspections, getChecklistItems } = useQAInspections();
+  const { inspections, getChecklistItems } = useQAInspectionsSimple();
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<string[]>(selectedInspectionIds);
   const [exporting, setExporting] = useState(false);

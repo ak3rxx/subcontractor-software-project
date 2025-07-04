@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, Download, FileText, Image } from 'lucide-react';
-import { useQAInspections } from '@/hooks/useQAInspections';
+import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 
 interface QAAttachmentsTabProps {
   inspection: any;
@@ -14,7 +14,7 @@ const QAAttachmentsTab: React.FC<QAAttachmentsTabProps> = ({
   isEditing
 }) => {
   const [allFiles, setAllFiles] = useState<string[]>([]);
-  const { getChecklistItems } = useQAInspections();
+  const { getChecklistItems } = useQAInspectionsSimple();
 
   useEffect(() => {
     const fetchAllFiles = async () => {
