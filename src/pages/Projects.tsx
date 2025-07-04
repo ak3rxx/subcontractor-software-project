@@ -14,7 +14,7 @@ import ProjectSetup from '@/components/projects/ProjectSetup';
 import VariationManager from '@/components/projects/variations/VariationManager';
 import TaskManager from '@/components/projects/TaskManager';
 import RFIManager from '@/components/projects/RFIManager';
-import QAITPTracker from '@/components/projects/qa-itp/QAITPTracker';
+import QATrackerEnhanced from '@/components/projects/qa-itp/QATrackerEnhanced';
 import QAITPForm from '@/components/projects/qa-itp/QAITPForm';
 import ProgrammeTracker from '@/components/projects/ProgrammeTracker';
 import FinanceManager from '@/components/projects/finance/FinanceManager';
@@ -348,7 +348,7 @@ const Projects = () => {
                             projectId={selectedProject.id}
                           />
                         ) : (
-                          <QAITPTracker 
+                          <QATrackerEnhanced 
                             onNewInspection={() => setActiveQAForm(true)} 
                             projectId={selectedProject.id}
                           />
