@@ -372,8 +372,11 @@ export type Database = {
           current_step: string | null
           id: string
           is_completed: boolean | null
+          last_seen: string | null
+          module_name: string | null
           organization_id: string
           role: string
+          show_again: boolean | null
           tour_preferences: Json | null
           updated_at: string | null
           user_id: string
@@ -384,8 +387,11 @@ export type Database = {
           current_step?: string | null
           id?: string
           is_completed?: boolean | null
+          last_seen?: string | null
+          module_name?: string | null
           organization_id: string
           role: string
+          show_again?: boolean | null
           tour_preferences?: Json | null
           updated_at?: string | null
           user_id: string
@@ -396,8 +402,11 @@ export type Database = {
           current_step?: string | null
           id?: string
           is_completed?: boolean | null
+          last_seen?: string | null
+          module_name?: string | null
           organization_id?: string
           role?: string
+          show_again?: boolean | null
           tour_preferences?: Json | null
           updated_at?: string | null
           user_id?: string
@@ -455,6 +464,7 @@ export type Database = {
       }
       organization_invitations: {
         Row: {
+          accepted_at: string | null
           created_at: string | null
           email: string
           expires_at: string | null
@@ -466,6 +476,7 @@ export type Database = {
           status: string | null
         }
         Insert: {
+          accepted_at?: string | null
           created_at?: string | null
           email: string
           expires_at?: string | null
@@ -477,6 +488,7 @@ export type Database = {
           status?: string | null
         }
         Update: {
+          accepted_at?: string | null
           created_at?: string | null
           email?: string
           expires_at?: string | null
@@ -553,6 +565,8 @@ export type Database = {
       }
       organization_users: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string | null
           id: string
           invited_by: string | null
@@ -563,6 +577,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           id?: string
           invited_by?: string | null
@@ -573,6 +589,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           id?: string
           invited_by?: string | null
@@ -614,6 +632,8 @@ export type Database = {
           contact_email: string | null
           contact_phone: string | null
           created_at: string | null
+          created_by: string | null
+          dob_admin: string | null
           emergency_contact: string | null
           id: string
           is_trial: boolean | null
@@ -622,6 +642,7 @@ export type Database = {
           slug: string
           subscription_end_date: string | null
           subscription_status: string | null
+          theme_color: string | null
           trial_end_date: string | null
           updated_at: string | null
         }
@@ -632,6 +653,8 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          created_by?: string | null
+          dob_admin?: string | null
           emergency_contact?: string | null
           id?: string
           is_trial?: boolean | null
@@ -640,6 +663,7 @@ export type Database = {
           slug: string
           subscription_end_date?: string | null
           subscription_status?: string | null
+          theme_color?: string | null
           trial_end_date?: string | null
           updated_at?: string | null
         }
@@ -650,6 +674,8 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          created_by?: string | null
+          dob_admin?: string | null
           emergency_contact?: string | null
           id?: string
           is_trial?: boolean | null
@@ -658,6 +684,7 @@ export type Database = {
           slug?: string
           subscription_end_date?: string | null
           subscription_status?: string | null
+          theme_color?: string | null
           trial_end_date?: string | null
           updated_at?: string | null
         }
@@ -2290,6 +2317,14 @@ export type Database = {
         }
         Returns: string
       }
+      should_show_onboarding: {
+        Args: {
+          p_user_id: string
+          p_organization_id: string
+          p_module_name: string
+        }
+        Returns: boolean
+      }
       suggest_trade_from_description: {
         Args: { description_text: string; org_id: string }
         Returns: {
@@ -2300,6 +2335,16 @@ export type Database = {
       update_category_usage: {
         Args: { org_id: string; category: string; trade?: string }
         Returns: undefined
+      }
+      update_onboarding_module_progress: {
+        Args: {
+          p_user_id: string
+          p_organization_id: string
+          p_module_name: string
+          p_completed?: boolean
+          p_show_again?: boolean
+        }
+        Returns: string
       }
     }
     Enums: {
