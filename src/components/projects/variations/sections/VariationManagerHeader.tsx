@@ -40,7 +40,7 @@ const VariationManagerHeader: React.FC<VariationManagerHeaderProps> = ({
         )}
         
         <PermissionGate permission="create" showMessage={false}>
-          <Button onClick={onNewVariation}>
+          <Button onClick={onNewVariation} data-tour="new-variation-btn">
             <Plus className="h-4 w-4 mr-2" />
             New Variation
           </Button>

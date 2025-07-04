@@ -212,10 +212,10 @@ const QATrackerEnhanced: React.FC<QATrackerEnhancedProps> = ({
           <h2 className="text-2xl font-bold">QA/ITP Tracker</h2>
           <p className="text-muted-foreground">Manage quality assurance inspections and test plans</p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Inspection
-        </Button>
+              <Button onClick={() => setShowCreateForm(true)} data-tour="new-inspection-btn">
+                <Plus className="h-4 w-4 mr-2" />
+                New Inspection
+              </Button>
       </div>
 
       {/* Filters and Search */}

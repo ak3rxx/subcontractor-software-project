@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Building2, Users, AlertTriangle, Activity, CreditCard, UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Settings, Building2, Users, AlertTriangle, Activity, CreditCard, UserPlus, Eye, UserCheck, Shield, Bug } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
-// Permission matrix temporarily removed
 import FeatureFlagManager from '@/components/admin/FeatureFlagManager';
 import TestUserMode from '@/components/admin/TestUserMode';
 import SystemDiagnostics from '@/components/admin/SystemDiagnostics';
@@ -14,9 +14,11 @@ import ClientManagement from '@/components/admin/ClientManagement';
 import IssueManagement from '@/components/admin/IssueManagement';
 import QADiagnosticTool from '@/components/admin/QADiagnosticTool';
 import TopNav from '@/components/TopNav';
+import { useAuth } from '@/hooks/useAuth';
 
 const EnhancedDeveloperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const { user, isDeveloper, hasRole, isOrgAdmin } = useAuth();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -31,11 +33,11 @@ const EnhancedDeveloperAdminDashboard: React.FC = () => {
       case 'issues':
         return <IssueManagement />;
       case 'permissions':
-        return <div className="text-center p-8"><p className="text-gray-600">Permission management being rebuilt...</p></div>;
+        return <PermissionAuditContent />;
       case 'features':
         return <FeatureFlagManager />;
       case 'testing':
-        return <TestUserMode />;
+        return <RoleTestingContent />;
       case 'diagnostics':
         return <SystemDiagnostics />;
       case 'qa-diagnostics':
@@ -46,6 +48,8 @@ const EnhancedDeveloperAdminDashboard: React.FC = () => {
         return <InviteClientContent />;
       case 'system-status':
         return <SystemStatusContent />;
+      case 'user-impersonation':
+        return <UserImpersonationContent />;
       default:
         return <OverviewContent />;
     }
@@ -65,6 +69,14 @@ const EnhancedDeveloperAdminDashboard: React.FC = () => {
                 <Settings className="h-8 w-8 text-purple-600" />
                 <h1 className="text-3xl font-bold text-gray-900">Developer Admin</h1>
                 <Badge variant="destructive" className="ml-2">Developer Only</Badge>
+                <div className="ml-auto flex gap-2" data-tour="developer-tools">
+                  <Badge variant="outline">
+                    Current User: {user?.email}
+                  </Badge>
+                  <Badge variant="secondary">
+                    Role: {isDeveloper() ? 'Developer' : 'Admin'}
+                  </Badge>
+                </div>
               </div>
               <p className="text-gray-600">
                 Global system administration, client management, and development tools.
@@ -281,5 +293,182 @@ const SystemStatusContent = () => (
     </Card>
   </div>
 );
+
+const PermissionAuditContent = () => {
+  const { user, isDeveloper, hasRole, isOrgAdmin } = useAuth();
+  
+  return (
+    <div className="space-y-6">
+      <h3 className="text-2xl font-bold">Permission Audit & Testing</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card data-tour="permission-matrix">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Current User Permissions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span>Developer Access</span>
+                <Badge variant={isDeveloper() ? "default" : "secondary"}>
+                  {isDeveloper() ? "✓ Yes" : "✗ No"}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Organization Admin</span>
+                <Badge variant={isOrgAdmin() ? "default" : "secondary"}>
+                  {isOrgAdmin() ? "✓ Yes" : "✗ No"}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Project Manager Role</span>
+                <Badge variant={hasRole('project_manager') ? "default" : "secondary"}>
+                  {hasRole('project_manager') ? "✓ Yes" : "✗ No"}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Can Send Emails</span>
+                <Badge variant={isDeveloper() || isOrgAdmin() ? "default" : "secondary"}>
+                  {isDeveloper() || isOrgAdmin() ? "✓ Yes" : "✗ No"}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bug className="h-5 w-5" />
+              Debug Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div><strong>User ID:</strong> {user?.id}</div>
+              <div><strong>Email:</strong> {user?.email}</div>
+              <div><strong>Primary Role:</strong> {user?.primaryRole || 'None'}</div>
+              <div><strong>Primary Org:</strong> {user?.primaryOrganization || 'None'}</div>
+              <div><strong>Roles Count:</strong> {user?.roles?.length || 0}</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const RoleTestingContent = () => {
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedOrg, setSelectedOrg] = useState<string>('');
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-2xl font-bold">Role Testing Tools</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card data-tour="role-testing">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Quick Role Assignment
+            </CardTitle>
+            <CardDescription>
+              Test different role combinations for development
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Test Role</label>
+              <select 
+                className="w-full mt-1 p-2 border rounded-md"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value="">Select a role</option>
+                <option value="developer">Developer</option>
+                <option value="org_admin">Organization Admin</option>
+                <option value="project_manager">Project Manager</option>
+                <option value="estimator">Estimator</option>
+                <option value="site_supervisor">Site Supervisor</option>
+                <option value="subcontractor">Subcontractor</option>
+                <option value="client">Client</option>
+              </select>
+            </div>
+            <Button className="w-full" disabled>
+              Apply Test Role (Coming Soon)
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Access Control Tests
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Button variant="outline" className="w-full justify-start" disabled>
+                <Shield className="h-4 w-4 mr-2" />
+                Test Module Access
+              </Button>
+              <Button variant="outline" className="w-full justify-start" disabled>
+                <Eye className="h-4 w-4 mr-2" />
+                Test Data Visibility
+              </Button>
+              <Button variant="outline" className="w-full justify-start" disabled>
+                <UserCheck className="h-4 w-4 mr-2" />
+                Test Action Permissions
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const UserImpersonationContent = () => {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-2xl font-bold">User Impersonation</h3>
+      <Card data-tour="user-impersonation">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            View as User
+          </CardTitle>
+          <CardDescription>
+            Test the application from another user's perspective
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Select User to Impersonate</label>
+              <select className="w-full mt-1 p-2 border rounded-md">
+                <option value="">Select a user</option>
+                <option value="user1">john@example.com (Project Manager)</option>
+                <option value="user2">sarah@example.com (Site Supervisor)</option>
+                <option value="user3">mike@example.com (Subcontractor)</option>
+              </select>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p className="text-sm text-yellow-800">
+                <strong>Safety Notice:</strong> User impersonation will be logged for security audit.
+              </p>
+            </div>
+            <Button className="w-full" disabled>
+              Start Impersonation Session (Coming Soon)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 export default EnhancedDeveloperAdminDashboard;

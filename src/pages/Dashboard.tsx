@@ -119,10 +119,10 @@ const Dashboard = () => {
               <p className="text-gray-600">Welcome back to your construction management hub</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleViewProjects}>
+              <Button variant="outline" onClick={handleViewProjects} data-tour="view-projects-btn">
                 View All Projects
               </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateProject}>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateProject} data-tour="new-project-btn">
                 <Plus className="h-4 w-4 mr-2" />
                 New Project
               </Button>
@@ -130,7 +130,7 @@ const Dashboard = () => {
           </div>
           
           {/* Real Stats Overview */}
-          <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4" data-tour="dashboard-stats">
             <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleViewProjects}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
@@ -179,7 +179,7 @@ const Dashboard = () => {
           </div>
           
           {/* Projects Overview */}
-          <Card className="mb-8">
+          <Card className="mb-8" data-tour="project-cards">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>

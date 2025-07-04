@@ -184,6 +184,7 @@ const Projects = () => {
                   <Button 
                     variant="outline" 
                     onClick={handleBackToProjects}
+                    data-tour="back-to-projects-btn"
                   >
                     ← Back to Projects
                   </Button>
@@ -193,7 +194,7 @@ const Projects = () => {
 
             {/* Consolidated Navigation */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-8 lg:grid-cols-8">
+              <TabsList className="grid w-full grid-cols-8 lg:grid-cols-8" data-tour="project-tabs">
                 <TabsTrigger value="dashboard" className="flex items-center gap-1">
                   <BarChart3 className="h-4 w-4" />
                   <span className="hidden sm:inline">Dashboard</span>
@@ -294,14 +295,14 @@ const Projects = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="variations" className="mt-6">
+              <TabsContent value="variations" className="mt-6" data-tour="variations-section">
                 <VariationManager
                   projectName={selectedProject.name}
                   projectId={selectedProject.id}
                 />
               </TabsContent>
 
-              <TabsContent value="qa-itp" className="mt-6 space-y-6">
+              <TabsContent value="qa-itp" className="mt-6 space-y-6" data-tour="qa-section">
                 <Card>
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -379,7 +380,7 @@ const Projects = () => {
               </TabsContent>
 
               {canAccess('finance') && (
-                <TabsContent value="finance" className="mt-6">
+                <TabsContent value="finance" className="mt-6" data-tour="finance-section">
                   <FinanceManager 
                     projectName={selectedProject.name}
                     crossModuleData={crossModuleData}
