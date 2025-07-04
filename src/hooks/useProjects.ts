@@ -213,10 +213,13 @@ export const useProjects = () => {
   };
 
   useEffect(() => {
-    // Only fetch if we have a user and haven't already started loading
-    if (user && loading) {
+    console.log('useProjects useEffect triggered:', { user: !!user, userId: user?.id, loading });
+    
+    if (user) {
+      console.log('Fetching projects for user:', user.id);
       fetchProjects();
-    } else if (!user) {
+    } else {
+      console.log('No user, clearing projects');
       setLoading(false);
       setProjects([]);
     }
