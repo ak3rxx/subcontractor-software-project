@@ -1,45 +1,125 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Edit, User, Calendar, MapPin, Clipboard, History } from 'lucide-react';
+import { 
+  FileText, 
+  Edit, 
+  Save, 
+  X, 
+  Clock, 
+  User, 
+  Calendar, 
+  MapPin, 
+  Clipboard, 
+  History,
+  Download,
+  Eye,
+  AlertTriangle
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import { useToast } from '@/hooks/use-toast';
+import QADetailsTab from './QADetailsTab';
+import QAChecklistTab from './QAChecklistTab';
+import QAAttachmentsTab from './QAAttachmentsTab';
 import QAChangeHistory from './QAChangeHistory';
+import QACrossModuleIntegration from './QACrossModuleIntegration';
 
-interface QAInspectionModalProps {
+interface QAInspectionModalEnhancedProps {
   isOpen: boolean;
   onClose: () => void;
   inspection: any;
-  onEdit: () => void;
+  onUpdate?: (updatedInspection: any) => void;
 }
 
-const QAInspectionModal: React.FC<QAInspectionModalProps> = ({
+const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = ({
   isOpen,
   onClose,
   inspection,
-  onEdit
+  onUpdate
 }) => {
-  const { getChecklistItems } = useQAInspectionsSimple(inspection?.project_id);
-  const { changeHistory } = useQAChangeHistory(inspection?.id);
-  const [checklistItems, setChecklistItems] = useState<any[]>([]);
-  const [loadingItems, setLoadingItems] = useState(false);
+  const { updateInspection } = useQAInspectionsSimple(inspection?.project_id);
+  const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
+  const { toast } = useToast();
 
-  // Load checklist items when modal opens
-  React.useEffect(() => {
-    if (inspection?.id && isOpen) {
-      setLoadingItems(true);
-      getChecklistItems(inspection.id).then(items => {
-        setChecklistItems(items);
-        setLoadingItems(false);
-      });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({});
+  const [activeTab, setActiveTab] = useState('details');
+  const [saving, setSaving] = useState(false);
+  const [unsavedChanges, setUnsavedChanges] = useState(false);
+
+  // Initialize edit data when switching to edit mode
+  const handleEditClick = useCallback(() => {
+    setEditData({
+      project_name: inspection.project_name,
+      task_area: inspection.task_area,
+      location_reference: inspection.location_reference,
+      inspection_type: inspection.inspection_type,
+      template_type: inspection.template_type,
+      inspector_name: inspection.inspector_name,
+      inspection_date: inspection.inspection_date,
+      overall_status: inspection.overall_status,
+      digital_signature: inspection.digital_signature,
+      is_fire_door: inspection.is_fire_door
+    });
+    setIsEditing(true);
+    setUnsavedChanges(false);
+  }, [inspection]);
+
+  const handleDataChange = useCallback((changes: any) => {
+    setEditData(prev => ({ ...prev, ...changes }));
+    setUnsavedChanges(true);
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!unsavedChanges) {
+      setIsEditing(false);
+      return;
     }
-  }, [inspection?.id, isOpen, getChecklistItems]);
 
-  const getStatusBadge = (status: string) => {
+    setSaving(true);
+    try {
+      const updatedInspection = await updateInspection(inspection.id, editData);
+      if (updatedInspection) {
+        toast({
+          title: "Success",
+          description: "Inspection updated successfully"
+        });
+        setIsEditing(false);
+        setUnsavedChanges(false);
+        onUpdate?.(updatedInspection);
+      }
+    } catch (error) {
+      console.error('Error updating inspection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update inspection",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [inspection.id, editData, unsavedChanges, updateInspection, toast, onUpdate]);
+
+  const handleCancel = useCallback(() => {
+    if (unsavedChanges) {
+      if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+        setIsEditing(false);
+        setEditData({});
+        setUnsavedChanges(false);
+      }
+    } else {
+      setIsEditing(false);
+      setEditData({});
+    }
+  }, [unsavedChanges]);
+
+  const getStatusBadge = useMemo(() => {
+    const status = inspection?.overall_status;
     switch (status) {
       case 'pass':
         return <Badge className="bg-green-100 text-green-800">✅ Pass</Badge>;
@@ -52,20 +132,34 @@ const QAInspectionModal: React.FC<QAInspectionModalProps> = ({
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
-  };
+  }, [inspection?.overall_status]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pass':
-        return '✅';
-      case 'fail':
-        return '❌';
-      case 'na':
-        return '⚪';
-      default:
-        return '❓';
+  const inspectionInfo = useMemo(() => [
+    {
+      icon: User,
+      label: 'Inspector',
+      value: inspection?.inspector_name,
+      color: 'text-blue-600'
+    },
+    {
+      icon: Calendar,
+      label: 'Inspection Date',
+      value: inspection?.inspection_date ? format(new Date(inspection.inspection_date), 'dd/MM/yyyy') : 'N/A',
+      color: 'text-green-600'
+    },
+    {
+      icon: MapPin,
+      label: 'Location',
+      value: inspection?.location_reference,
+      color: 'text-purple-600'
+    },
+    {
+      icon: Clipboard,
+      label: 'Template Type',
+      value: inspection?.template_type?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      color: 'text-orange-600'
     }
-  };
+  ], [inspection]);
 
   if (!inspection) {
     return null;
@@ -73,162 +167,142 @@ const QAInspectionModal: React.FC<QAInspectionModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex justify-between items-start">
-            <div>
+            <div className="space-y-2">
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 QA Inspection {inspection.inspection_number}
               </DialogTitle>
-              <div className="flex items-center gap-2 mt-2">
-                <h3 className="text-lg font-semibold">{inspection.task_area}</h3>
-                {getStatusBadge(inspection.overall_status)}
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-semibold text-muted-foreground">
+                  {inspection.task_area}
+                </h3>
+                {getStatusBadge}
                 {inspection.is_fire_door && (
                   <Badge variant="destructive" className="text-xs">🔥 Fire Door</Badge>
                 )}
+                {unsavedChanges && (
+                  <Badge variant="outline" className="text-xs text-orange-600">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Unsaved Changes
+                  </Badge>
+                )}
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={onEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            
+            <div className="flex items-center gap-2">
+              {!isEditing ? (
+                <Button variant="outline" size="sm" onClick={handleEditClick}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleCancel}
+                    disabled={saving}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={handleSave}
+                    disabled={saving || !unsavedChanges}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Quick Info Bar */}
+          <Card className="mt-4">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {inspectionInfo.map((info, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <info.icon className={`h-4 w-4 ${info.color}`} />
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">{info.label}</p>
+                      <p className="text-sm font-medium">{info.value || 'N/A'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cross-Module Integration */}
+          {!isEditing && (
+            <QACrossModuleIntegration inspection={inspection} />
+          )}
         </DialogHeader>
 
         <div className="flex-1 min-h-0">
-          <Tabs defaultValue="details" className="h-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="history">Audit Trail</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            <TabsList className="flex-shrink-0 grid w-full grid-cols-4">
+              <TabsTrigger value="details" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="checklist" className="flex items-center gap-2">
+                <Clipboard className="h-4 w-4" />
+                Checklist
+              </TabsTrigger>
+              <TabsTrigger value="attachments" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Attachments
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Audit Trail
+                {changeHistory.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {changeHistory.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="details" className="h-full overflow-y-auto mt-4">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Inspection Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Inspector</p>
-                        <p className="text-sm text-muted-foreground">{inspection.inspector_name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Inspection Date</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(inspection.inspection_date), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Location</p>
-                        <p className="text-sm text-muted-foreground">{inspection.location_reference}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clipboard className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Template Type</p>
-                        <p className="text-sm text-muted-foreground">
-                          {inspection.template_type?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="flex-1 overflow-hidden mt-4">
+              <TabsContent value="details" className="h-full">
+                <QADetailsTab
+                  inspection={inspection}
+                  editData={editData}
+                  isEditing={isEditing}
+                  onDataChange={handleDataChange}
+                  recordChange={recordChange}
+                />
+              </TabsContent>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Project Details</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div>
-                      <p className="text-sm font-medium">Project Name</p>
-                      <p className="text-sm text-muted-foreground">{inspection.project_name}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+              <TabsContent value="checklist" className="h-full">
+                <QAChecklistTab
+                  inspection={inspection}
+                  isEditing={isEditing}
+                />
+              </TabsContent>
 
-                {inspection.digital_signature && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Digital Signature</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">{inspection.digital_signature}</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
+              <TabsContent value="attachments" className="h-full">
+                <QAAttachmentsTab
+                  inspection={inspection}
+                  isEditing={isEditing}
+                />
+              </TabsContent>
 
-            <TabsContent value="checklist" className="h-full overflow-y-auto mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Inspection Checklist</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loadingItems ? (
-                    <div className="flex justify-center items-center h-32">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-                    </div>
-                  ) : checklistItems.length > 0 ? (
-                    <div className="space-y-4">
-                      {checklistItems.map((item) => (
-                        <div key={item.id} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium">{item.description}</h4>
-                            <div className="flex items-center gap-1">
-                              <span className="text-lg">{getStatusIcon(item.status)}</span>
-                              <span className="text-sm font-medium capitalize">{item.status || 'Not set'}</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-2">{item.requirements}</p>
-                          {item.comments && (
-                            <div className="bg-muted p-2 rounded text-sm">
-                              <strong>Comments:</strong> {item.comments}
-                            </div>
-                          )}
-                          {item.evidence_files && item.evidence_files.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-sm font-medium mb-1">Evidence Files:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {item.evidence_files.map((file: string, index: number) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
-                                    📎 {file.split('/').pop()}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Clipboard className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No checklist items found.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="history" className="h-full overflow-y-auto mt-4">
-              <QAChangeHistory
-                inspectionId={inspection.id}
-                changeHistory={changeHistory}
-              />
-            </TabsContent>
+              <TabsContent value="history" className="h-full">
+                <QAChangeHistory
+                  inspectionId={inspection.id}
+                  changeHistory={changeHistory}
+                />
+              </TabsContent>
+            </div>
           </Tabs>
         </div>
       </DialogContent>
@@ -236,4 +310,4 @@ const QAInspectionModal: React.FC<QAInspectionModalProps> = ({
   );
 };
 
-export default QAInspectionModal;
+export default memo(QAInspectionModalEnhanced);

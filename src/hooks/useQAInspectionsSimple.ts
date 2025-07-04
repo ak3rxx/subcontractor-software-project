@@ -352,15 +352,23 @@ export const useQAInspectionsSimple = (projectId?: string) => {
   useEffect(() => {
     fetchInspections();
 
-    // Subscribe to real-time changes
+    // Only subscribe if we have a valid user and project ID
+    if (!user || !projectId) {
+      return;
+    }
+
+    // Create unique channel name to avoid conflicts
+    const channelName = `qa_inspections_${projectId}_${user.id}`;
+    
+    // Subscribe to real-time changes with proper cleanup
     const channel = supabase
-      .channel(`qa_inspections_${projectId || 'all'}`)
+      .channel(channelName)
       .on('postgres_changes', 
         { 
           event: '*', 
           schema: 'public', 
           table: 'qa_inspections',
-          filter: projectId ? `project_id=eq.${projectId}` : undefined
+          filter: `project_id=eq.${projectId}`
         }, 
         () => {
           console.log('QA inspection changed, refreshing list...');
@@ -370,9 +378,11 @@ export const useQAInspectionsSimple = (projectId?: string) => {
       .subscribe();
 
     return () => {
+      // Proper cleanup to prevent "tried to subscribe multiple times" error
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [fetchInspections, projectId]);
+  }, [fetchInspections, projectId, user]);
 
   return {
     inspections,

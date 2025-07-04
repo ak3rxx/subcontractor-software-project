@@ -28,15 +28,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import QAITPForm from './QAITPForm';
-import QAInspectionModalEnhanced from './QAInspectionModalEnhanced';
+import QAInspectionModal from './QAInspectionModal';
 import QABulkExport from './QABulkExport';
 
-interface QATrackerRestoredProps {
+interface QATrackerProps {
   projectId: string;
   onNewInspection?: () => void;
 }
 
-const QATrackerRestored: React.FC<QATrackerRestoredProps> = ({ 
+const QATracker: React.FC<QATrackerProps> = ({ 
   projectId,
   onNewInspection 
 }) => {
@@ -619,7 +619,7 @@ const QATrackerRestored: React.FC<QATrackerRestoredProps> = ({
 
       {/* Enhanced Modal */}
       {selectedInspection && (
-        <QAInspectionModalEnhanced
+        <QAInspectionModal
           isOpen={!!selectedInspection}
           onClose={() => setSelectedInspection(null)}
           inspection={selectedInspection}
@@ -635,4 +635,4 @@ const QATrackerRestored: React.FC<QATrackerRestoredProps> = ({
   );
 };
 
-export default QATrackerRestored;
+export default QATracker;
