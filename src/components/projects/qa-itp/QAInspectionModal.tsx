@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
+import { useQAPermissions } from '@/hooks/useQAPermissions';
 import QADetailsTab from './QADetailsTab';
 import QAChecklistEditableTab from './QAChecklistEditableTab';
 import QAAttachmentsTab from './QAAttachmentsTab';
@@ -47,6 +48,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   const { updateInspection } = useQAInspectionsSimple(inspection?.project_id);
   const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();
+  const qaPermissions = useQAPermissions();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
@@ -54,9 +56,40 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   const [saving, setSaving] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
+  // Check if opening in edit mode and auto-enable editing if permitted
+  useEffect(() => {
+    if (inspection?._openInEditMode && qaPermissions.canEditInspections) {
+      setIsEditing(true);
+      setActiveTab('details'); // Ensure details tab is active
+      // Initialize edit data
+      setEditData({
+        project_name: inspection.project_name || '',
+        task_area: inspection.task_area || '',
+        location_reference: inspection.location_reference || '',
+        inspection_type: inspection.inspection_type || '',
+        template_type: inspection.template_type || '',
+        inspector_name: inspection.inspector_name || '',
+        inspection_date: inspection.inspection_date || '',
+        overall_status: inspection.overall_status || '',
+        digital_signature: inspection.digital_signature || '',
+        is_fire_door: inspection.is_fire_door || false
+      });
+    }
+  }, [inspection?._openInEditMode, qaPermissions.canEditInspections]);
+
   // Initialize edit data when switching to edit mode - memoized to prevent re-renders
   const handleEditClick = useCallback(() => {
     if (!inspection) return;
+    
+    // Check permissions
+    if (!qaPermissions.canEditInspections) {
+      toast({
+        title: "Permission Denied",
+        description: qaPermissions.denialReason,
+        variant: "destructive"
+      });
+      return;
+    }
     
     setEditData({
       project_name: inspection.project_name || '',
@@ -72,7 +105,8 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
     });
     setIsEditing(true);
     setUnsavedChanges(false);
-  }, [inspection?.id]); // Only re-create when inspection ID changes
+    setActiveTab('details'); // Auto-open details tab when editing
+  }, [inspection?.id, qaPermissions, toast]); // Only re-create when inspection ID changes
 
   const handleDataChange = useCallback((changes: any) => {
     setEditData(prev => ({ ...prev, ...changes }));

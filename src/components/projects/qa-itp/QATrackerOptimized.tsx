@@ -27,6 +27,7 @@ import {
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useQAPermissions } from '@/hooks/useQAPermissions';
 import { format } from 'date-fns';
 import QAITPForm from './QAITPForm';
 import QAInspectionModal from './QAInspectionModal';
@@ -156,6 +157,7 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   const { inspections, loading, deleteInspection, refetch } = useQAInspectionsSimple(projectId);
   const { user } = useAuth();
   const { toast } = useToast();
+  const qaPermissions = useQAPermissions();
 
   // UI State
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -364,9 +366,19 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   }, []);
 
   const handleEditInspection = useCallback((inspection: any) => {
-    setEditingInspection(inspection);
-    setShowCreateForm(true);
-  }, []);
+    // Check permissions first
+    if (!qaPermissions.canEditInspections) {
+      toast({
+        title: "Permission Denied",
+        description: qaPermissions.denialReason,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Open modal in edit mode - will auto-open details tab
+    setSelectedInspection({ ...inspection, _openInEditMode: true });
+  }, [qaPermissions, toast]);
 
   const handleDeleteInspection = useCallback(async (inspectionId: string) => {
     const confirmMessage = `⚠️ WARNING: This action cannot be undone!\n\nYou are about to permanently delete this inspection record. All associated data including:\n• Inspection details\n• Checklist items\n• Attachments\n• Audit history\n\nWill be permanently removed from the system.\n\nAre you sure you want to continue?`;
@@ -400,7 +412,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     return (
       <QAITPForm
         projectId={projectId}
-        editingInspection={editingInspection}
         onClose={() => {
           setShowCreateForm(false);
           setEditingInspection(null);

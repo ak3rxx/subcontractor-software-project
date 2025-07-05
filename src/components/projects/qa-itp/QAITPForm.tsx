@@ -14,15 +14,13 @@ import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 interface QAITPFormProps {
   onClose: () => void;
   projectId?: string;
-  editingInspection?: any;
 }
 
 const QAITPForm: React.FC<QAITPFormProps> = ({ 
   onClose, 
-  projectId,
-  editingInspection 
+  projectId
 }) => {
-  const { createInspection, updateInspection } = useQAInspectionsSimple();
+  const { createInspection } = useQAInspectionsSimple();
   const { toast } = useToast();
   const { projects } = useProjects();
   const [saving, setSaving] = useState(false);
@@ -60,26 +58,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     })));
   }, [formData.template]);
 
-  // Populate form if editing
-  useEffect(() => {
-    if (editingInspection) {
-      setFormData({
-        projectId: editingInspection.project_id,
-        projectName: editingInspection.project_name,
-        taskArea: editingInspection.task_area,
-        building: editingInspection.location_reference?.split(' - ')[0] || '',
-        level: editingInspection.location_reference?.split(' - ')[1]?.replace('Level ', '') || '',
-        buildingReference: editingInspection.location_reference?.split(' - ')[2] || '',
-        inspectionType: editingInspection.inspection_type,
-        template: editingInspection.template_type,
-        inspectorName: editingInspection.inspector_name,
-        inspectionDate: editingInspection.inspection_date,
-        digitalSignature: editingInspection.digital_signature,
-        overallStatus: editingInspection.overall_status
-      });
-      setIsFireDoor(editingInspection.is_fire_door);
-    }
-  }, [editingInspection]);
+  // Form is now only for creation - no editing logic needed
 
   const handleFormDataChange = (field: string, value: any) => {
     setFormData(prev => {
@@ -214,21 +193,16 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         };
       });
 
-      let result;
-      if (editingInspection) {
-        result = await updateInspection(editingInspection.id, inspectionData, checklistItems);
-      } else {
-        result = await createInspection(inspectionData, checklistItems);
-      }
+      const result = await createInspection(inspectionData, checklistItems);
 
       if (result) {
         toast({
           title: "Success",
-          description: `QA inspection ${editingInspection ? 'updated' : 'created'} successfully`
+          description: "QA inspection created successfully"
         });
         onClose();
       } else {
-        setError('Failed to save inspection. Please try again.');
+        setError('Failed to create inspection. Please try again.');
       }
     } catch (error) {
       console.error('Error saving QA inspection:', error);
@@ -248,7 +222,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>
-              {editingInspection ? 'Edit QA Inspection' : 'Create New QA Inspection'}
+              Create New QA Inspection
             </CardTitle>
             <Button variant="outline" onClick={onClose} disabled={saving}>
               <X className="h-4 w-4 mr-2" />
@@ -281,7 +255,6 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
                 item={item}
                 onChecklistChange={handleChecklistChange}
                 onUploadStatusChange={handleUploadStatusChange}
-                inspectionId={editingInspection?.id}
               />
             ))}
           </div>
@@ -304,7 +277,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               disabled={saving || uploadingFiles}
             >
               <Save className="h-4 w-4 mr-2" />
-              {saving ? 'Saving...' : editingInspection ? 'Update Inspection' : 'Save Inspection'}
+              {saving ? 'Creating...' : 'Create Inspection'}
             </Button>
           </div>
         </CardContent>
