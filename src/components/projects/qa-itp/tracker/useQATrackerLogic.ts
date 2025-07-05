@@ -246,7 +246,7 @@ export const useQATrackerLogic = (projectId: string) => {
     }
   }, [deleteInspection, toast]);
 
-  const hasActiveFilters = searchTerm || statusFilter !== 'all' || inspectionTypeFilter !== 'all' || 
+  const hasActiveFilters = Boolean(searchTerm) || statusFilter !== 'all' || inspectionTypeFilter !== 'all' || 
     templateTypeFilter !== 'all' || inspectorFilter !== 'all' || dateRangeFilter !== 'all' ||
     buildingFilter !== 'all' || levelFilter !== 'all' || taskFilter !== 'all' || tradeFilter !== 'all';
 
