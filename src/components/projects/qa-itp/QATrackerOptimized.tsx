@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Plus, 
   FileText, 
@@ -19,9 +20,9 @@ import {
   MapPin,
   User,
   Settings,
-  RefreshCw,
   Archive,
-  BarChart3
+  BarChart3,
+  Wifi
 } from 'lucide-react';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useAuth } from '@/hooks/useAuth';
@@ -342,10 +343,10 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refetch}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Wifi className="h-3 w-3 text-green-500" />
+            <span>Live</span>
+          </div>
           <Button onClick={() => setShowCreateForm(true)} data-tour="new-inspection-btn">
             <Plus className="h-4 w-4 mr-2" />
             New Inspection
@@ -462,13 +463,111 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
                         onCheckedChange={handleSelectAll}
                       />
                     </th>
-                    <th className="text-left py-3 px-4">Number</th>
-                    <th className="text-left py-3 px-4">Task Area</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Inspector</th>
-                    <th className="text-left py-3 px-4">Date</th>
-                    <th className="text-left py-3 px-4">Location</th>
-                    <th className="text-left py-3 px-4">Actions</th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span>Inspection Number</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Unique identifier for each QA inspection</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              <span>Task & Area</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Description of the work area being inspected</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                              <span>Inspection Status</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Current status: Pass, Fail, Pending, or In Progress</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span>Inspector</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Person who conducted the inspection</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <span>Inspection Date</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>When the inspection was performed</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              <span>Location Reference</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Specific location within the project site</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <Settings className="h-4 w-4 text-muted-foreground" />
+                              <span>Actions</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>View, edit, or delete inspection records</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
