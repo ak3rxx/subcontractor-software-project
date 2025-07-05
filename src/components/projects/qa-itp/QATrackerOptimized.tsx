@@ -108,15 +108,42 @@ const InspectionRow = memo(({
     </td>
     <td className="py-3 px-4">
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="sm" onClick={() => onView(inspection)}>
-          <Eye className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => onEdit(inspection)}>
-          <Edit className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => onDelete(inspection.id)}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => onView(inspection)}>
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View Details</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => onEdit(inspection)}>
+                <Edit className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Edit Inspection</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => onDelete(inspection.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete Inspection</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </td>
   </tr>
@@ -144,6 +171,10 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   const [templateTypeFilter, setTemplateTypeFilter] = useState('all');
   const [inspectorFilter, setInspectorFilter] = useState('all');
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [buildingFilter, setBuildingFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState('all');
+  const [taskFilter, setTaskFilter] = useState('all');
+  const [tradeFilter, setTradeFilter] = useState('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Memoized computations for performance
@@ -158,6 +189,36 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   const uniqueInspectors = useMemo(() => {
     const inspectors = new Set(inspections.map(i => i.inspector_name).filter(Boolean));
     return Array.from(inspectors).sort();
+  }, [inspections]);
+
+  const uniqueBuildings = useMemo(() => {
+    const buildings = new Set(
+      inspections.map(i => {
+        const match = i.location_reference?.match(/building\s*(\d+|[a-z]+)/i);
+        return match ? match[0] : null;
+      }).filter(Boolean)
+    );
+    return Array.from(buildings).sort();
+  }, [inspections]);
+
+  const uniqueLevels = useMemo(() => {
+    const levels = new Set(
+      inspections.map(i => {
+        const match = i.location_reference?.match(/level\s*(\d+|[a-z]+)/i);
+        return match ? match[0] : null;
+      }).filter(Boolean)
+    );
+    return Array.from(levels).sort();
+  }, [inspections]);
+
+  const uniqueTasks = useMemo(() => {
+    const tasks = new Set(inspections.map(i => i.task_area).filter(Boolean));
+    return Array.from(tasks).sort();
+  }, [inspections]);
+
+  const uniqueTrades = useMemo(() => {
+    const trades = new Set(inspections.map(i => i.template_type).filter(Boolean));
+    return Array.from(trades).sort();
   }, [inspections]);
 
   // Optimized filter function with debouncing effect
@@ -184,6 +245,22 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
       if (inspectionTypeFilter !== 'all' && inspection.inspection_type !== inspectionTypeFilter) return false;
       if (templateTypeFilter !== 'all' && inspection.template_type !== templateTypeFilter) return false;
       if (inspectorFilter !== 'all' && inspection.inspector_name !== inspectorFilter) return false;
+      if (taskFilter !== 'all' && inspection.task_area !== taskFilter) return false;
+      if (tradeFilter !== 'all' && inspection.template_type !== tradeFilter) return false;
+
+      // Building filter
+      if (buildingFilter !== 'all') {
+        const buildingMatch = inspection.location_reference?.match(/building\s*(\d+|[a-z]+)/i);
+        const extractedBuilding = buildingMatch ? buildingMatch[0] : null;
+        if (extractedBuilding !== buildingFilter) return false;
+      }
+
+      // Level filter
+      if (levelFilter !== 'all') {
+        const levelMatch = inspection.location_reference?.match(/level\s*(\d+|[a-z]+)/i);
+        const extractedLevel = levelMatch ? levelMatch[0] : null;
+        if (extractedLevel !== levelFilter) return false;
+      }
 
       // Date range filter
       if (dateRangeFilter !== 'all' && inspection.inspection_date) {
@@ -207,7 +284,7 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
 
       return true;
     });
-  }, [inspections, searchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter, inspectorFilter, dateRangeFilter]);
+  }, [inspections, searchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter, inspectorFilter, dateRangeFilter, buildingFilter, levelFilter, taskFilter, tradeFilter]);
 
   // Optimized event handlers
   const handleSelectItem = useCallback((inspectionId: string, checked: boolean) => {
@@ -229,7 +306,9 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   const handleBulkDelete = useCallback(async () => {
     if (selectedItems.size === 0) return;
     
-    if (window.confirm(`Are you sure you want to delete ${selectedItems.size} inspection(s)?`)) {
+    const confirmMessage = `⚠️ WARNING: This action cannot be undone!\n\nYou are about to permanently delete ${selectedItems.size} inspection record(s). All associated data including:\n• Inspection details\n• Checklist items\n• Attachments\n• Audit history\n\nWill be permanently removed from the system.\n\nAre you sure you want to continue?`;
+    
+    if (window.confirm(confirmMessage)) {
       let successCount = 0;
       for (const id of selectedItems) {
         const success = await deleteInspection(id);
@@ -237,8 +316,8 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
       }
       
       toast({
-        title: successCount === selectedItems.size ? "Success" : "Partial Success",
-        description: `${successCount}/${selectedItems.size} inspections deleted`,
+        title: successCount === selectedItems.size ? "Records Deleted" : "Partial Deletion",
+        description: `${successCount}/${selectedItems.size} inspection records permanently deleted`,
         variant: successCount === selectedItems.size ? "default" : "destructive"
       });
       
@@ -253,6 +332,10 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     setTemplateTypeFilter('all');
     setInspectorFilter('all');
     setDateRangeFilter('all');
+    setBuildingFilter('all');
+    setLevelFilter('all');
+    setTaskFilter('all');
+    setTradeFilter('all');
   }, []);
 
   // Stable utility functions
@@ -286,19 +369,23 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   }, []);
 
   const handleDeleteInspection = useCallback(async (inspectionId: string) => {
-    if (window.confirm('Are you sure you want to delete this inspection?')) {
+    const confirmMessage = `⚠️ WARNING: This action cannot be undone!\n\nYou are about to permanently delete this inspection record. All associated data including:\n• Inspection details\n• Checklist items\n• Attachments\n• Audit history\n\nWill be permanently removed from the system.\n\nAre you sure you want to continue?`;
+    
+    if (window.confirm(confirmMessage)) {
       const success = await deleteInspection(inspectionId);
       if (success) {
         toast({
-          title: "Success",
-          description: "Inspection deleted successfully"
+          title: "Record Deleted",
+          description: "Inspection record permanently deleted",
+          variant: "default"
         });
       }
     }
   }, [deleteInspection, toast]);
 
   const hasActiveFilters = searchTerm || statusFilter !== 'all' || inspectionTypeFilter !== 'all' || 
-    templateTypeFilter !== 'all' || inspectorFilter !== 'all' || dateRangeFilter !== 'all';
+    templateTypeFilter !== 'all' || inspectorFilter !== 'all' || dateRangeFilter !== 'all' ||
+    buildingFilter !== 'all' || levelFilter !== 'all' || taskFilter !== 'all' || tradeFilter !== 'all';
 
   if (loading) {
     return (
@@ -415,6 +502,99 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
                 🔄 Pending ({statusCounts['pending-reinspection'] || 0})
               </Button>
             </div>
+
+            {/* Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground">Advanced Filters</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Building</label>
+                    <Select value={buildingFilter} onValueChange={setBuildingFilter}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="All Buildings" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Buildings</SelectItem>
+                        {uniqueBuildings.map((building) => (
+                          <SelectItem key={building} value={building}>
+                            {building}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Level</label>
+                    <Select value={levelFilter} onValueChange={setLevelFilter}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="All Levels" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Levels</SelectItem>
+                        {uniqueLevels.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Task</label>
+                    <Select value={taskFilter} onValueChange={setTaskFilter}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="All Tasks" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Tasks</SelectItem>
+                        {uniqueTasks.map((task) => (
+                          <SelectItem key={task} value={task}>
+                            {task}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Trade</label>
+                    <Select value={tradeFilter} onValueChange={setTradeFilter}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="All Trades" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Trades</SelectItem>
+                        {uniqueTrades.map((trade) => (
+                          <SelectItem key={trade} value={trade}>
+                            {trade?.replace('-', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Inspector</label>
+                    <Select value={inspectorFilter} onValueChange={setInspectorFilter}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="All Inspectors" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Inspectors</SelectItem>
+                        {uniqueInspectors.map((inspector) => (
+                          <SelectItem key={inspector} value={inspector}>
+                            {inspector}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -429,6 +609,10 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
                 <span className="text-sm text-muted-foreground">
                   {selectedItems.size} selected
                 </span>
+                <Button variant="outline" size="sm" onClick={() => setShowBulkExport(true)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Selected
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleBulkDelete}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete Selected
@@ -458,10 +642,22 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 w-12">
-                      <Checkbox
-                        checked={selectedItems.size === filteredInspections.length && filteredInspections.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-help">
+                              <Checkbox
+                                checked={selectedItems.size === filteredInspections.length && filteredInspections.length > 0}
+                                onCheckedChange={handleSelectAll}
+                              />
+                              <span className="text-xs text-muted-foreground">Select All</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Select/deselect all visible inspection records</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </th>
                     <th className="text-left py-3 px-4">
                       <TooltipProvider>
