@@ -216,17 +216,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectData }) => {
                 </TabsContent>
 
                 <TabsContent value="qa-list">
-                  {activeQAForm ? (
-                    <QAITPForm 
-                      onClose={() => setActiveQAForm(false)} 
-                      projectId={projectData.id}
-                    />
-                  ) : (
-                    <QATrackerOptimized 
-                      onNewInspection={() => setActiveQAForm(true)} 
-                      projectId={projectData.id}
-                    />
-                  )}
+                  <QATrackerOptimized 
+                    onNewInspection={() => setActiveQAForm(true)} 
+                    projectId={projectData.id}
+                  />
                 </TabsContent>
 
                 <TabsContent value="actions">
