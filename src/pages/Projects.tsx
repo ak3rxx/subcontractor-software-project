@@ -17,7 +17,7 @@ const ProjectSetup = lazy(() => import('@/components/projects/ProjectSetup'));
 const VariationManager = lazy(() => import('@/components/projects/variations/VariationManager'));
 const TaskManager = lazy(() => import('@/components/projects/TaskManager'));
 const RFIManager = lazy(() => import('@/components/projects/RFIManager'));
-const QATracker = lazy(() => import('@/components/projects/qa-itp/QATracker'));
+const QATrackerOptimized = lazy(() => import('@/components/projects/qa-itp/QATrackerOptimized'));
 const QAITPForm = lazy(() => import('@/components/projects/qa-itp/QAITPForm'));
 const ProgrammeTracker = lazy(() => import('@/components/projects/ProgrammeTracker'));
 const FinanceManager = lazy(() => import('@/components/projects/finance/FinanceManager'));
@@ -393,7 +393,7 @@ const Projects = memo(() => {
                               projectId={selectedProject.id}
                             />
                           ) : (
-                            <QATracker 
+                            <QATrackerOptimized 
                               onNewInspection={() => setActiveQAForm(true)} 
                               projectId={selectedProject.id}
                             />
