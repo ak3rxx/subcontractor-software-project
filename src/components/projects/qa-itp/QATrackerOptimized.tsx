@@ -488,18 +488,36 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
             {/* Quick Status Filters */}
             <div className="flex flex-wrap gap-2">
               <Button 
-                variant={statusFilter === 'fail' ? 'default' : 'outline'} 
+                variant={statusFilter === 'pass' ? 'default' : 'outline'} 
                 size="sm" 
-                onClick={() => setStatusFilter(statusFilter === 'fail' ? 'all' : 'fail')}
+                onClick={() => setStatusFilter(statusFilter === 'pass' ? 'all' : 'pass')}
+                className={statusFilter === 'pass' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-200 text-green-700 hover:bg-green-50'}
               >
-                ❌ Failed ({statusCounts.fail || 0})
+                ✅ Passed ({statusCounts.pass || 0})
+              </Button>
+              <Button 
+                variant={statusFilter === 'incomplete-in-progress' ? 'default' : 'outline'} 
+                size="sm" 
+                onClick={() => setStatusFilter(statusFilter === 'incomplete-in-progress' ? 'all' : 'incomplete-in-progress')}
+                className={statusFilter === 'incomplete-in-progress' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'border-yellow-200 text-yellow-700 hover:bg-yellow-50'}
+              >
+                ⏳ In Progress ({statusCounts['incomplete-in-progress'] || 0})
               </Button>
               <Button 
                 variant={statusFilter === 'pending-reinspection' ? 'default' : 'outline'} 
                 size="sm" 
                 onClick={() => setStatusFilter(statusFilter === 'pending-reinspection' ? 'all' : 'pending-reinspection')}
+                className={statusFilter === 'pending-reinspection' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700 hover:bg-orange-50'}
               >
                 🔄 Pending ({statusCounts['pending-reinspection'] || 0})
+              </Button>
+              <Button 
+                variant={statusFilter === 'fail' ? 'default' : 'outline'} 
+                size="sm" 
+                onClick={() => setStatusFilter(statusFilter === 'fail' ? 'all' : 'fail')}
+                className={statusFilter === 'fail' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-200 text-red-700 hover:bg-red-50'}
+              >
+                ❌ Failed ({statusCounts.fail || 0})
               </Button>
             </div>
 
