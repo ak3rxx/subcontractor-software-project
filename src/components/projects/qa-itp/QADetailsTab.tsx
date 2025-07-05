@@ -154,6 +154,33 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="trade">Trade</Label>
+              {isEditing ? (
+                <Select
+                  value={editData.trade || ''}
+                  onValueChange={(value) => handleFieldChange('trade', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select trade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="carpentry">Carpentry</SelectItem>
+                    <SelectItem value="tiling">Tiling</SelectItem>
+                    <SelectItem value="painting">Painting</SelectItem>
+                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="plumbing">Plumbing</SelectItem>
+                    <SelectItem value="rendering">Rendering</SelectItem>
+                    <SelectItem value="builder">Builder</SelectItem>
+                    <SelectItem value="hvac">HVAC</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-2 bg-gray-50 rounded capitalize">{displayData.trade || 'Not specified'}</div>
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="inspector_name" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Inspector Name

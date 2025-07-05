@@ -10,6 +10,7 @@ import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
 import { AlertCircle, Save, X } from 'lucide-react';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
+import { useOrganizations } from '@/hooks/useOrganizations';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -36,6 +37,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     buildingReference: '',
     inspectionType: 'post-installation',
     template: 'doors-jambs-hardware',
+    trade: 'carpentry',
     inspectorName: '',
     inspectionDate: new Date().toISOString().split('T')[0],
     digitalSignature: '',
@@ -161,6 +163,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         location_reference: locationReference,
         inspection_type: formData.inspectionType as 'post-installation' | 'final' | 'progress',
         template_type: formData.template as 'doors-jambs-hardware' | 'skirting',
+        trade: formData.trade,
         is_fire_door: isFireDoor,
         inspector_name: formData.inspectorName,
         inspection_date: formData.inspectionDate,

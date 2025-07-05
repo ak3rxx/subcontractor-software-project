@@ -6,6 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Project } from '@/hooks/useProjects';
+import SmartTradeSelector from '@/components/projects/variations/SmartTradeSelector';
+import { templates, tradeTemplateMapping } from './QAITPTemplates';
+import { useOrganizations } from '@/hooks/useOrganizations';
 
 interface QAITPProjectInfoProps {
   formData: {
@@ -17,6 +20,7 @@ interface QAITPProjectInfoProps {
     buildingReference: string;
     inspectionType: string;
     template: string;
+    trade: string;
   };
   isFireDoor: boolean;
   projects: Project[];
@@ -33,6 +37,8 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
   onFireDoorChange,
   onTemplateChange
 }) => {
+  const { organizations } = useOrganizations();
+  
   const handleProjectChange = (projectId: string) => {
     const selectedProject = projects.find(p => p.id === projectId);
     onFormDataChange('projectId', projectId);
@@ -40,6 +46,19 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
       onFormDataChange('projectName', selectedProject.name);
     }
   };
+
+  const handleTradeChange = (trade: string) => {
+    onFormDataChange('trade', trade);
+    // Reset template when trade changes
+    const availableTemplates = tradeTemplateMapping[trade] || [];
+    if (availableTemplates.length > 0 && !availableTemplates.includes(formData.template)) {
+      onTemplateChange(availableTemplates[0]);
+    }
+  };
+
+  // Filter templates based on selected trade
+  const availableTemplates = tradeTemplateMapping[formData.trade] || [];
+  const organizationId = organizations?.[0]?.id;
 
   return (
     <Card>
@@ -121,6 +140,14 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
           </Select>
         </div>
 
+        <SmartTradeSelector
+          value={formData.trade}
+          onChange={handleTradeChange}
+          description={formData.taskArea}
+          organizationId={organizationId}
+          showAISuggestion={true}
+        />
+
         <div className="space-y-2">
           <Label htmlFor="template">ITP Template</Label>
           <Select value={formData.template} onValueChange={onTemplateChange}>
@@ -128,8 +155,19 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
               <SelectValue placeholder="Select inspection template" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="doors-jambs-hardware">Doors, Door jambs & Door hardware</SelectItem>
-              <SelectItem value="skirting">Skirting</SelectItem>
+              {availableTemplates.map((templateKey) => {
+                const template = templates[templateKey as keyof typeof templates];
+                return (
+                  <SelectItem key={templateKey} value={templateKey}>
+                    {template?.name || templateKey}
+                  </SelectItem>
+                );
+              })}
+              {availableTemplates.length === 0 && (
+                <SelectItem value="" disabled>
+                  No templates available for selected trade
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>

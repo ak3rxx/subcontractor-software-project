@@ -70,7 +70,7 @@ export const useQATrackerLogic = (projectId: string) => {
   }, [inspections]);
 
   const uniqueTrades = useMemo(() => {
-    const trades = new Set(inspections.map(i => i.template_type).filter(Boolean));
+    const trades = new Set(inspections.map(i => i.trade).filter(Boolean));
     return Array.from(trades).sort();
   }, [inspections]);
 
@@ -99,7 +99,7 @@ export const useQATrackerLogic = (projectId: string) => {
       if (templateTypeFilter !== 'all' && inspection.template_type !== templateTypeFilter) return false;
       if (inspectorFilter !== 'all' && inspection.inspector_name !== inspectorFilter) return false;
       if (taskFilter !== 'all' && inspection.task_area !== taskFilter) return false;
-      if (tradeFilter !== 'all' && inspection.template_type !== tradeFilter) return false;
+      if (tradeFilter !== 'all' && inspection.trade !== tradeFilter) return false;
 
       // Building filter
       if (buildingFilter !== 'all') {

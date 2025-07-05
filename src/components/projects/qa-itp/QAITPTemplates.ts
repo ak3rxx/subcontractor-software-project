@@ -13,12 +13,27 @@ export interface ChecklistItem {
 
 interface Template {
   name: string;
+  trade: string;
   items: ChecklistItem[];
 }
+
+// Trade to template mapping
+export const tradeTemplateMapping: Record<string, string[]> = {
+  'carpentry': ['doors-jambs-hardware', 'skirting'],
+  'tiling': [],
+  'painting': [],
+  'electrical': [],
+  'plumbing': [],
+  'rendering': [],
+  'builder': [],
+  'hvac': [],
+  'other': []
+};
 
 export const templates: Record<string, Template> = {
   'doors-jambs-hardware': {
     name: 'Doors, Door jambs & Door hardware',
+    trade: 'carpentry',
     items: [
       {
         id: '1',
@@ -89,6 +104,7 @@ export const templates: Record<string, Template> = {
   },
   'skirting': {
     name: 'Skirting',
+    trade: 'carpentry',
     items: [
       {
         id: '1',

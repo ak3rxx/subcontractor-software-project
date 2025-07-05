@@ -1339,6 +1339,7 @@ export type Database = {
           project_name: string
           task_area: string
           template_type: string
+          trade: string
           updated_at: string | null
         }
         Insert: {
@@ -1358,6 +1359,7 @@ export type Database = {
           project_name: string
           task_area: string
           template_type: string
+          trade?: string
           updated_at?: string | null
         }
         Update: {
@@ -1377,6 +1379,7 @@ export type Database = {
           project_name?: string
           task_area?: string
           template_type?: string
+          trade?: string
           updated_at?: string | null
         }
         Relationships: [

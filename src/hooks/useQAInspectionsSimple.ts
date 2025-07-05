@@ -12,6 +12,7 @@ export interface QAInspection {
   location_reference: string;
   inspection_type: 'post-installation' | 'final' | 'progress';
   template_type: 'doors-jambs-hardware' | 'skirting';
+  trade: string;
   is_fire_door: boolean;
   inspector_name: string;
   inspection_date: string;
