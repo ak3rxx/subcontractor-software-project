@@ -125,6 +125,14 @@ const QATrackerFilters: React.FC<QATrackerFiltersProps> = ({
               ⏳ In Progress ({statusCounts['incomplete-in-progress'] || 0})
             </Button>
             <Button 
+              variant={statusFilter === 'incomplete-draft' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => setStatusFilter(statusFilter === 'incomplete-draft' ? 'all' : 'incomplete-draft')}
+              className={statusFilter === 'incomplete-draft' ? 'bg-gray-600 hover:bg-gray-700 text-white' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}
+            >
+              📝 Draft ({statusCounts['incomplete-draft'] || 0})
+            </Button>
+            <Button 
               variant={statusFilter === 'pending-reinspection' ? 'default' : 'outline'} 
               size="sm" 
               onClick={() => setStatusFilter(statusFilter === 'pending-reinspection' ? 'all' : 'pending-reinspection')}
