@@ -68,17 +68,11 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="project_name">Project Name</Label>
-              {isEditing ? (
-                <Input
-                  id="project_name"
-                  value={editData.project_name || ''}
-                  onChange={(e) => handleFieldChange('project_name', e.target.value)}
-                  placeholder="Enter project name"
-                />
-              ) : (
-                <div className="p-2 bg-gray-50 rounded">{displayData.project_name}</div>
-              )}
+              <Label htmlFor="project_name">Project Name (Auto-selected)</Label>
+              <div className="p-2 bg-gray-50 border rounded-md text-gray-700">
+                {displayData.project_name}
+              </div>
+              <p className="text-xs text-muted-foreground">Project cannot be changed from inspection details</p>
             </div>
 
             <div className="space-y-2">
@@ -123,7 +117,7 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                     <SelectValue placeholder="Select inspection type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="post-installation">Post Installation</SelectItem>
+                    <SelectItem value="pre-installation">Pre-installation</SelectItem>
                     <SelectItem value="final">Final</SelectItem>
                     <SelectItem value="progress">Progress</SelectItem>
                   </SelectContent>
@@ -229,6 +223,7 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                     <SelectItem value="fail">Fail</SelectItem>
                     <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
                     <SelectItem value="incomplete-in-progress">In Progress</SelectItem>
+                    <SelectItem value="incomplete-draft">Incomplete Draft</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -238,6 +233,7 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                       displayData.overall_status === 'pass' ? 'bg-green-100 text-green-800' :
                       displayData.overall_status === 'fail' ? 'bg-red-100 text-red-800' :
                       displayData.overall_status === 'pending-reinspection' ? 'bg-orange-100 text-orange-800' :
+                      displayData.overall_status === 'incomplete-draft' ? 'bg-gray-100 text-gray-800' :
                       'bg-yellow-100 text-yellow-800'
                     }
                   >

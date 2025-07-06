@@ -10,14 +10,14 @@ export interface QAInspection {
   project_name: string;
   task_area: string;
   location_reference: string;
-  inspection_type: 'post-installation' | 'final' | 'progress';
+  inspection_type: 'pre-installation' | 'final' | 'progress';
   template_type: 'doors-jambs-hardware' | 'skirting';
   trade: string;
   is_fire_door: boolean;
   inspector_name: string;
   inspection_date: string;
   digital_signature: string;
-  overall_status: 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress';
+  overall_status: 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress' | 'incomplete-draft';
   created_by: string;
   created_at: string;
   updated_at: string;

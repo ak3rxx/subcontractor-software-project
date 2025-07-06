@@ -191,13 +191,13 @@ export const useQATrackerLogic = (projectId: string) => {
     setTradeFilter('all');
   }, []);
 
-  // Stable utility functions
   const getStatusIcon = useCallback((status: string) => {
     switch (status) {
       case 'pass': return '✅';
       case 'fail': return '❌';
       case 'pending-reinspection': return '🔄';
       case 'incomplete-in-progress': return '⏳';
+      case 'incomplete-draft': return '📝';
       default: return '❓';
     }
   }, []);
@@ -208,6 +208,7 @@ export const useQATrackerLogic = (projectId: string) => {
       case 'fail': return 'bg-red-100 text-red-800';
       case 'pending-reinspection': return 'bg-orange-100 text-orange-800';
       case 'incomplete-in-progress': return 'bg-yellow-100 text-yellow-800';
+      case 'incomplete-draft': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }, []);

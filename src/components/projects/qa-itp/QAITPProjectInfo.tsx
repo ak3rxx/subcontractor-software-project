@@ -67,21 +67,13 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="projectId">Project</Label>
-            <Select value={formData.projectId} onValueChange={handleProjectChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="projectId">Project (Auto-selected)</Label>
+              <div className="p-2 bg-gray-50 border rounded-md text-gray-700">
+                {projects.find(p => p.id === formData.projectId)?.name || 'No project selected'}
+              </div>
+              <p className="text-xs text-muted-foreground">Project is automatically selected from your current location</p>
+            </div>
           <div className="space-y-2">
             <Label htmlFor="taskArea">Task/Area being inspected</Label>
             <Input
@@ -133,7 +125,7 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
               <SelectValue placeholder="Select inspection type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="post-installation">Post-installation</SelectItem>
+              <SelectItem value="pre-installation">Pre-installation</SelectItem>
               <SelectItem value="final">Final</SelectItem>
               <SelectItem value="progress">Progress</SelectItem>
             </SelectContent>
