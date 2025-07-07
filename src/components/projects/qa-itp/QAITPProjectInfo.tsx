@@ -142,26 +142,27 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
 
         <div className="space-y-2">
           <Label htmlFor="template">ITP Template</Label>
-          <Select value={formData.template} onValueChange={onTemplateChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select inspection template" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableTemplates.map((templateKey) => {
-                const template = templates[templateKey as keyof typeof templates];
-                return (
-                  <SelectItem key={templateKey} value={templateKey}>
-                    {template?.name || templateKey}
-                  </SelectItem>
-                );
-              })}
-              {availableTemplates.length === 0 && (
-                <SelectItem value="" disabled>
-                  No templates available for selected trade
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+          {availableTemplates.length > 0 ? (
+            <Select value={formData.template} onValueChange={onTemplateChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select inspection template" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTemplates.map((templateKey) => {
+                  const template = templates[templateKey as keyof typeof templates];
+                  return (
+                    <SelectItem key={templateKey} value={templateKey}>
+                      {template?.name || templateKey}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="p-2 bg-gray-50 border rounded-md text-gray-500 text-sm">
+              No templates available for selected trade
+            </div>
+          )}
         </div>
 
         {/* Fire Door Checkbox - only show for doors template */}
