@@ -223,6 +223,24 @@ export const useProjects = () => {
       setLoading(false);
       setProjects([]);
     }
+
+    // Listen for QA inspection events to refresh project data when needed
+    const handleQAEvents = () => {
+      if (user) {
+        console.log('QA inspection event detected, refreshing projects');
+        fetchProjects();
+      }
+    };
+
+    window.addEventListener('qa-inspection-created', handleQAEvents);
+    window.addEventListener('qa-inspection-updated', handleQAEvents);
+    window.addEventListener('qa-inspection-deleted', handleQAEvents);
+
+    return () => {
+      window.removeEventListener('qa-inspection-created', handleQAEvents);
+      window.removeEventListener('qa-inspection-updated', handleQAEvents);
+      window.removeEventListener('qa-inspection-deleted', handleQAEvents);
+    };
   }, [user?.id]); // Only depend on user.id to prevent unnecessary re-fetches
 
   return {

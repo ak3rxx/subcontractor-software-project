@@ -11,6 +11,7 @@ import QAITPSignOff from './QAITPSignOff';
 import { AlertCircle, Save, X } from 'lucide-react';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useOrganizations } from '@/hooks/useOrganizations';
+import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -23,7 +24,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 }) => {
   const { createInspection } = useQAInspectionsSimple();
   const { toast } = useToast();
-  const { projects } = useProjects();
+  const { projects, refetch: refetchProjects } = useProjects();
+  
+  // Coordinate data updates with other components
+  useQAInspectionCoordination(refetchProjects);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

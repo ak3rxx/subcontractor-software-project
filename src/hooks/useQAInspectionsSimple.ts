@@ -38,14 +38,11 @@ export interface QAChecklistItem {
 export const useQAInspectionsSimple = (projectId?: string) => {
   const [inspections, setInspections] = useState<QAInspection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [subscriptionState, setSubscriptionState] = useState<{
-    isSubscribed: boolean;
-    channelName: string | null;
-  }>({ isSubscribed: false, channelName: null });
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Stable fetch function - no dependencies that change frequently
+  // Stable fetch function with debouncing
   const fetchInspections = useCallback(async (currentProjectId?: string, currentUser?: any) => {
     const targetProjectId = currentProjectId || projectId;
     const targetUser = currentUser || user;
@@ -176,6 +173,11 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         description: "QA inspection created successfully"
       });
 
+      // Notify other components about the new inspection
+      window.dispatchEvent(new CustomEvent('qa-inspection-created', { 
+        detail: { inspectionId: inspectionResult.id, projectId } 
+      }));
+
       await fetchInspections(projectId, user);
       return inspectionResult;
     } catch (error) {
@@ -252,6 +254,11 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         description: "Inspection updated successfully"
       });
 
+      // Notify other components about the updated inspection
+      window.dispatchEvent(new CustomEvent('qa-inspection-updated', { 
+        detail: { inspectionId, projectId } 
+      }));
+
       await fetchInspections(projectId, user);
       return inspectionResult;
     } catch (error) {
@@ -294,6 +301,11 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         title: "Success",
         description: "Inspection deleted successfully"
       });
+
+      // Notify other components about the deleted inspection
+      window.dispatchEvent(new CustomEvent('qa-inspection-deleted', { 
+        detail: { inspectionId, projectId } 
+      }));
 
       await fetchInspections(projectId, user);
       return true;
@@ -359,33 +371,35 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     }
   }, []);
 
-  // Initial fetch and real-time subscription
+  // Initial fetch and simplified real-time subscription
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    // Debounced fetch function
+    const debouncedFetch = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        fetchInspections(projectId, user);
+      }, 100);
+    };
+
     console.log('QA: Setting up subscription for project:', projectId, 'user:', user?.id);
     
     // Fetch initial data
     fetchInspections(projectId, user);
 
     // Only subscribe if we have a valid user and project ID
-    if (!user || !projectId) {
-      console.log('QA: Skipping subscription - missing user or projectId');
+    if (!user || !projectId || isSubscribed) {
       return;
     }
 
-    // Prevent multiple subscriptions
-    if (subscriptionState.isSubscribed) {
-      console.log('QA: Already subscribed, skipping');
-      return;
-    }
-
-    // Create unique channel name to avoid conflicts
-    const channelName = `qa_inspections_${projectId}_${Date.now()}`;
+    // Create simplified channel
+    const channelName = `qa_inspections_${projectId}`;
     console.log('QA: Creating channel:', channelName);
     
-    // Update subscription state immediately
-    setSubscriptionState({ isSubscribed: true, channelName });
+    setIsSubscribed(true);
     
-    // Subscribe to real-time changes with proper cleanup
+    // Subscribe to real-time changes
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', 
@@ -397,23 +411,19 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         }, 
         (payload) => {
           console.log('QA: Real-time change detected:', payload.eventType);
-          // Debounce rapid changes
-          setTimeout(() => fetchInspections(projectId, user), 100);
+          debouncedFetch();
         }
       )
-      .subscribe((status) => {
-        console.log('QA: Subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
       console.log('QA: Cleaning up subscription:', channelName);
-      setSubscriptionState({ isSubscribed: false, channelName: null });
-      
-      // Proper cleanup to prevent "tried to subscribe multiple times" error
+      clearTimeout(timeoutId);
+      setIsSubscribed(false);
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [projectId, user?.id, fetchInspections]); // Include fetchInspections but it's stable
+  }, [projectId, user?.id, fetchInspections, isSubscribed]);
 
   // Stable refetch function
   const refetch = useCallback(() => {

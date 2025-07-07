@@ -74,7 +74,7 @@ export const useQATrackerLogic = (projectId: string) => {
     return Array.from(trades).sort();
   }, [inspections]);
 
-  // Optimized filter function with debouncing effect
+  // Optimized filter function with early returns and memoization
   const filteredInspections = useMemo(() => {
     if (!inspections.length) return [];
     
@@ -139,7 +139,7 @@ export const useQATrackerLogic = (projectId: string) => {
     });
   }, [inspections, searchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter, inspectorFilter, dateRangeFilter, buildingFilter, levelFilter, taskFilter, tradeFilter]);
 
-  // Optimized event handlers
+  // Memoized event handlers with stable references
   const handleSelectItem = useCallback((inspectionId: string, checked: boolean) => {
     setSelectedItems(prev => {
       const newSelection = new Set(prev);
@@ -153,7 +153,11 @@ export const useQATrackerLogic = (projectId: string) => {
   }, []);
 
   const handleSelectAll = useCallback((checked: boolean) => {
-    setSelectedItems(checked ? new Set(filteredInspections.map(i => i.id)) : new Set());
+    if (checked) {
+      setSelectedItems(new Set(filteredInspections.map(i => i.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
   }, [filteredInspections]);
 
   const handleBulkDelete = useCallback(async () => {
