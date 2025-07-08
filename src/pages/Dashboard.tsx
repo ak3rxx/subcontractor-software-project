@@ -1,17 +1,47 @@
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import TopNav from '@/components/TopNav';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
+import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus, Activity, MessageSquare, Milestone } from 'lucide-react';
 
 const Dashboard = () => {
-  const { projects, loading: projectsLoading } = useProjects();
+  const { projects, loading: projectsLoading, refetch: refetchProjects } = useProjects();
   const { tasks, loading: tasksLoading } = useTasks();
   const navigate = useNavigate();
+  
+  // Add optimistic update state
+  const [optimisticCounts, setOptimisticCounts] = useState({
+    qaInspections: 0,
+    lastActivity: null as any
+  });
+
+  // Handle QA inspection events for real-time dashboard updates
+  const handleQARefresh = useCallback(() => {
+    console.log('Dashboard: QA inspection event received, refreshing data');
+    refetchProjects();
+    
+    // Add optimistic activity update
+    setOptimisticCounts(prev => ({
+      ...prev,
+      qaInspections: prev.qaInspections + 1,
+      lastActivity: {
+        id: `qa-inspection-${Date.now()}`,
+        type: 'qa_inspection',
+        action: 'created',
+        description: 'New QA inspection created',
+        timestamp: new Date().toISOString(),
+        icon: <FileCheck className="h-4 w-4 text-green-500" />
+      }
+    }));
+  }, [refetchProjects]);
+
+  // Set up QA inspection coordination
+  useQAInspectionCoordination(handleQARefresh);
 
   // Calculate real statistics from projects
   const activeProjects = projects.filter(p => p.status === 'in-progress').length;
@@ -27,6 +57,11 @@ const Dashboard = () => {
   // Generate recent activities from projects and tasks
   const getRecentActivities = () => {
     const activities = [];
+
+    // Add optimistic QA activity if available
+    if (optimisticCounts.lastActivity) {
+      activities.push(optimisticCounts.lastActivity);
+    }
 
     // Add project-based activities
     projects.forEach(project => {
