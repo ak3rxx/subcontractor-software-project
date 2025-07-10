@@ -98,7 +98,8 @@ export const useSmartNotifications = () => {
             const overrunPercentage = project.total_budget > 0 ? (totalVariationCost / project.total_budget) * 100 : 0;
 
             if (overrunPercentage > rules.budgetOverrun.threshold) {
-              addNotification({
+              setNotifications(prev => [{
+                id: crypto.randomUUID(),
                 type: 'warning',
                 priority: overrunPercentage > 20 ? 'critical' : 'high',
                 title: 'Budget Overrun Alert',
@@ -109,8 +110,11 @@ export const useSmartNotifications = () => {
                 actions: [{
                   label: 'Review Budget',
                   action: () => window.location.href = `/projects?tab=finance&project=${project.id}`
-                }]
-              });
+                }],
+                timestamp: new Date(),
+                read: false,
+                dismissed: false
+              }, ...prev.slice(0, 49)]);
             }
           });
         }
@@ -123,7 +127,8 @@ export const useSmartNotifications = () => {
             .eq('status', 'pending_approval');
 
           if (pendingVariations && pendingVariations.length > rules.approvalBacklog.threshold) {
-            addNotification({
+            setNotifications(prev => [{
+              id: crypto.randomUUID(),
               type: 'warning',
               priority: 'medium',
               title: 'Approval Backlog',
@@ -133,8 +138,11 @@ export const useSmartNotifications = () => {
               actions: [{
                 label: 'Review Pending',
                 action: () => window.location.href = '/projects?tab=variations&filter=pending'
-              }]
-            });
+              }],
+              timestamp: new Date(),
+              read: false,
+              dismissed: false
+            }, ...prev.slice(0, 49)]);
           }
         }
 
@@ -147,7 +155,8 @@ export const useSmartNotifications = () => {
             .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
           if (recentFailures && recentFailures.length >= rules.qaFailures.threshold) {
-            addNotification({
+            setNotifications(prev => [{
+              id: crypto.randomUUID(),
               type: 'error',
               priority: 'high',
               title: 'Quality Issues Detected',
@@ -157,8 +166,11 @@ export const useSmartNotifications = () => {
               actions: [{
                 label: 'Review QA Issues',
                 action: () => window.location.href = '/projects?tab=qa&filter=failed'
-              }]
-            });
+              }],
+              timestamp: new Date(),
+              read: false,
+              dismissed: false
+            }, ...prev.slice(0, 49)]);
           }
         }
 
@@ -172,7 +184,7 @@ export const useSmartNotifications = () => {
     checkAnalyticsAlerts(); // Initial check
 
     return () => clearInterval(interval);
-  }, [rules, addNotification]);
+  }, [rules]);
 
   // Real-time monitoring for immediate alerts
   useEffect(() => {
