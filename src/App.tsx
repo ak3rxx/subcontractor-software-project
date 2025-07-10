@@ -6,6 +6,7 @@ import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import Projects from '@/pages/Projects';
 import Finance from '@/pages/Finance';
+import Analytics from '@/pages/Analytics';
 import SubcontractorOnboarding from '@/pages/SubcontractorOnboarding';
 import AdminPanel from '@/pages/AdminPanel';
 import DeveloperAdmin from '@/pages/DeveloperAdmin';
@@ -53,6 +54,13 @@ function App() {
             <ProtectedRoute>
               <ProtectedOnboardingProvider>
                 <Finance />
+              </ProtectedOnboardingProvider>
+            </ProtectedRoute>
+          } />
+          <Route path="/analytics" element={
+            <ProtectedRoute>
+              <ProtectedOnboardingProvider>
+                <Analytics />
               </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />

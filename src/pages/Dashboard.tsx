@@ -7,7 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
-import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus, Activity, MessageSquare, Milestone } from 'lucide-react';
+import { Building, Calendar, FileCheck, Shield, AlertTriangle, CheckSquare, Clock, Plus, Activity, MessageSquare, Milestone, BarChart3 } from 'lucide-react';
 
 const Dashboard = () => {
   const { projects, loading: projectsLoading, refetch: refetchProjects } = useProjects();
@@ -128,6 +128,10 @@ const Dashboard = () => {
     navigate('/tasks');
   };
 
+  const handleViewAnalytics = () => {
+    navigate('/analytics');
+  };
+
   const formatRelativeTime = (timestamp: string) => {
     const now = new Date();
     const activityTime = new Date(timestamp);
@@ -154,6 +158,10 @@ const Dashboard = () => {
               <p className="text-gray-600">Welcome back to your construction management hub</p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={handleViewAnalytics} className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </Button>
               <Button variant="outline" onClick={handleViewProjects} data-tour="view-projects-btn">
                 View All Projects
               </Button>
