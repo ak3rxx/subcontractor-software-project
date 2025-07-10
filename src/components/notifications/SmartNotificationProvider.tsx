@@ -2,6 +2,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { useWorkflowAutomation } from '@/hooks/useWorkflowAutomation';
 import { NotificationTooltip } from './NotificationTooltip';
+import { ErrorBoundaryNotifications } from './ErrorBoundaryNotifications';
 
 interface SmartNotificationContextType {
   notifications: ReturnType<typeof useSmartNotifications>['notifications'];
@@ -33,10 +34,22 @@ export const SmartNotificationProvider: React.FC<SmartNotificationProviderProps>
     addNotification: notificationHook.addNotification
   };
 
+  const handleNotificationError = (error: Error) => {
+    console.error('Notification provider error:', error);
+    // Log to system health if available
+    if ('systemHealth' in notificationHook) {
+      // Additional error reporting could go here
+    }
+  };
+
   return (
-    <SmartNotificationContext.Provider value={contextValue}>
-      {children}
-      <NotificationTooltip />
-    </SmartNotificationContext.Provider>
+    <ErrorBoundaryNotifications onError={handleNotificationError}>
+      <SmartNotificationContext.Provider value={contextValue}>
+        {children}
+        <ErrorBoundaryNotifications>
+          <NotificationTooltip />
+        </ErrorBoundaryNotifications>
+      </SmartNotificationContext.Provider>
+    </ErrorBoundaryNotifications>
   );
 };

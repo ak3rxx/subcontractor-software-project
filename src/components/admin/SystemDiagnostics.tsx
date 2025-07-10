@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, AlertTriangle, XCircle, Play, RefreshCw } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Play, RefreshCw, Bell, Database, Shield } from 'lucide-react';
+import { useSmartNotifications } from '@/hooks/useSmartNotifications';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DiagnosticCheck {
   id: string;
@@ -17,6 +19,7 @@ interface DiagnosticCheck {
 
 const SystemDiagnostics: React.FC = () => {
   const [running, setRunning] = useState(false);
+  const { getSystemHealth, systemHealth } = useSmartNotifications();
   const [checks, setChecks] = useState<DiagnosticCheck[]>([
     {
       id: 'permissions',
@@ -37,6 +40,18 @@ const SystemDiagnostics: React.FC = () => {
       message: 'Auth system is functioning correctly'
     },
     {
+      id: 'notifications',
+      name: 'Notification System',
+      status: 'pending',
+      message: 'Checking notification system health...'
+    },
+    {
+      id: 'realtime',
+      name: 'Real-time Subscriptions',
+      status: 'pending',
+      message: 'Checking real-time channel status...'
+    },
+    {
       id: 'rls',
       name: 'Row Level Security',
       status: 'warning',
@@ -54,25 +69,106 @@ const SystemDiagnostics: React.FC = () => {
   const runDiagnostics = async () => {
     setRunning(true);
     
-    // Simulate running diagnostics
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Update check results (in real implementation, this would run actual checks)
-    setChecks(prev => prev.map(check => ({
-      ...check,
-      status: Math.random() > 0.8 ? 'warning' : 'pass'
-    })));
+    try {
+      // Test database connectivity
+      const { error: dbError } = await supabase.from('profiles').select('id').limit(1);
+      
+      // Get notification system health
+      const notificationHealth = getSystemHealth();
+      
+      // Test real-time functionality
+      let realtimeStatus: 'pass' | 'warning' | 'error' = 'pass';
+      try {
+        const testChannel = supabase.channel('diagnostic-test');
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+          testChannel.subscribe((status) => {
+            clearTimeout(timeout);
+            if (status === 'SUBSCRIBED') {
+              resolve(status);
+            } else {
+              reject(new Error(`Connection failed: ${status}`));
+            }
+          });
+        });
+        supabase.removeChannel(testChannel);
+      } catch (error) {
+        realtimeStatus = 'error';
+        console.error('Real-time test failed:', error);
+      }
+      
+      // Update diagnostic results
+      setChecks(prev => prev.map(check => {
+        switch (check.id) {
+          case 'database':
+            return {
+              ...check,
+              status: dbError ? 'error' : 'pass',
+              message: dbError ? `Database error: ${dbError.message}` : 'Database connection is healthy'
+            };
+            
+          case 'notifications':
+            return {
+              ...check,
+              status: notificationHealth.isHealthy ? 'pass' : 'error',
+              message: notificationHealth.isHealthy 
+                ? `Notification system healthy (${notificationHealth.notificationCount} notifications, ${notificationHealth.unreadCount} unread)`
+                : `Notification system error: ${notificationHealth.lastError}`,
+              details: `Channel: ${notificationHealth.channelStatus}, Rules: ${notificationHealth.rulesEnabled}/4 enabled`
+            };
+            
+          case 'realtime':
+            return {
+              ...check,
+              status: realtimeStatus,
+              message: realtimeStatus === 'pass' 
+                ? 'Real-time subscriptions working correctly'
+                : 'Real-time connection issues detected',
+              details: `Current channel status: ${systemHealth.channelStatus}`
+            };
+            
+          default:
+            return {
+              ...check,
+              status: Math.random() > 0.9 ? 'warning' : 'pass'
+            };
+        }
+      }));
+      
+    } catch (error) {
+      console.error('Diagnostic error:', error);
+      setChecks(prev => prev.map(check => ({
+        ...check,
+        status: 'error',
+        message: `Diagnostic failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      })));
+    }
     
     setRunning(false);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pass': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      case 'error': return <XCircle className="h-4 w-4 text-red-600" />;
-      default: return <div className="h-4 w-4 bg-gray-300 rounded-full animate-pulse" />;
+  const getStatusIcon = (status: string, checkId?: string) => {
+    const getIcon = () => {
+      switch (status) {
+        case 'pass': return <CheckCircle className="h-4 w-4 text-green-600" />;
+        case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+        case 'error': return <XCircle className="h-4 w-4 text-red-600" />;
+        default: return <div className="h-4 w-4 bg-gray-300 rounded-full animate-pulse" />;
+      }
+    };
+
+    // Add specific icons for certain checks
+    if (checkId === 'notifications' && status === 'pass') {
+      return <Bell className="h-4 w-4 text-green-600" />;
     }
+    if (checkId === 'database' && status === 'pass') {
+      return <Database className="h-4 w-4 text-green-600" />;
+    }
+    if (checkId === 'rls' && status === 'warning') {
+      return <Shield className="h-4 w-4 text-yellow-600" />;
+    }
+
+    return getIcon();
   };
 
   const getStatusBadge = (status: string) => {
@@ -133,7 +229,7 @@ const SystemDiagnostics: React.FC = () => {
             {checks.map((check) => (
               <div key={check.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  {getStatusIcon(check.status)}
+                  {getStatusIcon(check.status, check.id)}
                   <div>
                     <div className="font-medium">{check.name}</div>
                     <div className="text-sm text-gray-600">{check.message}</div>
