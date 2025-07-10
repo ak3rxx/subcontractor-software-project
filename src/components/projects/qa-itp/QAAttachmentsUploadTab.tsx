@@ -10,11 +10,13 @@ import FileThumbnailViewer from './FileThumbnailViewer';
 interface QAAttachmentsUploadTabProps {
   inspection: any;
   isEditing: boolean;
+  onAttachmentChange?: (files: string[]) => void;
 }
 
 const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
   inspection,
-  isEditing
+  isEditing,
+  onAttachmentChange
 }) => {
   const [allFiles, setAllFiles] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -55,7 +57,10 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
       .map(f => f.path);
     
     if (successfulUploads.length > 0) {
-      setAllFiles(prev => [...prev, ...successfulUploads]);
+      const updatedFiles = [...allFiles, ...successfulUploads];
+      setAllFiles(updatedFiles);
+      // Notify parent modal about attachment changes
+      onAttachmentChange?.(updatedFiles);
       toast({
         title: "Success",
         description: `${successfulUploads.length} file(s) uploaded successfully`

@@ -15,6 +15,7 @@ interface QAChecklistEditableTabProps {
   inspection: any;
   isEditing: boolean;
   onUpdate?: (updatedInspection: any) => void;
+  onChecklistChange?: (items: any[]) => void;
 }
 
 interface ChecklistItem {
@@ -31,7 +32,8 @@ interface ChecklistItem {
 const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
   inspection,
   isEditing,
-  onUpdate
+  onUpdate,
+  onChecklistChange
 }) => {
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,102 +68,52 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
 
   // Handle item status change
   const handleStatusChange = useCallback((itemId: string, newStatus: string) => {
-    setChecklistItems(prev => 
-      prev.map(item => 
-        item.id === itemId ? { ...item, status: newStatus } : item
-      )
+    const updatedItems = checklistItems.map(item => 
+      item.id === itemId ? { ...item, status: newStatus } : item
     );
+    setChecklistItems(updatedItems);
     setHasChanges(true);
-  }, []);
+    // Notify parent modal about changes
+    onChecklistChange?.(updatedItems);
+  }, [checklistItems, onChecklistChange]);
 
   // Handle comments change
   const handleCommentsChange = useCallback((itemId: string, newComments: string) => {
-    setChecklistItems(prev => 
-      prev.map(item => 
-        item.id === itemId ? { ...item, comments: newComments } : item
-      )
+    const updatedItems = checklistItems.map(item => 
+      item.id === itemId ? { ...item, comments: newComments } : item
     );
+    setChecklistItems(updatedItems);
     setHasChanges(true);
-  }, []);
+    // Notify parent modal about changes
+    onChecklistChange?.(updatedItems);
+  }, [checklistItems, onChecklistChange]);
 
   // Handle file upload completion
   const handleFileUpload = useCallback((itemId: string, filePath: string) => {
-    setChecklistItems(prev => 
-      prev.map(item => 
-        item.id === itemId 
-          ? { ...item, evidence_files: [...(item.evidence_files || []), filePath] }
-          : item
-      )
+    const updatedItems = checklistItems.map(item => 
+      item.id === itemId 
+        ? { ...item, evidence_files: [...(item.evidence_files || []), filePath] }
+        : item
     );
+    setChecklistItems(updatedItems);
     setHasChanges(true);
-  }, []);
+    // Notify parent modal about changes
+    onChecklistChange?.(updatedItems);
+  }, [checklistItems, onChecklistChange]);
 
   // Handle file removal
   const handleFileRemove = useCallback((itemId: string, filePath: string) => {
-    setChecklistItems(prev => 
-      prev.map(item => 
-        item.id === itemId 
-          ? { ...item, evidence_files: (item.evidence_files || []).filter(f => f !== filePath) }
-          : item
-      )
+    const updatedItems = checklistItems.map(item => 
+      item.id === itemId 
+        ? { ...item, evidence_files: (item.evidence_files || []).filter(f => f !== filePath) }
+        : item
     );
+    setChecklistItems(updatedItems);
     setHasChanges(true);
-  }, []);
+    // Notify parent modal about changes
+    onChecklistChange?.(updatedItems);
+  }, [checklistItems, onChecklistChange]);
 
-  // Custom function to update checklist items in database
-  const updateChecklistItem = useCallback(async (itemId: string, updates: { status: string; comments: string; evidence_files: string[] }) => {
-    const { error } = await supabase
-      .from('qa_checklist_items')
-      .update({
-        status: updates.status,
-        comments: updates.comments,
-        evidence_files: updates.evidence_files.length > 0 ? updates.evidence_files : null
-      })
-      .eq('id', itemId);
-
-    if (error) {
-      throw error;
-    }
-  }, []);
-
-  // Save all changes
-  const handleSaveChanges = useCallback(async () => {
-    if (!hasChanges) return;
-
-    setSaving(true);
-    try {
-      // Save each modified item
-      const savePromises = checklistItems.map(item => 
-        updateChecklistItem(item.id, {
-          status: item.status,
-          comments: item.comments,
-          evidence_files: item.evidence_files
-        })
-      );
-
-      await Promise.all(savePromises);
-      
-      setHasChanges(false);
-      toast({
-        title: "Success",
-        description: "Checklist items updated successfully"
-      });
-
-      // Notify parent of update
-      if (onUpdate) {
-        onUpdate(inspection);
-      }
-    } catch (error) {
-      console.error('Error saving checklist items:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save checklist items",
-        variant: "destructive"
-      });
-    } finally {
-      setSaving(false);
-    }
-  }, [hasChanges, checklistItems, updateChecklistItem, toast, onUpdate, inspection]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

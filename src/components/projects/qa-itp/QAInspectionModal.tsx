@@ -45,7 +45,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
 }) => {
   console.log('QA Modal: Rendering with inspection:', inspection?.id, 'isOpen:', isOpen);
   
-  const { updateInspection } = useQAInspectionsSimple(inspection?.project_id);
+  const { updateInspection, getChecklistItems } = useQAInspectionsSimple(inspection?.project_id);
   const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();
   const qaPermissions = useQAPermissions();
@@ -55,6 +55,12 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   const [activeTab, setActiveTab] = useState('details');
   const [saving, setSaving] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  
+  // Unified state for all tabs
+  const [checklistChanges, setChecklistChanges] = useState<any[]>([]);
+  const [attachmentChanges, setAttachmentChanges] = useState<string[]>([]);
+  const [hasChecklistChanges, setHasChecklistChanges] = useState(false);
+  const [hasAttachmentChanges, setHasAttachmentChanges] = useState(false);
 
   // Check if opening in edit mode and auto-enable editing if permitted
   useEffect(() => {
@@ -113,48 +119,106 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
     setUnsavedChanges(true);
   }, []);
 
+  // Handlers for checklist changes
+  const handleChecklistChange = useCallback((items: any[]) => {
+    setChecklistChanges(items);
+    setHasChecklistChanges(true);
+    setUnsavedChanges(true);
+  }, []);
+
+  // Handlers for attachment changes
+  const handleAttachmentChange = useCallback((files: string[]) => {
+    setAttachmentChanges(files);
+    setHasAttachmentChanges(true);
+    setUnsavedChanges(true);
+  }, []);
+
+  // Check if there are any unsaved changes across all tabs
+  const hasAnyChanges = useMemo(() => {
+    return unsavedChanges || hasChecklistChanges || hasAttachmentChanges;
+  }, [unsavedChanges, hasChecklistChanges, hasAttachmentChanges]);
+
   const handleSave = useCallback(async () => {
-    if (!unsavedChanges) {
+    if (!hasAnyChanges) {
       setIsEditing(false);
       return;
     }
 
     setSaving(true);
     try {
-      const updatedInspection = await updateInspection(inspection.id, editData);
-      if (updatedInspection) {
-        toast({
-          title: "Success",
-          description: "Inspection updated successfully"
-        });
-        setIsEditing(false);
-        setUnsavedChanges(false);
-        onUpdate?.(updatedInspection);
+      // Save inspection details if changed
+      let updatedInspection = inspection;
+      if (unsavedChanges && Object.keys(editData).length > 0) {
+        updatedInspection = await updateInspection(inspection.id, editData);
+        if (!updatedInspection) {
+          throw new Error('Failed to update inspection details');
+        }
       }
+
+      // Save checklist changes if any
+      if (hasChecklistChanges && checklistChanges.length > 0) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        
+        // Update each modified checklist item
+        const savePromises = checklistChanges.map(async (item) => {
+          const { error } = await supabase
+            .from('qa_checklist_items')
+            .update({
+              status: item.status,
+              comments: item.comments,
+              evidence_files: item.evidence_files?.length > 0 ? item.evidence_files : null
+            })
+            .eq('id', item.id);
+          
+          if (error) throw error;
+        });
+
+        await Promise.all(savePromises);
+      }
+
+      toast({
+        title: "Success",
+        description: "All changes saved successfully"
+      });
+      
+      setIsEditing(false);
+      setUnsavedChanges(false);
+      setHasChecklistChanges(false);
+      setHasAttachmentChanges(false);
+      setChecklistChanges([]);
+      setAttachmentChanges([]);
+      onUpdate?.(updatedInspection);
+      
     } catch (error) {
-      console.error('Error updating inspection:', error);
+      console.error('Error saving changes:', error);
       toast({
         title: "Error",
-        description: "Failed to update inspection",
+        description: "Failed to save changes",
         variant: "destructive"
       });
     } finally {
       setSaving(false);
     }
-  }, [inspection.id, editData, unsavedChanges, updateInspection, toast, onUpdate]);
+  }, [inspection.id, editData, checklistChanges, hasAnyChanges, unsavedChanges, hasChecklistChanges, hasAttachmentChanges, updateInspection, toast, onUpdate]);
 
   const handleCancel = useCallback(() => {
-    if (unsavedChanges) {
+    if (hasAnyChanges) {
       if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
         setIsEditing(false);
         setEditData({});
         setUnsavedChanges(false);
+        setHasChecklistChanges(false);
+        setHasAttachmentChanges(false);
+        setChecklistChanges([]);
+        setAttachmentChanges([]);
       }
     } else {
       setIsEditing(false);
       setEditData({});
+      setChecklistChanges([]);
+      setAttachmentChanges([]);
     }
-  }, [unsavedChanges]);
+  }, [hasAnyChanges]);
 
   const getStatusBadge = useMemo(() => {
     const status = inspection?.overall_status;
@@ -221,7 +285,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
                 {inspection.is_fire_door && (
                   <Badge variant="destructive" className="text-xs">🔥 Fire Door</Badge>
                 )}
-                {unsavedChanges && (
+                {hasAnyChanges && (
                   <Badge variant="outline" className="text-xs text-orange-600">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Unsaved Changes
@@ -250,7 +314,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
                   <Button 
                     size="sm" 
                     onClick={handleSave}
-                    disabled={saving || !unsavedChanges}
+                    disabled={saving || !hasAnyChanges}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {saving ? 'Saving...' : 'Save Changes'}
@@ -325,6 +389,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
                   inspection={inspection}
                   isEditing={isEditing}
                   onUpdate={onUpdate}
+                  onChecklistChange={handleChecklistChange}
                 />
               </TabsContent>
 
@@ -332,6 +397,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
                 <QAAttachmentsUploadTab
                   inspection={inspection}
                   isEditing={isEditing}
+                  onAttachmentChange={handleAttachmentChange}
                 />
               </TabsContent>
 
