@@ -6,6 +6,7 @@ import Logo from '@/components/navigation/Logo';
 import DesktopNavigation from '@/components/navigation/DesktopNavigation';
 import UserMenu from '@/components/navigation/UserMenu';
 import MobileMenu from '@/components/navigation/MobileMenu';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 const TopNav = memo(() => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,6 +22,7 @@ const TopNav = memo(() => {
 
         {/* User Menu */}
         <div className="flex items-center gap-2">
+          <NotificationCenter />
           <UserMenu />
 
           {/* Mobile Menu Button */}

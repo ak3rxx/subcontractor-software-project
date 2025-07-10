@@ -18,6 +18,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import InvitationAcceptance from '@/pages/InvitationAcceptance';
 import OrganizationOnboarding from '@/components/organization/OrganizationOnboarding';
 import { ProtectedOnboardingProvider } from '@/components/onboarding/ProtectedOnboardingProvider';
+import { SmartNotificationProvider } from '@/components/notifications/SmartNotificationProvider';
+import { Toaster } from '@/components/ui/toaster';
 // AuthProvider removed - using direct useAuth hook instead
 
 // Add these imports for the new routes
@@ -28,7 +30,8 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <RoleProtectedApp>
+        <SmartNotificationProvider>
+          <RoleProtectedApp>
         <Routes>
           {/* Public routes - no onboarding provider */}
           <Route path="/" element={<Index />} />
@@ -117,7 +120,9 @@ function App() {
           {/* 404 route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-        </RoleProtectedApp>
+          </RoleProtectedApp>
+          <Toaster />
+        </SmartNotificationProvider>
       </Router>
     </ErrorBoundary>
   );
