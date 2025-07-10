@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface QAInspection {
   id: string;
@@ -38,9 +39,12 @@ export interface QAChecklistItem {
 export const useQAInspectionsSimple = (projectId?: string) => {
   const [inspections, setInspections] = useState<QAInspection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Use refs to prevent subscription loops
+  const subscriptionRef = useRef<RealtimeChannel | null>(null);
+  const subscribedProjectRef = useRef<string | undefined>(undefined);
 
   // Stable fetch function with debouncing
   const fetchInspections = useCallback(async (currentProjectId?: string, currentUser?: any) => {
@@ -371,35 +375,33 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     }
   }, []);
 
-  // Initial fetch and simplified real-time subscription
+  // Fixed subscription management with deduplication
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    console.log('QA: Effect triggered for project:', projectId, 'user:', user?.id);
     
-    // Debounced fetch function
-    const debouncedFetch = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        fetchInspections(projectId, user);
-      }, 100);
-    };
-
-    console.log('QA: Setting up subscription for project:', projectId, 'user:', user?.id);
-    
-    // Fetch initial data
+    // Always fetch initial data
     fetchInspections(projectId, user);
 
-    // Only subscribe if we have a valid user and project ID
-    if (!user || !projectId || isSubscribed) {
+    // Clean up existing subscription if project changed
+    if (subscriptionRef.current && subscribedProjectRef.current !== projectId) {
+      console.log('QA: Cleaning up old subscription for project:', subscribedProjectRef.current);
+      subscriptionRef.current.unsubscribe();
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+      subscribedProjectRef.current = undefined;
+    }
+
+    // Only subscribe if we have a valid user and project ID and no existing subscription for this project
+    if (!user || !projectId || subscribedProjectRef.current === projectId) {
       return;
     }
 
-    // Create simplified channel
-    const channelName = `qa_inspections_${projectId}`;
-    console.log('QA: Creating channel:', channelName);
+    // Create new subscription
+    const channelName = `qa_inspections_${projectId}_${Date.now()}`;
+    console.log('QA: Creating new subscription:', channelName);
     
-    setIsSubscribed(true);
+    subscribedProjectRef.current = projectId;
     
-    // Subscribe to real-time changes
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', 
@@ -411,19 +413,24 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         }, 
         (payload) => {
           console.log('QA: Real-time change detected:', payload.eventType);
-          debouncedFetch();
+          // Simple debounced refetch
+          setTimeout(() => fetchInspections(projectId, user), 500);
         }
       )
       .subscribe();
 
+    subscriptionRef.current = channel;
+
     return () => {
-      console.log('QA: Cleaning up subscription:', channelName);
-      clearTimeout(timeoutId);
-      setIsSubscribed(false);
-      channel.unsubscribe();
-      supabase.removeChannel(channel);
+      console.log('QA: Component cleanup for project:', projectId);
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+        subscribedProjectRef.current = undefined;
+      }
     };
-  }, [projectId, user?.id, fetchInspections, isSubscribed]);
+  }, [projectId, user?.id, fetchInspections]);
 
   // Stable refetch function
   const refetch = useCallback(() => {

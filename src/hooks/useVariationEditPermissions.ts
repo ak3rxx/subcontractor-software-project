@@ -2,7 +2,7 @@
 import { useAuth } from '@/hooks/useAuth';
 
 export const useVariationEditPermissions = (variation: any) => {
-  const { user, isDeveloper, hasRole } = useAuth();
+  const { user, isDeveloper, hasRole, rolesLoading } = useAuth();
   
   // Comprehensive permission checks using the proper auth system
   const isOrgAdmin = () => hasRole('org_admin');
@@ -20,6 +20,9 @@ export const useVariationEditPermissions = (variation: any) => {
   // Determine if user can edit based on status and permissions
   const canEditVariation = () => {
     if (!variation) return false;
+    
+    // Don't allow editing while roles are loading
+    if (rolesLoading) return false;
     
     // Developers and admins can always edit
     if (isDeveloper() || canAdmin()) return true;
@@ -39,6 +42,10 @@ export const useVariationEditPermissions = (variation: any) => {
 
   const getEditBlockedReason = () => {
     if (!variation) return null;
+    
+    if (rolesLoading) {
+      return 'Loading permissions...';
+    }
     
     if (isPendingApproval && !canEditDuringPendingApproval) {
       return 'This variation is pending approval. Only users with approval workflow permissions can make changes.';
@@ -60,6 +67,7 @@ export const useVariationEditPermissions = (variation: any) => {
     canEditDuringPendingApproval,
     isStatusLocked,
     isPendingApproval,
-    editBlockedReason: getEditBlockedReason()
+    editBlockedReason: getEditBlockedReason(),
+    isLoading: rolesLoading
   };
 };

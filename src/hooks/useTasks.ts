@@ -32,14 +32,18 @@ export const useTasks = () => {
   const { toast } = useToast();
 
   const fetchTasks = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log('Tasks: Fetching tasks for user:', user.id);
       const { data, error } = await supabase
         .from('tasks')
         .select(`
           *,
-          projects!inner(name),
+          projects(name),
           assigned_profile:profiles!tasks_assigned_to_fkey(full_name, email),
           created_profile:profiles!tasks_created_by_fkey(full_name, email)
         `)
@@ -48,6 +52,12 @@ export const useTasks = () => {
 
       if (error) {
         console.error('Error fetching tasks:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch tasks",
+          variant: "destructive"
+        });
+        setTasks([]);
         return;
       }
 
@@ -153,8 +163,9 @@ export const useTasks = () => {
   };
 
   useEffect(() => {
+    console.log('Tasks: Effect triggered for user:', user?.id);
     fetchTasks();
-  }, [user]);
+  }, [user?.id]);
 
   return {
     tasks,

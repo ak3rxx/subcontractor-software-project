@@ -7,7 +7,7 @@ export interface PermissionContext {
 }
 
 export const usePermissions = (context?: PermissionContext) => {
-  const { user, isDeveloper, hasRole, loading } = useAuth();
+  const { user, isDeveloper, hasRole, loading, rolesLoading } = useAuth();
 
   // Helper to check role with organization context
   const checkRole = (role: string) => hasRole(role, context?.organizationId);
@@ -18,63 +18,70 @@ export const usePermissions = (context?: PermissionContext) => {
     return user.id === context.resourceOwnerId;
   };
 
+  // Don't evaluate permissions while roles are loading
+  const isReady = !loading && !rolesLoading;
+
   // Permission matrix based on roles and context
   const permissions = {
+    // Loading state
+    isReady,
+    
     // View permissions (most permissive)
-    canView: () => !!user,
-    canViewProjects: () => !!user,
-    canViewVariations: () => !!user,
-    canViewQA: () => !!user,
-    canViewFinance: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator')),
+    canView: () => isReady && !!user,
+    canViewProjects: () => isReady && !!user,
+    canViewVariations: () => isReady && !!user,
+    canViewQA: () => isReady && !!user,
+    canViewFinance: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator')),
     
     // Create permissions
-    canCreate: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator') || checkRole('site_supervisor')),
-    canCreateProjects: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
-    canCreateVariations: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator')),
-    canCreateQA: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('site_supervisor')),
+    canCreate: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator') || checkRole('site_supervisor')),
+    canCreateProjects: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canCreateVariations: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator')),
+    canCreateQA: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('site_supervisor')),
     
     // Edit permissions
-    canEdit: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator') || isResourceOwner()),
-    canEditProjects: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
-    canEditVariations: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator')),
-    canEditQA: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('site_supervisor')),
+    canEdit: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator') || isResourceOwner()),
+    canEditProjects: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canEditVariations: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('estimator')),
+    canEditQA: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager') || checkRole('site_supervisor')),
     
     // Approval permissions
-    canApprove: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
-    canApproveVariations: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
-    canApprovePayments: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canApprove: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canApproveVariations: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canApprovePayments: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
     
     // Admin permissions
-    canAdmin: () => !!user && (isDeveloper() || checkRole('org_admin')),
-    canManageUsers: () => !!user && (isDeveloper() || checkRole('org_admin')),
-    canManageOrganization: () => !!user && (isDeveloper() || checkRole('org_admin')),
-    canManageSettings: () => !!user && (isDeveloper() || checkRole('org_admin')),
+    canAdmin: () => isReady && !!user && (isDeveloper() || checkRole('org_admin')),
+    canManageUsers: () => isReady && !!user && (isDeveloper() || checkRole('org_admin')),
+    canManageOrganization: () => isReady && !!user && (isDeveloper() || checkRole('org_admin')),
+    canManageSettings: () => isReady && !!user && (isDeveloper() || checkRole('org_admin')),
     
     // Delete permissions
-    canDelete: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
-    canDeleteProjects: () => !!user && (isDeveloper() || checkRole('org_admin')),
-    canDeleteVariations: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canDelete: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canDeleteProjects: () => isReady && !!user && (isDeveloper() || checkRole('org_admin')),
+    canDeleteVariations: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
     
     // Communication permissions
-    canSendEmails: () => !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
-    canInviteUsers: () => !!user && (isDeveloper() || checkRole('org_admin')),
+    canSendEmails: () => isReady && !!user && (isDeveloper() || checkRole('org_admin') || checkRole('project_manager')),
+    canInviteUsers: () => isReady && !!user && (isDeveloper() || checkRole('org_admin')),
     
     // Developer permissions
-    canAccessDeveloperTools: () => isDeveloper(),
-    canViewLogs: () => isDeveloper(),
-    canManageFeatureFlags: () => isDeveloper(),
+    canAccessDeveloperTools: () => isReady && isDeveloper(),
+    canViewLogs: () => isReady && isDeveloper(),
+    canManageFeatureFlags: () => isReady && isDeveloper(),
     
     // Role checks
-    isDeveloper: () => isDeveloper(),
-    isOrgAdmin: () => checkRole('org_admin'),
-    isProjectManager: () => checkRole('project_manager'),
-    isEstimator: () => checkRole('estimator'),
-    isSiteSupervisor: () => checkRole('site_supervisor'),
-    isSubcontractor: () => checkRole('subcontractor'),
-    isClient: () => checkRole('client'),
+    isDeveloper: () => isReady && isDeveloper(),
+    isOrgAdmin: () => isReady && checkRole('org_admin'),
+    isProjectManager: () => isReady && checkRole('project_manager'),
+    isEstimator: () => isReady && checkRole('estimator'),
+    isSiteSupervisor: () => isReady && checkRole('site_supervisor'),
+    isSubcontractor: () => isReady && checkRole('subcontractor'),
+    isClient: () => isReady && checkRole('client'),
     
     // Utility
     loading,
+    rolesLoading,
     user,
     context
   };
