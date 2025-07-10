@@ -3,12 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Building2, Calendar, Users, Settings, Calculator, Hash, BarChart3, ClipboardCheck, MessageSquare, FileText, DollarSign, AlertTriangle, CheckSquare, List } from 'lucide-react';
+import { Plus, Building2, Calendar, Users, Settings, Calculator, Hash, BarChart3, ClipboardCheck, MessageSquare, FileText, DollarSign, AlertTriangle, CheckSquare, List, Activity, TrendingUp, Clock } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
+import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
+import { useVariationsRefactored } from '@/hooks/variations/useVariationsRefactored';
 import TopNav from '@/components/TopNav';
 import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 
@@ -35,7 +38,7 @@ const ModuleLoader = () => (
 );
 
 const Projects = memo(() => {
-  const { projects, loading, error, createProject } = useProjects();
+  const { projects, loading, error, createProject, refetch: refetchProjects } = useProjects();
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -46,11 +49,47 @@ const Projects = memo(() => {
   const { toast } = useToast();
   const { getCrossModuleData, getCrossModuleAction } = useCrossModuleNavigation();
   const { user } = useAuth();
+
+  // Project-specific data hooks for dashboard
+  const projectId = selectedProject?.id;
+  const { inspections, loading: qaLoading, refetch: refetchQA } = useQAInspectionsSimple(projectId);
+  const { variations, loading: variationsLoading, summary: variationSummary, refetch: refetchVariations } = useVariationsRefactored(projectId || '');
+
+  // Optimistic updates state for real-time feedback
+  const [optimisticUpdates, setOptimisticUpdates] = useState({
+    qaInspections: 0,
+    recentActivity: null as any
+  });
   
   // Memoized permission check for performance
   const canAccess = useCallback((module: string) => {
     return !!user; // All authenticated users can access all modules for now
   }, [user]);
+
+  // Handle QA inspection events for real-time dashboard updates
+  const handleQARefresh = useCallback(() => {
+    console.log('Project Dashboard: QA inspection event received, refreshing data');
+    refetchQA();
+    refetchProjects();
+    
+    // Add optimistic activity update
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      qaInspections: prev.qaInspections + 1,
+      recentActivity: {
+        id: `qa-inspection-${Date.now()}`,
+        type: 'qa_inspection',
+        action: 'created',
+        description: 'New QA inspection created',
+        timestamp: new Date().toISOString(),
+        module: 'QA',
+        icon: <ClipboardCheck className="h-4 w-4 text-green-500" />
+      }
+    }));
+  }, [refetchQA, refetchProjects]);
+
+  // Set up QA inspection coordination for real-time updates
+  useQAInspectionCoordination(handleQARefresh);
 
   // Handle URL parameters for cross-module integration
   useEffect(() => {
@@ -272,38 +311,234 @@ const Projects = memo(() => {
               </TabsList>
 
               <TabsContent value="dashboard" className="mt-6 space-y-6">
-                {/* Dashboard Overview Stats */}
+                {/* Enhanced Dashboard Overview Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card>
+                  <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
-                      <Building2 className="h-8 w-8 mx-auto text-blue-500 mb-2" />
-                      <div className="text-2xl font-bold">{selectedProject.project_type || 'N/A'}</div>
-                      <div className="text-sm text-gray-600">Project Type</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-6 text-center">
-                      <Calendar className="h-8 w-8 mx-auto text-green-500 mb-2" />
+                      <ClipboardCheck className="h-8 w-8 mx-auto text-green-500 mb-2" />
                       <div className="text-2xl font-bold">
-                        {selectedProject.start_date ? new Date(selectedProject.start_date).toLocaleDateString() : 'Not Set'}
+                        {qaLoading ? '...' : (inspections.length + optimisticUpdates.qaInspections)}
                       </div>
-                      <div className="text-sm text-gray-600">Start Date</div>
+                      <div className="text-sm text-gray-600">QA Inspections</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {inspections.filter(i => i.overall_status === 'pass').length} passed, {inspections.filter(i => i.overall_status === 'fail').length} failed
+                      </div>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6 text-center">
+                      <AlertTriangle className="h-8 w-8 mx-auto text-orange-500 mb-2" />
+                      <div className="text-2xl font-bold">
+                        {variationsLoading ? '...' : variations.length}
+                      </div>
+                      <div className="text-sm text-gray-600">Variations</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {variationSummary?.approved || 0} approved, {variationSummary?.pending_approval || 0} pending
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
                       <DollarSign className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
                       <div className="text-2xl font-bold">
-                        {selectedProject.total_budget ? `$${selectedProject.total_budget.toLocaleString()}` : 'Not Set'}
+                        {variationSummary?.totalCostImpact ? `$${variationSummary.totalCostImpact.toLocaleString()}` : '$0'}
                       </div>
-                      <div className="text-sm text-gray-600">Total Budget</div>
+                      <div className="text-sm text-gray-600">Variation Impact</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {variationSummary?.pending_approval > 0 ? `${variationSummary.pending_approval} pending approval` : 'No pending variations'}
+                      </div>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
-                      <Users className="h-8 w-8 mx-auto text-purple-500 mb-2" />
-                      <div className="text-2xl font-bold">Active</div>
-                      <div className="text-sm text-gray-600">Project Status</div>
+                      <TrendingUp className="h-8 w-8 mx-auto text-purple-500 mb-2" />
+                      <div className="text-2xl font-bold">
+                        {selectedProject.total_budget ? `$${selectedProject.total_budget.toLocaleString()}` : 'Not Set'}
+                      </div>
+                      <div className="text-sm text-gray-600">Project Budget</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {variationSummary?.totalCostImpact && selectedProject.total_budget ? 
+                          `${(((variationSummary.totalCostImpact / selectedProject.total_budget) * 100) || 0).toFixed(1)}% variation impact` 
+                          : 'No variations'
+                        }
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Real-time Activity Feed */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Recent Activity
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 max-h-64 overflow-y-auto">
+                        {/* Show optimistic activity first */}
+                        {optimisticUpdates.recentActivity && (
+                          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                            <div className="mt-0.5">{optimisticUpdates.recentActivity.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                {optimisticUpdates.recentActivity.description}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {optimisticUpdates.recentActivity.module} • Just now
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recent QA Inspections */}
+                        {inspections.slice(0, 3).map((inspection) => (
+                          <div key={inspection.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg">
+                            <ClipboardCheck className="h-4 w-4 text-green-500 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                QA Inspection {inspection.overall_status === 'pass' ? 'Passed' : inspection.overall_status === 'fail' ? 'Failed' : 'In Progress'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {inspection.task_area} • {new Date(inspection.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge variant={inspection.overall_status === 'pass' ? 'default' : inspection.overall_status === 'fail' ? 'destructive' : 'secondary'}>
+                              {inspection.overall_status}
+                            </Badge>
+                          </div>
+                        ))}
+
+                        {/* Recent Variations */}
+                        {variations.slice(0, 2).map((variation) => (
+                          <div key={variation.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg">
+                            <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                Variation {variation.status === 'approved' ? 'Approved' : variation.status === 'rejected' ? 'Rejected' : 'Submitted'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {variation.title} • {variation.total_amount ? `$${variation.total_amount.toLocaleString()}` : 'No cost'}
+                              </p>
+                            </div>
+                            <Badge variant={variation.status === 'approved' ? 'default' : variation.status === 'rejected' ? 'destructive' : 'secondary'}>
+                              {variation.status}
+                            </Badge>
+                          </div>
+                        ))}
+
+                        {inspections.length === 0 && variations.length === 0 && !optimisticUpdates.recentActivity && (
+                          <div className="text-center py-6 text-gray-500">
+                            <Activity className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">No recent activity</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Quick Actions & Module Status */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        Quick Actions & Status
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Quick Action Buttons */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => setActiveTab('qa-itp')}
+                            className="flex items-center gap-2"
+                          >
+                            <ClipboardCheck className="h-4 w-4" />
+                            New QA
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setActiveTab('variations')}
+                            className="flex items-center gap-2"
+                          >
+                            <AlertTriangle className="h-4 w-4" />
+                            New Variation
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setActiveTab('tasks')}
+                            className="flex items-center gap-2"
+                          >
+                            <Settings className="h-4 w-4" />
+                            New Task
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setActiveTab('finance')}
+                            className="flex items-center gap-2"
+                          >
+                            <DollarSign className="h-4 w-4" />
+                            Finance
+                          </Button>
+                        </div>
+
+                        {/* Module Status Overview */}
+                        <div className="space-y-3 pt-4 border-t">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">QA Completion</span>
+                            <span className="text-sm text-gray-600">
+                              {inspections.length > 0 ? 
+                                `${Math.round((inspections.filter(i => i.overall_status === 'pass').length / inspections.length) * 100)}%` 
+                                : '0%'
+                              }
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                              style={{
+                                width: inspections.length > 0 ? 
+                                  `${(inspections.filter(i => i.overall_status === 'pass').length / inspections.length) * 100}%` 
+                                  : '0%'
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">Variation Approval</span>
+                            <span className="text-sm text-gray-600">
+                              {variations.length > 0 ? 
+                                `${Math.round(((variationSummary?.approved || 0) / variations.length) * 100)}%` 
+                                : '0%'
+                              }
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                              style={{
+                                width: variations.length > 0 ? 
+                                  `${((variationSummary?.approved || 0) / variations.length) * 100}%` 
+                                  : '0%'
+                              }}
+                            />
+                          </div>
+
+                          <div className="pt-3 text-center">
+                            <div className="text-sm text-gray-600">
+                              Project started {selectedProject.start_date ? 
+                                new Date(selectedProject.start_date).toLocaleDateString() : 'Not set'
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
