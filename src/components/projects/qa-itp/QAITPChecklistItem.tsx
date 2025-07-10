@@ -1,8 +1,9 @@
 
 import React, { useCallback } from 'react';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import SupabaseFileUpload from './SupabaseFileUpload';
 // Removed QAFieldAuditTrail for simplicity
 import { ChecklistItem } from './QAITPTemplates';
@@ -100,30 +101,30 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
       </div>
       
       <div className="space-y-3">
-        <RadioGroup
-          value={item.status || ''}
-          onValueChange={handleStatusChange}
-          className="flex gap-6"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="pass" id={`${item.id}-pass`} />
-            <Label htmlFor={`${item.id}-pass`} className="text-green-600 font-medium cursor-pointer">
-              Pass
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="fail" id={`${item.id}-fail`} />
-            <Label htmlFor={`${item.id}-fail`} className="text-red-600 font-medium cursor-pointer">
-              Fail
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="na" id={`${item.id}-na`} />
-            <Label htmlFor={`${item.id}-na`} className="text-muted-foreground font-medium cursor-pointer">
-              N/A
-            </Label>
-          </div>
-        </RadioGroup>
+        <div className="flex gap-1">
+          {['pass', 'fail', 'na'].map((status) => (
+            <Button
+              key={status}
+              variant={item.status === status ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleStatusChange(status)}
+              className={`px-3 py-1 text-xs ${
+                item.status === status 
+                  ? status === 'pass' 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : status === 'fail'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-gray-600 hover:bg-gray-700'
+                  : 'hover:bg-muted'
+              }`}
+            >
+              {status === 'pass' && <CheckCircle className="h-3 w-3 mr-1" />}
+              {status === 'fail' && <XCircle className="h-3 w-3 mr-1" />}
+              {status === 'na' && <AlertTriangle className="h-3 w-3 mr-1" />}
+              {status === 'pass' ? 'Pass' : status === 'fail' ? 'Fail' : 'N/A'}
+            </Button>
+          ))}
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor={`${item.id}-comments`}>Comments</Label>
