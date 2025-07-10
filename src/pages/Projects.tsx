@@ -11,7 +11,10 @@ import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
-import { useVariationsRefactored } from '@/hooks/variations/useVariationsRefactored';
+import { useEnhancedVariations } from '@/hooks/useEnhancedVariations';
+import { useEnhancedTasks } from '@/hooks/useEnhancedTasks';
+import StatusIndicator from '@/components/ui/status-indicator';
+import QuickActions from '@/components/ui/quick-actions';
 import TopNav from '@/components/TopNav';
 import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 
@@ -50,41 +53,71 @@ const Projects = memo(() => {
   const { getCrossModuleData, getCrossModuleAction } = useCrossModuleNavigation();
   const { user } = useAuth();
 
-  // Project-specific data hooks for dashboard
+  // Project-specific data hooks for dashboard with enhanced optimistic updates
   const projectId = selectedProject?.id;
   const { inspections, loading: qaLoading, refetch: refetchQA } = useQAInspectionsSimple(projectId);
-  const { variations, loading: variationsLoading, summary: variationSummary, refetch: refetchVariations } = useVariationsRefactored(projectId || '');
+  const { 
+    variations, 
+    isPerformingAction: variationsUpdating, 
+    createVariation, 
+    updateVariation, 
+    changeVariationStatus,
+    getVariationStatusInfo 
+  } = useEnhancedVariations(projectId || '');
+  
+  const { 
+    tasks, 
+    isPerformingAction: tasksUpdating, 
+    createTask, 
+    updateTask, 
+    changeTaskStatus,
+    getTaskSummary 
+  } = useEnhancedTasks();
 
-  // Optimistic updates state for real-time feedback
+  // Enhanced optimistic updates with cross-module synchronization
   const [optimisticUpdates, setOptimisticUpdates] = useState({
     qaInspections: 0,
-    recentActivity: null as any
+    recentActivity: [] as any[]
   });
+
+  // Get task summary for dashboard
+  const taskSummary = getTaskSummary();
+  
+  // Calculate variation summary from enhanced data
+  const variationSummary = {
+    approved: variations.filter(v => v.status === 'approved').length,
+    pending_approval: variations.filter(v => v.status === 'pending_approval').length,
+    totalCostImpact: variations.reduce((sum, v) => sum + (v.total_amount || 0), 0)
+  };
   
   // Memoized permission check for performance
   const canAccess = useCallback((module: string) => {
     return !!user; // All authenticated users can access all modules for now
   }, [user]);
 
-  // Handle QA inspection events for real-time dashboard updates
+  // Enhanced cross-module activity tracking
   const handleQARefresh = useCallback(() => {
     console.log('Project Dashboard: QA inspection event received, refreshing data');
     refetchQA();
     refetchProjects();
     
-    // Add optimistic activity update
+    // Add optimistic activity update with enhanced tracking
     setOptimisticUpdates(prev => ({
       ...prev,
       qaInspections: prev.qaInspections + 1,
-      recentActivity: {
-        id: `qa-inspection-${Date.now()}`,
-        type: 'qa_inspection',
-        action: 'created',
-        description: 'New QA inspection created',
-        timestamp: new Date().toISOString(),
-        module: 'QA',
-        icon: <ClipboardCheck className="h-4 w-4 text-green-500" />
-      }
+      recentActivity: [
+        {
+          id: `qa-inspection-${Date.now()}`,
+          type: 'qa_inspection',
+          action: 'created',
+          description: 'New QA inspection created',
+          timestamp: new Date().toISOString(),
+          module: 'QA',
+          status: 'completed',
+          icon: <ClipboardCheck className="h-4 w-4 text-green-500" />
+        },
+        ...prev.recentActivity
+      ].slice(0, 10) // Keep only latest 10 activities
     }));
   }, [refetchQA, refetchProjects]);
 
@@ -311,13 +344,20 @@ const Projects = memo(() => {
               </TabsList>
 
               <TabsContent value="dashboard" className="mt-6 space-y-6">
-                {/* Enhanced Dashboard Overview Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                 {/* Enhanced Dashboard Overview Stats with Real-time Updates */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
-                      <ClipboardCheck className="h-8 w-8 mx-auto text-green-500 mb-2" />
+                      <div className="flex items-center justify-center mb-2">
+                        <ClipboardCheck className="h-8 w-8 text-green-500" />
+                        {qaLoading && <StatusIndicator status="pending" size="sm" className="ml-2" />}
+                      </div>
                       <div className="text-2xl font-bold">
-                        {qaLoading ? '...' : (inspections.length + optimisticUpdates.qaInspections)}
+                        {qaLoading ? (
+                          <StatusIndicator status="pending" message="Loading..." size="sm" />
+                        ) : (
+                          inspections.length + optimisticUpdates.qaInspections
+                        )}
                       </div>
                       <div className="text-sm text-gray-600">QA Inspections</div>
                       <div className="mt-1 text-xs text-gray-500">
@@ -325,30 +365,63 @@ const Projects = memo(() => {
                       </div>
                     </CardContent>
                   </Card>
+                  
                   <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
-                      <AlertTriangle className="h-8 w-8 mx-auto text-orange-500 mb-2" />
+                      <div className="flex items-center justify-center mb-2">
+                        <AlertTriangle className="h-8 w-8 text-orange-500" />
+                        {variationsUpdating && <StatusIndicator status="pending" size="sm" className="ml-2" />}
+                      </div>
                       <div className="text-2xl font-bold">
-                        {variationsLoading ? '...' : variations.length}
+                        {variationsUpdating ? (
+                          <StatusIndicator status="pending" message="Updating..." size="sm" />
+                        ) : (
+                          variations.length
+                        )}
                       </div>
                       <div className="text-sm text-gray-600">Variations</div>
                       <div className="mt-1 text-xs text-gray-500">
-                        {variationSummary?.approved || 0} approved, {variationSummary?.pending_approval || 0} pending
+                        {variationSummary.approved} approved, {variationSummary.pending_approval} pending
                       </div>
                     </CardContent>
                   </Card>
+                  
                   <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
-                      <DollarSign className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
+                      <div className="flex items-center justify-center mb-2">
+                        <CheckSquare className="h-8 w-8 text-blue-500" />
+                        {tasksUpdating && <StatusIndicator status="pending" size="sm" className="ml-2" />}
+                      </div>
                       <div className="text-2xl font-bold">
-                        {variationSummary?.totalCostImpact ? `$${variationSummary.totalCostImpact.toLocaleString()}` : '$0'}
+                        {tasksUpdating ? (
+                          <StatusIndicator status="pending" message="Updating..." size="sm" />
+                        ) : (
+                          taskSummary.total
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">Tasks</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {taskSummary.completed} completed, {taskSummary.inProgress} in progress
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <DollarSign className="h-8 w-8 text-yellow-500" />
+                        {variationsUpdating && <StatusIndicator status="pending" size="sm" className="ml-2" />}
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {variationSummary.totalCostImpact ? `$${variationSummary.totalCostImpact.toLocaleString()}` : '$0'}
                       </div>
                       <div className="text-sm text-gray-600">Variation Impact</div>
                       <div className="mt-1 text-xs text-gray-500">
-                        {variationSummary?.pending_approval > 0 ? `${variationSummary.pending_approval} pending approval` : 'No pending variations'}
+                        {variationSummary.pending_approval > 0 ? `${variationSummary.pending_approval} pending approval` : 'No pending variations'}
                       </div>
                     </CardContent>
                   </Card>
+                  
                   <Card className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6 text-center">
                       <TrendingUp className="h-8 w-8 mx-auto text-purple-500 mb-2" />
@@ -357,7 +430,7 @@ const Projects = memo(() => {
                       </div>
                       <div className="text-sm text-gray-600">Project Budget</div>
                       <div className="mt-1 text-xs text-gray-500">
-                        {variationSummary?.totalCostImpact && selectedProject.total_budget ? 
+                        {variationSummary.totalCostImpact && selectedProject.total_budget ? 
                           `${(((variationSummary.totalCostImpact / selectedProject.total_budget) * 100) || 0).toFixed(1)}% variation impact` 
                           : 'No variations'
                         }
@@ -378,19 +451,19 @@ const Projects = memo(() => {
                     <CardContent>
                       <div className="space-y-3 max-h-64 overflow-y-auto">
                         {/* Show optimistic activity first */}
-                        {optimisticUpdates.recentActivity && (
-                          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                            <div className="mt-0.5">{optimisticUpdates.recentActivity.icon}</div>
+                        {optimisticUpdates.recentActivity.length > 0 && optimisticUpdates.recentActivity.map((activity) => (
+                          <div key={activity.id} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                            <div className="mt-0.5">{activity.icon}</div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900">
-                                {optimisticUpdates.recentActivity.description}
+                                {activity.description}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
-                                {optimisticUpdates.recentActivity.module} • Just now
+                                {activity.module} • Just now
                               </p>
                             </div>
                           </div>
-                        )}
+                        ))}
 
                         {/* Recent QA Inspections */}
                         {inspections.slice(0, 3).map((inspection) => (
@@ -428,7 +501,7 @@ const Projects = memo(() => {
                           </div>
                         ))}
 
-                        {inspections.length === 0 && variations.length === 0 && !optimisticUpdates.recentActivity && (
+                        {inspections.length === 0 && variations.length === 0 && optimisticUpdates.recentActivity.length === 0 && (
                           <div className="text-center py-6 text-gray-500">
                             <Activity className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                             <p className="text-sm">No recent activity</p>
