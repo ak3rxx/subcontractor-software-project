@@ -176,115 +176,134 @@ export const useSmartNotifications = () => {
 
   // Real-time monitoring for immediate alerts
   useEffect(() => {
+    const handleVariationUpdate = (payload: any) => {
+      const { old: old_record, new: new_record } = payload;
+      
+      if (old_record.status !== new_record.status) {
+        if (new_record.status === 'approved') {
+          setNotifications(prev => [{
+            id: crypto.randomUUID(),
+            type: 'success',
+            priority: 'medium',
+            title: 'Variation Approved',
+            message: `Variation "${new_record.title}" has been approved`,
+            moduleSource: 'variations',
+            relatedId: new_record.id,
+            actionable: false,
+            timestamp: new Date(),
+            read: false,
+            dismissed: false
+          }, ...prev.slice(0, 49)]);
+        } else if (new_record.status === 'rejected') {
+          setNotifications(prev => [{
+            id: crypto.randomUUID(),
+            type: 'warning',
+            priority: 'medium',
+            title: 'Variation Rejected',
+            message: `Variation "${new_record.title}" has been rejected`,
+            moduleSource: 'variations',
+            relatedId: new_record.id,
+            actionable: true,
+            actions: [{
+              label: 'Review Feedback',
+              action: () => window.location.href = `/projects?tab=variations&id=${new_record.id}`
+            }],
+            timestamp: new Date(),
+            read: false,
+            dismissed: false
+          }, ...prev.slice(0, 49)]);
+        }
+      }
+    };
+
+    const handleQAInsert = (payload: any) => {
+      const record = payload.new;
+      
+      if (record.overall_status === 'failed') {
+        setNotifications(prev => [{
+          id: crypto.randomUUID(),
+          type: 'error',
+          priority: 'high',
+          title: 'QA Inspection Failed',
+          message: `Inspection ${record.inspection_number} failed for ${record.task_area}`,
+          moduleSource: 'qa',
+          relatedId: record.id,
+          actionable: true,
+          actions: [{
+            label: 'Review Details',
+            action: () => window.location.href = `/projects?tab=qa&inspection=${record.id}`
+          }],
+          timestamp: new Date(),
+          read: false,
+          dismissed: false
+        }, ...prev.slice(0, 49)]);
+      }
+    };
+
+    const handleTaskUpdate = (payload: any) => {
+      const record = payload.new || payload.old;
+      
+      if (record && typeof record === 'object' && 'due_date' in record && record.due_date) {
+        const taskRecord = record as any;
+        const dueDate = new Date(taskRecord.due_date);
+        const today = new Date();
+        const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysUntilDue <= 1 && taskRecord.status !== 'completed') {
+          setNotifications(prev => [{
+            id: crypto.randomUUID(),
+            type: 'warning',
+            priority: daysUntilDue < 0 ? 'critical' : 'high',
+            title: daysUntilDue < 0 ? 'Task Overdue' : 'Task Due Soon',
+            message: `Task "${taskRecord.title || 'Untitled'}" is ${daysUntilDue < 0 ? 'overdue' : 'due today'}`,
+            moduleSource: 'tasks',
+            relatedId: taskRecord.id || '',
+            actionable: true,
+            actions: [{
+              label: 'Complete Task',
+              action: () => window.location.href = `/projects?tab=tasks&task=${taskRecord.id || ''}`
+            }],
+            timestamp: new Date(),
+            read: false,
+            dismissed: false
+          }, ...prev.slice(0, 49)]);
+        }
+      }
+    };
+
     const channels = [
-      // Monitor variation status changes
       supabase
         .channel('notifications-variations')
         .on('postgres_changes', { 
           event: 'UPDATE', 
           schema: 'public', 
           table: 'variations' 
-        }, (payload) => {
-          const { old: old_record, new: new_record } = payload;
-          
-          if (old_record.status !== new_record.status) {
-            if (new_record.status === 'approved') {
-              addNotification({
-                type: 'success',
-                priority: 'medium',
-                title: 'Variation Approved',
-                message: `Variation "${new_record.title}" has been approved`,
-                moduleSource: 'variations',
-                relatedId: new_record.id,
-                actionable: false
-              });
-            } else if (new_record.status === 'rejected') {
-              addNotification({
-                type: 'warning',
-                priority: 'medium',
-                title: 'Variation Rejected',
-                message: `Variation "${new_record.title}" has been rejected`,
-                moduleSource: 'variations',
-                relatedId: new_record.id,
-                actionable: true,
-                actions: [{
-                  label: 'Review Feedback',
-                  action: () => window.location.href = `/projects?tab=variations&id=${new_record.id}`
-                }]
-              });
-            }
-          }
-        })
+        }, handleVariationUpdate)
         .subscribe(),
 
-      // Monitor QA inspection results
       supabase
         .channel('notifications-qa')
         .on('postgres_changes', { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'qa_inspections' 
-        }, (payload) => {
-          const record = payload.new;
-          
-          if (record.overall_status === 'failed') {
-            addNotification({
-              type: 'error',
-              priority: 'high',
-              title: 'QA Inspection Failed',
-              message: `Inspection ${record.inspection_number} failed for ${record.task_area}`,
-              moduleSource: 'qa',
-              relatedId: record.id,
-              actionable: true,
-              actions: [{
-                label: 'Review Details',
-                action: () => window.location.href = `/projects?tab=qa&inspection=${record.id}`
-              }]
-            });
-          }
-        })
+        }, handleQAInsert)
         .subscribe(),
 
-      // Monitor task deadlines
       supabase
         .channel('notifications-tasks')
         .on('postgres_changes', { 
           event: '*', 
           schema: 'public', 
           table: 'tasks' 
-        }, (payload) => {
-          const record = payload.new || payload.old;
-          
-          if (record && typeof record === 'object' && 'due_date' in record && record.due_date) {
-            const taskRecord = record as any; // Type assertion for payload data
-            const dueDate = new Date(taskRecord.due_date);
-            const today = new Date();
-            const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (daysUntilDue <= 1 && taskRecord.status !== 'completed') {
-              addNotification({
-                type: 'warning',
-                priority: daysUntilDue < 0 ? 'critical' : 'high',
-                title: daysUntilDue < 0 ? 'Task Overdue' : 'Task Due Soon',
-                message: `Task "${taskRecord.title || 'Untitled'}" is ${daysUntilDue < 0 ? 'overdue' : 'due today'}`,
-                moduleSource: 'tasks',
-                relatedId: taskRecord.id || '',
-                actionable: true,
-                actions: [{
-                  label: 'Complete Task',
-                  action: () => window.location.href = `/projects?tab=tasks&task=${taskRecord.id || ''}`
-                }]
-              });
-            }
-          }
-        })
+        }, handleTaskUpdate)
         .subscribe()
     ];
 
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));
     };
-  }, [addNotification]);
+  }, []); // Removed addNotification dependency
 
   const activeNotifications = notifications.filter(n => !n.dismissed);
   const unreadCount = activeNotifications.filter(n => !n.read).length;
