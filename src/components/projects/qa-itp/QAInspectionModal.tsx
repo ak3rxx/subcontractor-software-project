@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQAPermissions } from '@/hooks/useQAPermissions';
 import QADetailsTab from './QADetailsTab';
 import QAChecklistEditableTab from './QAChecklistEditableTab';
-import QAAttachmentsTab from './QAAttachmentsTab';
+import QAAttachmentsUploadTab from './QAAttachmentsUploadTab';
 import QAChangeHistory from './QAChangeHistory';
 import QACrossModuleIntegration from './QACrossModuleIntegration';
 
@@ -60,7 +60,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   useEffect(() => {
     if (inspection?._openInEditMode && qaPermissions.canEditInspections) {
       setIsEditing(true);
-      setActiveTab('details'); // Ensure details tab is active
+      // Keep the current active tab instead of forcing details tab
       // Initialize edit data
       setEditData({
         project_name: inspection.project_name || '',
@@ -105,7 +105,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
     });
     setIsEditing(true);
     setUnsavedChanges(false);
-    setActiveTab('details'); // Auto-open details tab when editing
+    // Keep current tab active instead of auto-switching to details
   }, [inspection?.id, qaPermissions, toast]); // Only re-create when inspection ID changes
 
   const handleDataChange = useCallback((changes: any) => {
@@ -329,7 +329,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
               </TabsContent>
 
               <TabsContent value="attachments" className="h-full">
-                <QAAttachmentsTab
+                <QAAttachmentsUploadTab
                   inspection={inspection}
                   isEditing={isEditing}
                 />

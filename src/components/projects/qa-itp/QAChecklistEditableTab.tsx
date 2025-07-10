@@ -204,16 +204,6 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Inspection Checklist</CardTitle>
-            {isEditing && hasChanges && (
-              <Button 
-                onClick={handleSaveChanges} 
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            )}
           </div>
           {isEditing && (
             <p className="text-sm text-muted-foreground">
@@ -242,19 +232,30 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                           </Badge>
                         </>
                       ) : (
-                        <Select
-                          value={item.status || ''}
-                          onValueChange={(value) => handleStatusChange(item.id, value)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pass">Pass</SelectItem>
-                            <SelectItem value="fail">Fail</SelectItem>
-                            <SelectItem value="na">N/A</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex gap-1">
+                          {['pass', 'fail', 'na'].map((status) => (
+                            <Button
+                              key={status}
+                              variant={item.status === status ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleStatusChange(item.id, status)}
+                              className={`px-3 py-1 text-xs ${
+                                item.status === status 
+                                  ? status === 'pass' 
+                                    ? 'bg-green-600 hover:bg-green-700' 
+                                    : status === 'fail'
+                                    ? 'bg-red-600 hover:bg-red-700'
+                                    : 'bg-gray-600 hover:bg-gray-700'
+                                  : 'hover:bg-muted'
+                              }`}
+                            >
+                              {status === 'pass' && <CheckCircle className="h-3 w-3 mr-1" />}
+                              {status === 'fail' && <XCircle className="h-3 w-3 mr-1" />}
+                              {status === 'na' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                              {status === 'pass' ? 'Pass' : status === 'fail' ? 'Fail' : 'N/A'}
+                            </Button>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
