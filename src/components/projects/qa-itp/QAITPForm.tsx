@@ -104,6 +104,46 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     setHasUploadFailures(hasFailures);
   };
 
+  // Calculate overall status based on checklist items
+  const calculateOverallStatus = (checklistItems: ChecklistItem[], isFormComplete: boolean): 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress' | 'incomplete-draft' => {
+    if (!isFormComplete) {
+      return 'incomplete-in-progress';
+    }
+
+    // Filter out items that are not filled (status is empty, undefined, or null)
+    const completedItems = checklistItems.filter(item => 
+      item.status && item.status.trim() !== ''
+    );
+
+    // If no items are completed, form is incomplete
+    if (completedItems.length === 0) {
+      return 'incomplete-in-progress';
+    }
+
+    // Count pass/fail items (excluding N/A)
+    const passFailItems = completedItems.filter(item => 
+      item.status === 'pass' || item.status === 'fail'
+    );
+
+    // If all items are N/A, consider it pass
+    if (passFailItems.length === 0) {
+      return 'pass';
+    }
+
+    // Count failed items
+    const failedItems = passFailItems.filter(item => item.status === 'fail');
+    const failPercentage = failedItems.length / passFailItems.length;
+
+    // Apply business rules
+    if (failedItems.length === 0) {
+      return 'pass'; // All items passed
+    } else if (failPercentage >= 0.5) {
+      return 'fail'; // 50% or more failed
+    } else {
+      return 'pending-reinspection'; // Less than 50% failed
+    }
+  };
+
   // Field mapping for focusing functionality
   const fieldMapping = {
     projectId: { id: 'qa-project-select', label: 'Project' },
@@ -330,6 +370,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
       );
 
+      // Calculate automated overall status
+      const formComplete = isFormComplete();
+      const calculatedStatus = calculateOverallStatus(filteredChecklist, formComplete);
+
       // Combine building, level, and building reference for location_reference
       const locationParts = [formData.building];
       if (formData.level.trim()) {
@@ -353,7 +397,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         inspector_name: formData.inspectorName,
         inspection_date: formData.inspectionDate,
         digital_signature: formData.digitalSignature,
-        overall_status: 'incomplete-in-progress' as const
+        overall_status: calculatedStatus
       };
 
       const checklistItems = filteredChecklist.map(item => {
@@ -482,7 +526,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               </Button>
               <Button 
                 onClick={handleSubmit}
-                disabled={saving || uploadingFiles || !isFormComplete()}
+                disabled={saving || uploadingFiles}
               >
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? 'Creating...' : 'Create Inspection'}
