@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 interface ChangeHistoryEntry {
   id: string;
@@ -216,10 +217,35 @@ export const useQAChangeHistory = (inspectionId: string) => {
     };
 
     fetchData();
+
+    // Set up real-time subscription for qa_change_history
+    const channel = supabase
+      .channel(`qa_change_history_${inspectionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'qa_change_history',
+          filter: `inspection_id=eq.${inspectionId}`,
+        },
+        (payload: RealtimePostgresChangesPayload<any>) => {
+          console.log('Real-time change history update:', payload);
+          // Refresh the change history when new entries are added
+          if (isMounted) {
+            fetchData();
+          }
+        }
+      )
+      .subscribe();
+
+    console.log('Subscribed to real-time updates for qa_change_history');
     
-    // Simple cleanup without aggressive state clearing
+    // Cleanup function
     return () => {
       isMounted = false;
+      supabase.removeChannel(channel);
+      console.log('Unsubscribed from qa_change_history real-time updates');
     };
   }, [inspectionId]);
 
