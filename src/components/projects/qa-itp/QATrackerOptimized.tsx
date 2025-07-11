@@ -98,7 +98,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
           setShowCreateForm(false);
           refetch(); // Refresh data to show new inspection
           onNavigateToTracker?.(); // Navigate back to QA tracker tab
-          onNewInspection?.();
         }}
       />
     );
