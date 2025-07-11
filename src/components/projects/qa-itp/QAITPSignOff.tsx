@@ -14,12 +14,20 @@ interface QAITPSignOffProps {
     overallStatus: string;
   };
   onFormDataChange: (field: string, value: string) => void;
+  calculatedStatus: string;
 }
 
 const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
   formData,
-  onFormDataChange
+  onFormDataChange,
+  calculatedStatus
 }) => {
+  // Update form data when calculated status changes
+  React.useEffect(() => {
+    if (calculatedStatus !== formData.overallStatus) {
+      onFormDataChange('overallStatus', calculatedStatus);
+    }
+  }, [calculatedStatus, formData.overallStatus, onFormDataChange]);
   return (
     <Card>
       <CardHeader>
@@ -64,9 +72,9 @@ const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="overallStatus">Overall Status</Label>
-          <Select value={formData.overallStatus} onValueChange={(value) => onFormDataChange('overallStatus', value)}>
-            <SelectTrigger>
+          <Label htmlFor="overallStatus">Overall Status (Auto-calculated)</Label>
+          <Select value={calculatedStatus} onValueChange={(value) => onFormDataChange('overallStatus', value)}>
+            <SelectTrigger className="bg-muted/50">
               <SelectValue placeholder="Select overall status" />
             </SelectTrigger>
             <SelectContent>
@@ -74,8 +82,12 @@ const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
               <SelectItem value="fail">Fail</SelectItem>
               <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
               <SelectItem value="incomplete-in-progress">Incomplete/In Progress</SelectItem>
+              <SelectItem value="incomplete-draft">Incomplete/Draft</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            Status is automatically calculated based on checklist completion. You can override if needed.
+          </p>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">

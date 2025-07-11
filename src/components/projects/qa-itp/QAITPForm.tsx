@@ -515,6 +515,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           <QAITPSignOff
             formData={formData}
             onFormDataChange={handleFormDataChange}
+            calculatedStatus={calculateOverallStatus(filteredChecklist, isFormComplete())}
           />
 
           <div className="flex justify-between items-center">
