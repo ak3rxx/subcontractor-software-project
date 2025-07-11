@@ -15,7 +15,7 @@ export const QAStatusBar: React.FC<QAStatusBarProps> = ({ checklist, isFormCompl
     (acc, item) => {
       if (item.status === 'pass') acc.pass++;
       else if (item.status === 'fail') acc.fail++;
-      else if (item.status === 'n/a') acc.na++;
+      else if (item.status === 'na') acc.na++;
       else acc.incomplete++;
       return acc;
     },
