@@ -697,7 +697,11 @@ const Projects = memo(() => {
                         <Suspense fallback={<ModuleLoader />}>
                           {activeQAForm ? (
                             <QAITPForm 
-                              onClose={() => setActiveQAForm(false)} 
+                              onClose={() => {
+                                setActiveQAForm(false);
+                                setActiveTab('qa-itp');
+                                setQaActiveTab('qa-list');
+                              }} 
                               projectId={selectedProject.id}
                             />
                           ) : (
