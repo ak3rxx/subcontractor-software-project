@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle, AlertTriangle, Clock, Upload, Save, Trash2 } from 'lucide-react';
 import FileThumbnailViewer from './FileThumbnailViewer';
 import SupabaseFileUpload from './SupabaseFileUpload';
+import FieldAuditNote from './FieldAuditNote';
 import { supabase } from '@/integrations/supabase/client';
 
 interface QAChecklistEditableTabProps {
@@ -40,6 +42,7 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const { getChecklistItems } = useQAInspectionsSimple();
+  const { changeHistory } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();
 
   // Load checklist items
@@ -232,6 +235,13 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                         )}
                       </div>
                     )}
+                    {changeHistory.length > 0 && (
+                      <FieldAuditNote 
+                        fieldName="comments" 
+                        changeHistory={changeHistory.filter(ch => ch.item_id === item.id)}
+                        className="mt-2"
+                      />
+                    )}
                   </div>
 
                   {/* Evidence Files Section */}
@@ -262,27 +272,35 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                          <p className="text-sm text-muted-foreground">No evidence files</p>
                        )}
                        
-                       {isEditing && (
-                         <div className="mt-2">
-                           <SupabaseFileUpload
-                             onFilesChange={(uploadedFiles) => {
-                               const successfulUploads = uploadedFiles
-                                 .filter(f => f.uploaded && f.path)
-                                 .map(f => f.path);
-                               if (successfulUploads.length > 0) {
-                                 successfulUploads.forEach(path => handleFileUpload(item.id, path));
-                               }
-                             }}
-                             accept="image/*,.pdf"
-                             multiple={true}
-                             maxFiles={5}
-                             className="w-full"
-                             label="Upload Evidence"
-                             inspectionId={inspection?.id}
-                             checklistItemId={item.id}
-                           />
-                         </div>
-                       )}
+                        {isEditing && (
+                          <div className="mt-2">
+                            <SupabaseFileUpload
+                              onFilesChange={(uploadedFiles) => {
+                                const successfulUploads = uploadedFiles
+                                  .filter(f => f.uploaded && f.path)
+                                  .map(f => f.path);
+                                if (successfulUploads.length > 0) {
+                                  successfulUploads.forEach(path => handleFileUpload(item.id, path));
+                                }
+                              }}
+                              accept="image/*,.pdf"
+                              multiple={true}
+                              maxFiles={5}
+                              className="w-full"
+                              label="Upload Evidence"
+                              inspectionId={inspection?.id}
+                              checklistItemId={item.id}
+                            />
+                          </div>
+                        )}
+                        
+                        {changeHistory.length > 0 && (
+                          <FieldAuditNote 
+                            fieldName="evidenceFiles" 
+                            changeHistory={changeHistory.filter(ch => ch.item_id === item.id)}
+                            className="mt-2"
+                          />
+                        )}
                      </div>
                   </div>
                 </div>

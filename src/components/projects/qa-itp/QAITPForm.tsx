@@ -14,6 +14,7 @@ import { useOrganizations } from '@/hooks/useOrganizations';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { QAStatusBar } from './QAStatusBar';
+import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -105,38 +106,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     setHasUploadFailures(hasFailures);
   };
 
-  // Calculate overall status based on checklist items
-  const calculateOverallStatus = (checklistItems: ChecklistItem[], isFormComplete: boolean): 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress' | 'incomplete-draft' => {
-    // First check: Are ALL checklist items filled? If not → "incomplete-in-progress"
-    const allItemsHaveStatus = checklistItems.every(item => 
-      item.status && item.status.trim() !== ''
-    );
-    
-    if (!allItemsHaveStatus) {
-      return 'incomplete-in-progress';
-    }
-
-    // Second check: Filter out N/A items for pass/fail calculation
-    const relevantItems = checklistItems.filter(item => item.status !== 'na');
-    
-    // Third check: If all items are N/A → "pass"
-    if (relevantItems.length === 0) {
-      return 'pass';
-    }
-
-    // Fourth check: Calculate fail percentage of non-N/A items
-    const failedItems = relevantItems.filter(item => item.status === 'fail');
-    const failureRate = failedItems.length / relevantItems.length;
-
-    // Final determination: 0% fail = "pass", ≥50% fail = "fail", <50% fail = "pending-reinspection"
-    if (failureRate === 0) {
-      return 'pass';
-    } else if (failureRate >= 0.5) {
-      return 'fail';
-    } else {
-      return 'pending-reinspection';
-    }
-  };
+  // Using imported shared status calculation function
 
   // Get missing form fields for better user feedback
   const getMissingFormFields = (): string[] => {

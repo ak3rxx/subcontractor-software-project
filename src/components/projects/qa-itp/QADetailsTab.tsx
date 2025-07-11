@@ -1,5 +1,5 @@
 
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { CalendarDays, MapPin, User, FileText, Flame } from 'lucide-react';
+import { calculateOverallStatus, getStatusDisplayName, getStatusBadgeStyle } from '@/utils/qaStatusCalculation';
+import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import FieldAuditNote from './FieldAuditNote';
 
 interface QADetailsTabProps {
   inspection: any;
@@ -29,6 +33,32 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
     editDataKeys: Object.keys(editData || {}),
     hasOnDataChange: !!onDataChange
   });
+
+  const { getChecklistItems } = useQAInspectionsSimple(inspection?.project_id);
+  const { changeHistory } = useQAChangeHistory(inspection?.id);
+  const [checklistItems, setChecklistItems] = useState<any[]>([]);
+  const [autoCalculatedStatus, setAutoCalculatedStatus] = useState<string>('');
+
+  // Fetch checklist items for auto status calculation
+  useEffect(() => {
+    const fetchChecklistItems = async () => {
+      if (inspection?.id) {
+        try {
+          const items = await getChecklistItems(inspection.id);
+          setChecklistItems(items || []);
+          
+          // Auto-calculate status
+          const calculatedStatus = calculateOverallStatus(items || []);
+          setAutoCalculatedStatus(calculatedStatus);
+        } catch (error) {
+          console.error('Error fetching checklist items:', error);
+          setChecklistItems([]);
+        }
+      }
+    };
+
+    fetchChecklistItems();
+  }, [inspection?.id, getChecklistItems]);
 
   const handleFieldChange = (field: string, value: any) => {
     console.log(`QA Details Tab: Field change ${field} = ${value}`);
@@ -87,6 +117,12 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.task_area}</div>
               )}
+              {changeHistory.length > 0 && (
+                <FieldAuditNote 
+                  fieldName="task_area" 
+                  changeHistory={changeHistory}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -103,6 +139,12 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                 />
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.location_reference}</div>
+              )}
+              {changeHistory.length > 0 && (
+                <FieldAuditNote 
+                  fieldName="location_reference" 
+                  changeHistory={changeHistory}
+                />
               )}
             </div>
 
@@ -189,6 +231,12 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.inspector_name}</div>
               )}
+              {changeHistory.length > 0 && (
+                <FieldAuditNote 
+                  fieldName="inspector_name" 
+                  changeHistory={changeHistory}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -209,37 +257,28 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="overall_status">Overall Status</Label>
-              {isEditing ? (
-                <Select
-                  value={editData.overall_status || ''}
-                  onValueChange={(value) => handleFieldChange('overall_status', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pass">Pass</SelectItem>
-                    <SelectItem value="fail">Fail</SelectItem>
-                    <SelectItem value="pending-reinspection">Pending Reinspection</SelectItem>
-                    <SelectItem value="incomplete-in-progress">In Progress</SelectItem>
-                    <SelectItem value="incomplete-draft">Incomplete Draft</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="p-2 bg-gray-50 rounded">
-                  <Badge 
-                    className={
-                      displayData.overall_status === 'pass' ? 'bg-green-100 text-green-800' :
-                      displayData.overall_status === 'fail' ? 'bg-red-100 text-red-800' :
-                      displayData.overall_status === 'pending-reinspection' ? 'bg-orange-100 text-orange-800' :
-                      displayData.overall_status === 'incomplete-draft' ? 'bg-gray-100 text-gray-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }
-                  >
-                    {displayData.overall_status}
+              <Label htmlFor="overall_status">Overall Status (Auto-calculated)</Label>
+              <div className="p-2 bg-gray-50 rounded">
+                <div className="flex items-center justify-between">
+                  <Badge className={getStatusBadgeStyle(autoCalculatedStatus || displayData.overall_status)}>
+                    {getStatusDisplayName(autoCalculatedStatus || displayData.overall_status)}
                   </Badge>
+                  {autoCalculatedStatus && autoCalculatedStatus !== displayData.overall_status && (
+                    <span className="text-xs text-orange-600">
+                      Auto-calculated: {getStatusDisplayName(autoCalculatedStatus)}
+                    </span>
+                  )}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Status automatically calculated based on checklist completion
+                </p>
+              </div>
+              {changeHistory.length > 0 && (
+                <FieldAuditNote 
+                  fieldName="overall_status" 
+                  changeHistory={changeHistory}
+                  className="mt-2"
+                />
               )}
             </div>
           </div>

@@ -24,6 +24,12 @@ interface QAChangeHistoryProps {
 }
 
 const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeHistory }) => {
+  console.log('QA Change History: Rendering with', {
+    inspectionId,
+    changeHistoryCount: changeHistory?.length || 0,
+    changeHistory: changeHistory?.slice(0, 3) // Show first 3 entries for debugging
+  });
+
   const getChangeTypeIcon = (type: string) => {
     switch (type) {
       case 'create':
@@ -84,7 +90,7 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
     return isOld ? 'text-red-700' : 'text-green-700';
   };
 
-  if (changeHistory.length === 0) {
+  if (!changeHistory || changeHistory.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -97,6 +103,7 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
           <div className="text-center py-8 text-gray-500">
             <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p>No changes recorded yet.</p>
+            <p className="text-xs mt-2">Changes will appear here as you edit this inspection.</p>
           </div>
         </CardContent>
       </Card>
