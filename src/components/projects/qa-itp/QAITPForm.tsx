@@ -13,6 +13,7 @@ import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
+import { QAStatusBar } from './QAStatusBar';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -488,6 +489,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
             onFormDataChange={handleFormDataChange}
             onFireDoorChange={setIsFireDoor}
             onTemplateChange={handleTemplateChange}
+          />
+
+          {/* Status Bar - Shows real-time progress */}
+          <QAStatusBar 
+            checklist={filteredChecklist} 
+            isFormComplete={isFormComplete()} 
           />
 
           <div className="space-y-4">
