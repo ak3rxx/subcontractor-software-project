@@ -708,6 +708,10 @@ const Projects = memo(() => {
                             <QATrackerOptimized 
                               onNewInspection={() => setActiveQAForm(true)} 
                               projectId={selectedProject.id}
+                              onNavigateToTracker={() => {
+                                setActiveTab('qa-itp');
+                                setQaActiveTab('qa-list');
+                              }}
                             />
                           )}
                         </Suspense>

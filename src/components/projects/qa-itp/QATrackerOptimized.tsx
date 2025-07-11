@@ -11,11 +11,13 @@ import { useQATrackerLogic } from './tracker/useQATrackerLogic';
 interface QATrackerProps {
   projectId: string;
   onNewInspection?: () => void;
+  onNavigateToTracker?: () => void;
 }
 
 const QATrackerOptimized: React.FC<QATrackerProps> = ({ 
   projectId,
-  onNewInspection 
+  onNewInspection,
+  onNavigateToTracker
 }) => {
   const {
     // Data
@@ -94,6 +96,8 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
         projectId={projectId}
         onClose={() => {
           setShowCreateForm(false);
+          refetch(); // Refresh data to show new inspection
+          onNavigateToTracker?.(); // Navigate back to QA tracker tab
           onNewInspection?.();
         }}
       />

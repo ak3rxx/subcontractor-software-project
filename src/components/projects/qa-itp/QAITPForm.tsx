@@ -341,9 +341,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       const result = await createInspection(inspectionData, checklistItems);
 
       if (result) {
+        const message = isFormComplete() ? 
+          "Complete inspection saved successfully. View it in the QA/ITP List tab." : 
+          "Incomplete draft saved. You can continue editing it in the QA/ITP List tab.";
         toast({
           title: "Draft Saved",
-          description: isFormComplete() ? "Complete inspection saved successfully" : "Incomplete draft saved. You can complete it later."
+          description: message
         });
         onClose();
       } else {
@@ -431,7 +434,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       if (result) {
         toast({
           title: "Success",
-          description: "QA inspection created successfully"
+          description: "QA inspection created successfully. View it in the QA/ITP List tab."
         });
         onClose();
       } else {
