@@ -107,41 +107,39 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 
   // Calculate overall status based on checklist items
   const calculateOverallStatus = (checklistItems: ChecklistItem[], isFormComplete: boolean): 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress' | 'incomplete-draft' => {
+    // First check: Is form complete? If not → "incomplete-draft"
     if (!isFormComplete) {
-      return 'incomplete-in-progress';
+      return 'incomplete-draft';
     }
 
-    // Filter out items that are not filled (status is empty, undefined, or null)
-    const completedItems = checklistItems.filter(item => 
+    // Second check: Are ALL checklist items filled? If not → "incomplete-in-progress"
+    const allItemsHaveStatus = checklistItems.every(item => 
       item.status && item.status.trim() !== ''
     );
-
-    // If no items are completed, form is incomplete
-    if (completedItems.length === 0) {
+    
+    if (!allItemsHaveStatus) {
       return 'incomplete-in-progress';
     }
 
-    // Count pass/fail items (excluding N/A)
-    const passFailItems = completedItems.filter(item => 
-      item.status === 'pass' || item.status === 'fail'
-    );
-
-    // If all items are N/A, consider it pass
-    if (passFailItems.length === 0) {
+    // Third check: Filter out N/A items for pass/fail calculation
+    const relevantItems = checklistItems.filter(item => item.status !== 'na');
+    
+    // Fourth check: If all items are N/A → "pass"
+    if (relevantItems.length === 0) {
       return 'pass';
     }
 
-    // Count failed items
-    const failedItems = passFailItems.filter(item => item.status === 'fail');
-    const failPercentage = failedItems.length / passFailItems.length;
+    // Fifth check: Calculate fail percentage of non-N/A items
+    const failedItems = relevantItems.filter(item => item.status === 'fail');
+    const failureRate = failedItems.length / relevantItems.length;
 
-    // Apply business rules
-    if (failedItems.length === 0) {
-      return 'pass'; // All items passed
-    } else if (failPercentage >= 0.5) {
-      return 'fail'; // 50% or more failed
+    // Final determination: 0% fail = "pass", ≥50% fail = "fail", <50% fail = "pending-reinspection"
+    if (failureRate === 0) {
+      return 'pass';
+    } else if (failureRate >= 0.5) {
+      return 'fail';
     } else {
-      return 'pending-reinspection'; // Less than 50% failed
+      return 'pending-reinspection';
     }
   };
 
