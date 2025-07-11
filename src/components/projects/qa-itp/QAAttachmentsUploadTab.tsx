@@ -71,7 +71,7 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
             'attachments',
             null,
             `Uploaded attachment: ${fileName}`,
-            'update'
+            'create'
           );
         }
       }
@@ -185,12 +185,12 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
             </div>
           )}
           
-          {/* Audit Trail for Attachments */}
-          <FieldAuditNote 
-            fieldName="attachments" 
-            changeHistory={changeHistory}
-            className="mt-4"
-          />
+           {/* Audit Trail for Attachments */}
+           <FieldAuditNote 
+             fieldName="attachments" 
+             changeHistory={changeHistory.filter(ch => ch.field_name === 'attachments')}
+             className="mt-4"
+           />
         </CardContent>
       </Card>
     </div>

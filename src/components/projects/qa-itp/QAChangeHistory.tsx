@@ -58,16 +58,19 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
 
   const getFieldIcon = (fieldName: string) => {
     if (fieldName === 'status') return <Check className="h-3 w-3" />;
-    if (fieldName === 'evidenceFiles') return <FileText className="h-3 w-3" />;
+    if (fieldName === 'evidence_files' || fieldName === 'evidenceFiles') return <FileText className="h-3 w-3" />;
+    if (fieldName === 'attachments') return <FileText className="h-3 w-3" />;
     if (fieldName === 'comments') return <Edit className="h-3 w-3" />;
     return <AlertCircle className="h-3 w-3" />;
   };
 
   const formatFieldName = (fieldName: string) => {
     const fieldMap: { [key: string]: string } = {
+      'evidence_files': 'Evidence Files',
       'evidenceFiles': 'Evidence Files',
       'status': 'Status',
       'comments': 'Comments',
+      'attachments': 'Attachments',
       'inspector_name': 'Inspector Name',
       'inspection_date': 'Inspection Date',
       'overall_status': 'Overall Status'

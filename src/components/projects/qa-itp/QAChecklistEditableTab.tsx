@@ -152,11 +152,12 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
     onChecklistChange?.(updatedItems);
   }, [checklistItems, onChecklistChange, recordChange, inspection?.id]);
 
-  // Handle file removal
+  // Handle file removal - mark as removed in audit trail but keep for evidence
   const handleFileRemove = useCallback(async (itemId: string, filePath: string) => {
     const item = checklistItems.find(i => i.id === itemId);
     const fileName = filePath.split('/').pop();
     
+    // Only hide from UI, don't actually remove the file reference
     const updatedItems = checklistItems.map(item => 
       item.id === itemId 
         ? { ...item, evidence_files: (item.evidence_files || []).filter(f => f !== filePath) }
@@ -165,12 +166,12 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
     setChecklistItems(updatedItems);
     setHasChanges(true);
     
-    // Record the change for audit trail
+    // Record the change for audit trail - mark as removed but keep evidence
     if (recordChange && inspection?.id && item) {
       await recordChange(
         'evidence_files',
-        `Removed file: ${fileName}`,
-        null,
+        `File marked as removed: ${fileName}`,
+        `File removed from active view but preserved for audit trail`,
         'update',
         item.item_id,
         item.description
@@ -279,12 +280,12 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                     </div>
                   </div>
                   
-                  {/* Status Audit Trail */}
-                  <FieldAuditNote 
-                    fieldName="status" 
-                    changeHistory={changeHistory.filter(ch => ch.item_id === item.item_id)}
-                    className="mt-2"
-                  />
+                   {/* Status Audit Trail */}
+                   <FieldAuditNote 
+                     fieldName="status" 
+                     changeHistory={changeHistory.filter(ch => ch.item_id === item.item_id && ch.field_name === 'status')}
+                     className="mt-2"
+                   />
 
                   {/* Comments Section */}
                   <div className="mb-3">
@@ -306,13 +307,11 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                         )}
                       </div>
                     )}
-                    {changeHistory.length > 0 && (
-                      <FieldAuditNote 
-                        fieldName="comments" 
-                        changeHistory={changeHistory.filter(ch => ch.item_id === item.id)}
-                        className="mt-2"
-                      />
-                    )}
+                     <FieldAuditNote 
+                       fieldName="comments" 
+                       changeHistory={changeHistory.filter(ch => ch.item_id === item.item_id && ch.field_name === 'comments')}
+                       className="mt-2"
+                     />
                   </div>
 
                   {/* Evidence Files Section */}
@@ -365,13 +364,11 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                           </div>
                         )}
                         
-                        {changeHistory.length > 0 && (
-                          <FieldAuditNote 
-                            fieldName="evidenceFiles" 
-                            changeHistory={changeHistory.filter(ch => ch.item_id === item.id)}
-                            className="mt-2"
-                          />
-                        )}
+                         <FieldAuditNote 
+                           fieldName="evidence_files" 
+                           changeHistory={changeHistory.filter(ch => ch.item_id === item.item_id && ch.field_name === 'evidence_files')}
+                           className="mt-2"
+                         />
                      </div>
                   </div>
                 </div>
