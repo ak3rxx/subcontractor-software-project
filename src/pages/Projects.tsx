@@ -699,8 +699,9 @@ const Projects = memo(() => {
                             <QAITPForm 
                               onClose={() => {
                                 setActiveQAForm(false);
-                                setActiveTab('qa-itp');
                                 setQaActiveTab('qa-list');
+                                // Update URL to ensure navigation sticks and URL state matches component state
+                                navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
                               }} 
                               projectId={selectedProject.id}
                             />
@@ -710,8 +711,9 @@ const Projects = memo(() => {
                               projectId={selectedProject.id}
                               onNavigateToTracker={() => {
                                 setActiveQAForm(false); // Reset form state
-                                setActiveTab('qa-itp');
                                 setQaActiveTab('qa-list');
+                                // Update URL to ensure navigation sticks and URL state matches component state
+                                navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
                               }}
                             />
                           )}
