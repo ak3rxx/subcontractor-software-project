@@ -68,16 +68,16 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="projectId">Project (Auto-selected)</Label>
-              <div className="p-2 bg-gray-50 border rounded-md text-gray-700">
+              <Label htmlFor="qa-project-select">Project (Auto-selected)</Label>
+              <div id="qa-project-select" className="p-2 bg-gray-50 border rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" tabIndex={0}>
                 {projects.find(p => p.id === formData.projectId)?.name || 'No project selected'}
               </div>
               <p className="text-xs text-muted-foreground">Project is automatically selected from your current location</p>
             </div>
           <div className="space-y-2">
-            <Label htmlFor="taskArea">Task/Area being inspected</Label>
+            <Label htmlFor="qa-task-area">Task/Area being inspected</Label>
             <Input
-              id="taskArea"
+              id="qa-task-area"
               placeholder="e.g. Framing, Waterproofing"
               value={formData.taskArea}
               onChange={(e) => onFormDataChange('taskArea', e.target.value)}
@@ -88,9 +88,9 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="building">Building</Label>
+            <Label htmlFor="qa-building">Building</Label>
             <Input
-              id="building"
+              id="qa-building"
               placeholder="e.g. Building A, Tower 1"
               value={formData.building}
               onChange={(e) => onFormDataChange('building', e.target.value)}
@@ -119,9 +119,9 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="inspectionType">Inspection Type</Label>
+          <Label htmlFor="qa-inspection-type">Inspection Type</Label>
           <Select value={formData.inspectionType} onValueChange={(value) => onFormDataChange('inspectionType', value)}>
-            <SelectTrigger>
+            <SelectTrigger id="qa-inspection-type">
               <SelectValue placeholder="Select inspection type" />
             </SelectTrigger>
             <SelectContent>
@@ -141,10 +141,10 @@ const QAITPProjectInfo: React.FC<QAITPProjectInfoProps> = ({
         />
 
         <div className="space-y-2">
-          <Label htmlFor="template">ITP Template</Label>
+          <Label htmlFor="qa-template">ITP Template</Label>
           {availableTemplates.length > 0 ? (
             <Select value={formData.template} onValueChange={onTemplateChange}>
-              <SelectTrigger>
+              <SelectTrigger id="qa-template">
                 <SelectValue placeholder="Select inspection template" />
               </SelectTrigger>
               <SelectContent>

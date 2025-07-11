@@ -28,18 +28,18 @@ const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="inspectorName">Inspector Name</Label>
+            <Label htmlFor="qa-inspector-name">Inspector Name</Label>
             <Input
-              id="inspectorName"
+              id="qa-inspector-name"
               value={formData.inspectorName}
               onChange={(e) => onFormDataChange('inspectorName', e.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="inspectionDate">Inspection Date</Label>
+            <Label htmlFor="qa-inspection-date">Inspection Date</Label>
             <Input
-              id="inspectionDate"
+              id="qa-inspection-date"
               type="date"
               value={formData.inspectionDate}
               onChange={(e) => onFormDataChange('inspectionDate', e.target.value)}
@@ -49,9 +49,9 @@ const QAITPSignOff: React.FC<QAITPSignOffProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="digitalSignature">Digital Signature *</Label>
+          <Label htmlFor="qa-digital-signature">Digital Signature *</Label>
           <Textarea
-            id="digitalSignature"
+            id="qa-digital-signature"
             placeholder="Type your full legal name here as your digital signature"
             value={formData.digitalSignature}
             onChange={(e) => onFormDataChange('digitalSignature', e.target.value)}

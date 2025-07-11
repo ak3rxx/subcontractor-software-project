@@ -12,6 +12,7 @@ import { AlertCircle, Save, X } from 'lucide-react';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
+import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -25,6 +26,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   const { createInspection } = useQAInspectionsSimple();
   const { toast } = useToast();
   const { projects, refetch: refetchProjects } = useProjects();
+  const { addNotification } = useSmartNotifications();
   
   // Coordinate data updates with other components
   useQAInspectionCoordination(refetchProjects);
@@ -102,11 +104,58 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     setHasUploadFailures(hasFailures);
   };
 
-  const validateForm = (isDraft = false) => {
+  // Field mapping for focusing functionality
+  const fieldMapping = {
+    projectId: { id: 'qa-project-select', label: 'Project' },
+    taskArea: { id: 'qa-task-area', label: 'Task Area' },
+    building: { id: 'qa-building', label: 'Building' },
+    inspectionType: { id: 'qa-inspection-type', label: 'Inspection Type' },
+    template: { id: 'qa-template', label: 'Template' },
+    inspectorName: { id: 'qa-inspector-name', label: 'Inspector Name' },
+    inspectionDate: { id: 'qa-inspection-date', label: 'Inspection Date' },
+    digitalSignature: { id: 'qa-digital-signature', label: 'Digital Signature' }
+  };
+
+  const focusFirstIncompleteField = (firstIncompleteField: string) => {
+    const fieldInfo = fieldMapping[firstIncompleteField as keyof typeof fieldMapping];
+    if (!fieldInfo) return;
+
+    const element = document.getElementById(fieldInfo.id);
+    if (element) {
+      // Scroll to the field with smooth behavior
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center', 
+        inline: 'nearest' 
+      });
+      
+      // Focus the field after a short delay to ensure scrolling completes
+      setTimeout(() => {
+        element.focus();
+        // Add temporary highlighting
+        element.style.border = '2px solid #ef4444';
+        element.style.transition = 'border 3s ease';
+        setTimeout(() => {
+          element.style.border = '';
+        }, 3000);
+      }, 500);
+    }
+  };
+
+  const validateFormWithNotification = (isDraft = false) => {
     if (isDraft) {
       // For drafts, we only need project ID to be valid
       if (!formData.projectId.trim()) {
-        setError('Project selection is required');
+        addNotification({
+          type: 'warning',
+          priority: 'medium',
+          title: 'Form Incomplete',
+          message: 'Please select a project to save the draft',
+          moduleSource: 'qa',
+          relatedId: projectId,
+          actionable: true
+        });
+        focusFirstIncompleteField('projectId');
         return false;
       }
       return true;
@@ -124,20 +173,46 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       { field: 'digitalSignature', label: 'Digital Signature' }
     ];
 
+    // Find first incomplete field
     for (const { field, label } of requiredFields) {
       if (!formData[field as keyof typeof formData].trim()) {
-        setError(`${label} is required`);
+        addNotification({
+          type: 'warning',
+          priority: 'medium',
+          title: 'Form Incomplete',
+          message: `Please complete the ${label} field`,
+          moduleSource: 'qa',
+          relatedId: projectId,
+          actionable: true
+        });
+        focusFirstIncompleteField(field);
         return false;
       }
     }
 
     if (uploadingFiles) {
-      setError('Please wait for file uploads to complete');
+      addNotification({
+        type: 'warning',
+        priority: 'medium',
+        title: 'Upload in Progress',
+        message: 'Please wait for file uploads to complete',
+        moduleSource: 'qa',
+        relatedId: projectId,
+        actionable: false
+      });
       return false;
     }
 
     if (hasUploadFailures) {
-      setError('Some file uploads failed. Please retry or remove failed uploads.');
+      addNotification({
+        type: 'warning',
+        priority: 'high',
+        title: 'Upload Failed',
+        message: 'Some file uploads failed. Please retry or remove failed uploads',
+        moduleSource: 'qa',
+        relatedId: projectId,
+        actionable: true
+      });
       return false;
     }
 
@@ -150,7 +225,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   };
 
   const saveDraft = async () => {
-    if (!validateForm(true)) {
+    if (!validateFormWithNotification(true)) {
       return;
     }
 
@@ -242,7 +317,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
+    if (!validateFormWithNotification()) {
       return;
     }
 
@@ -354,12 +429,6 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </div>
-          )}
 
           {!isFormComplete() && (
             <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-700">
