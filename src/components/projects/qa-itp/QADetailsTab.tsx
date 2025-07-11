@@ -117,12 +117,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.task_area}</div>
               )}
-              {changeHistory.length > 0 && (
-                <FieldAuditNote 
-                  fieldName="task_area" 
-                  changeHistory={changeHistory}
-                />
-              )}
+              <FieldAuditNote 
+                fieldName="task_area" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -140,12 +138,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.location_reference}</div>
               )}
-              {changeHistory.length > 0 && (
-                <FieldAuditNote 
-                  fieldName="location_reference" 
-                  changeHistory={changeHistory}
-                />
-              )}
+              <FieldAuditNote 
+                fieldName="location_reference" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -167,6 +163,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.inspection_type}</div>
               )}
+              <FieldAuditNote 
+                fieldName="inspection_type" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -187,6 +187,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.template_type}</div>
               )}
+              <FieldAuditNote 
+                fieldName="template_type" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -214,6 +218,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded capitalize">{displayData.trade || 'Not specified'}</div>
               )}
+              <FieldAuditNote 
+                fieldName="trade" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -231,12 +239,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.inspector_name}</div>
               )}
-              {changeHistory.length > 0 && (
-                <FieldAuditNote 
-                  fieldName="inspector_name" 
-                  changeHistory={changeHistory}
-                />
-              )}
+              <FieldAuditNote 
+                fieldName="inspector_name" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -254,6 +260,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
               ) : (
                 <div className="p-2 bg-gray-50 rounded">{displayData.inspection_date}</div>
               )}
+              <FieldAuditNote 
+                fieldName="inspection_date" 
+                changeHistory={changeHistory}
+              />
             </div>
 
             <div className="space-y-2">
@@ -273,13 +283,11 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                   Status automatically calculated based on checklist completion
                 </p>
               </div>
-              {changeHistory.length > 0 && (
-                <FieldAuditNote 
-                  fieldName="overall_status" 
-                  changeHistory={changeHistory}
-                  className="mt-2"
-                />
-              )}
+              <FieldAuditNote 
+                fieldName="overall_status" 
+                changeHistory={changeHistory}
+                className="mt-2"
+              />
             </div>
           </div>
 
@@ -303,6 +311,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                 Fire Door Inspection
               </Label>
             </div>
+            <FieldAuditNote 
+              fieldName="is_fire_door" 
+              changeHistory={changeHistory}
+            />
           </div>
 
           <div className="space-y-2">
@@ -317,6 +329,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
             ) : (
               <div className="p-2 bg-gray-50 rounded">{displayData.digital_signature}</div>
             )}
+            <FieldAuditNote 
+              fieldName="digital_signature" 
+              changeHistory={changeHistory}
+            />
           </div>
         </CardContent>
       </Card>
