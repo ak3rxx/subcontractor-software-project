@@ -42,7 +42,7 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const { getChecklistItems } = useQAInspectionsSimple();
-  const { changeHistory } = useQAChangeHistory(inspection?.id);
+  const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();
 
   // Load checklist items
@@ -70,29 +70,64 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
   }, [inspection?.id, getChecklistItems, toast]);
 
   // Handle item status change
-  const handleStatusChange = useCallback((itemId: string, newStatus: string) => {
+  const handleStatusChange = useCallback(async (itemId: string, newStatus: string) => {
+    const item = checklistItems.find(i => i.id === itemId);
+    const oldStatus = item?.status || '';
+    
     const updatedItems = checklistItems.map(item => 
       item.id === itemId ? { ...item, status: newStatus } : item
     );
     setChecklistItems(updatedItems);
     setHasChanges(true);
+    
+    // Record the change for audit trail
+    if (recordChange && inspection?.id && item) {
+      await recordChange(
+        'status',
+        oldStatus,
+        newStatus,
+        'update',
+        item.item_id,
+        item.description
+      );
+    }
+    
     // Notify parent modal about changes
     onChecklistChange?.(updatedItems);
-  }, [checklistItems, onChecklistChange]);
+  }, [checklistItems, onChecklistChange, recordChange, inspection?.id]);
 
   // Handle comments change
-  const handleCommentsChange = useCallback((itemId: string, newComments: string) => {
+  const handleCommentsChange = useCallback(async (itemId: string, newComments: string) => {
+    const item = checklistItems.find(i => i.id === itemId);
+    const oldComments = item?.comments || '';
+    
     const updatedItems = checklistItems.map(item => 
       item.id === itemId ? { ...item, comments: newComments } : item
     );
     setChecklistItems(updatedItems);
     setHasChanges(true);
+    
+    // Record the change for audit trail (debounced approach for text fields)
+    if (recordChange && inspection?.id && item && oldComments !== newComments) {
+      await recordChange(
+        'comments',
+        oldComments,
+        newComments,
+        'update',
+        item.item_id,
+        item.description
+      );
+    }
+    
     // Notify parent modal about changes
     onChecklistChange?.(updatedItems);
-  }, [checklistItems, onChecklistChange]);
+  }, [checklistItems, onChecklistChange, recordChange, inspection?.id]);
 
   // Handle file upload completion
-  const handleFileUpload = useCallback((itemId: string, filePath: string) => {
+  const handleFileUpload = useCallback(async (itemId: string, filePath: string) => {
+    const item = checklistItems.find(i => i.id === itemId);
+    const fileName = filePath.split('/').pop();
+    
     const updatedItems = checklistItems.map(item => 
       item.id === itemId 
         ? { ...item, evidence_files: [...(item.evidence_files || []), filePath] }
@@ -100,12 +135,28 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
     );
     setChecklistItems(updatedItems);
     setHasChanges(true);
+    
+    // Record the change for audit trail
+    if (recordChange && inspection?.id && item) {
+      await recordChange(
+        'evidence_files',
+        null,
+        `Added file: ${fileName}`,
+        'update',
+        item.item_id,
+        item.description
+      );
+    }
+    
     // Notify parent modal about changes
     onChecklistChange?.(updatedItems);
-  }, [checklistItems, onChecklistChange]);
+  }, [checklistItems, onChecklistChange, recordChange, inspection?.id]);
 
   // Handle file removal
-  const handleFileRemove = useCallback((itemId: string, filePath: string) => {
+  const handleFileRemove = useCallback(async (itemId: string, filePath: string) => {
+    const item = checklistItems.find(i => i.id === itemId);
+    const fileName = filePath.split('/').pop();
+    
     const updatedItems = checklistItems.map(item => 
       item.id === itemId 
         ? { ...item, evidence_files: (item.evidence_files || []).filter(f => f !== filePath) }
@@ -113,9 +164,22 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
     );
     setChecklistItems(updatedItems);
     setHasChanges(true);
+    
+    // Record the change for audit trail
+    if (recordChange && inspection?.id && item) {
+      await recordChange(
+        'evidence_files',
+        `Removed file: ${fileName}`,
+        null,
+        'update',
+        item.item_id,
+        item.description
+      );
+    }
+    
     // Notify parent modal about changes
     onChecklistChange?.(updatedItems);
-  }, [checklistItems, onChecklistChange]);
+  }, [checklistItems, onChecklistChange, recordChange, inspection?.id]);
 
 
   const getStatusIcon = (status: string) => {
@@ -214,6 +278,13 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                       )}
                     </div>
                   </div>
+                  
+                  {/* Status Audit Trail */}
+                  <FieldAuditNote 
+                    fieldName="status" 
+                    changeHistory={changeHistory.filter(ch => ch.item_id === item.item_id)}
+                    className="mt-2"
+                  />
 
                   {/* Comments Section */}
                   <div className="mb-3">

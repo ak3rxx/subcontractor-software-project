@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, Download, FileText, Trash2 } from 'lucide-react';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
 import SupabaseFileUpload from './SupabaseFileUpload';
 import FileThumbnailViewer from './FileThumbnailViewer';
+import FieldAuditNote from './FieldAuditNote';
 
 interface QAAttachmentsUploadTabProps {
   inspection: any;
@@ -21,6 +23,7 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
   const [allFiles, setAllFiles] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const { getChecklistItems } = useQAInspectionsSimple();
+  const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,7 +54,7 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
     window.open(fileUrl, '_blank');
   };
 
-  const handleFilesUploaded = (uploadedFiles: any[]) => {
+  const handleFilesUploaded = async (uploadedFiles: any[]) => {
     const successfulUploads = uploadedFiles
       .filter(f => f.uploaded && f.path)
       .map(f => f.path);
@@ -59,6 +62,20 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
     if (successfulUploads.length > 0) {
       const updatedFiles = [...allFiles, ...successfulUploads];
       setAllFiles(updatedFiles);
+      
+      // Record attachment changes for audit trail
+      if (recordChange && inspection?.id) {
+        for (const filePath of successfulUploads) {
+          const fileName = filePath.split('/').pop();
+          await recordChange(
+            'attachments',
+            null,
+            `Uploaded attachment: ${fileName}`,
+            'update'
+          );
+        }
+      }
+      
       // Notify parent modal about attachment changes
       onAttachmentChange?.(updatedFiles);
       toast({
@@ -167,6 +184,13 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
               )}
             </div>
           )}
+          
+          {/* Audit Trail for Attachments */}
+          <FieldAuditNote 
+            fieldName="attachments" 
+            changeHistory={changeHistory}
+            className="mt-4"
+          />
         </CardContent>
       </Card>
     </div>
