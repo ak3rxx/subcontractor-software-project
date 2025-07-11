@@ -107,12 +107,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 
   // Calculate overall status based on checklist items
   const calculateOverallStatus = (checklistItems: ChecklistItem[], isFormComplete: boolean): 'pass' | 'fail' | 'pending-reinspection' | 'incomplete-in-progress' | 'incomplete-draft' => {
-    // First check: Is form complete? If not → "incomplete-draft"
-    if (!isFormComplete) {
-      return 'incomplete-draft';
-    }
-
-    // Second check: Are ALL checklist items filled? If not → "incomplete-in-progress"
+    // First check: Are ALL checklist items filled? If not → "incomplete-in-progress"
     const allItemsHaveStatus = checklistItems.every(item => 
       item.status && item.status.trim() !== ''
     );
@@ -121,15 +116,15 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       return 'incomplete-in-progress';
     }
 
-    // Third check: Filter out N/A items for pass/fail calculation
+    // Second check: Filter out N/A items for pass/fail calculation
     const relevantItems = checklistItems.filter(item => item.status !== 'na');
     
-    // Fourth check: If all items are N/A → "pass"
+    // Third check: If all items are N/A → "pass"
     if (relevantItems.length === 0) {
       return 'pass';
     }
 
-    // Fifth check: Calculate fail percentage of non-N/A items
+    // Fourth check: Calculate fail percentage of non-N/A items
     const failedItems = relevantItems.filter(item => item.status === 'fail');
     const failureRate = failedItems.length / relevantItems.length;
 
@@ -141,6 +136,24 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     } else {
       return 'pending-reinspection';
     }
+  };
+
+  // Get missing form fields for better user feedback
+  const getMissingFormFields = (): string[] => {
+    const requiredFields = [
+      { field: 'projectId', label: 'Project' },
+      { field: 'taskArea', label: 'Task Area' },
+      { field: 'building', label: 'Building' },
+      { field: 'inspectionType', label: 'Inspection Type' },
+      { field: 'template', label: 'Template' },
+      { field: 'inspectorName', label: 'Inspector Name' },
+      { field: 'inspectionDate', label: 'Inspection Date' },
+      { field: 'digitalSignature', label: 'Digital Signature' }
+    ];
+
+    return requiredFields
+      .filter(({ field }) => !formData[field as keyof typeof formData]?.toString().trim())
+      .map(({ label }) => label);
   };
 
   // Field mapping for focusing functionality
@@ -496,6 +509,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           <QAStatusBar 
             checklist={filteredChecklist} 
             isFormComplete={isFormComplete()} 
+            missingFormFields={getMissingFormFields()}
           />
 
           <div className="space-y-4">

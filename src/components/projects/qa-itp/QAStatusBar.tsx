@@ -7,9 +7,10 @@ import { ChecklistItem } from './QAITPTemplates';
 interface QAStatusBarProps {
   checklist: ChecklistItem[];
   isFormComplete: boolean;
+  missingFormFields?: string[];
 }
 
-export const QAStatusBar: React.FC<QAStatusBarProps> = ({ checklist, isFormComplete }) => {
+export const QAStatusBar: React.FC<QAStatusBarProps> = ({ checklist, isFormComplete, missingFormFields = [] }) => {
   // Calculate status counts
   const statusCounts = checklist.reduce(
     (acc, item) => {
@@ -27,12 +28,24 @@ export const QAStatusBar: React.FC<QAStatusBarProps> = ({ checklist, isFormCompl
   const completionPercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   // Calculate overall status
-  const calculateOverallStatus = (): { status: string; color: string; icon: React.ReactNode } => {
-    if (!isFormComplete || statusCounts.incomplete > 0) {
+  const calculateOverallStatus = (): { status: string; color: string; icon: React.ReactNode; details?: string } => {
+    // Check for missing form fields first
+    if (missingFormFields.length > 0) {
       return {
-        status: 'Incomplete',
+        status: 'Form Incomplete',
         color: 'bg-orange-100 text-orange-800 border-orange-200',
-        icon: <Clock className="h-3 w-3" />
+        icon: <Clock className="h-3 w-3" />,
+        details: `Missing: ${missingFormFields.join(', ')}`
+      };
+    }
+
+    // Check for incomplete checklist items
+    if (statusCounts.incomplete > 0) {
+      return {
+        status: 'Checklist Incomplete',
+        color: 'bg-orange-100 text-orange-800 border-orange-200',
+        icon: <Clock className="h-3 w-3" />,
+        details: `${statusCounts.incomplete} items pending`
       };
     }
 
@@ -112,10 +125,17 @@ export const QAStatusBar: React.FC<QAStatusBarProps> = ({ checklist, isFormCompl
 
           {/* Overall Status */}
           <div className="border-l border-gray-300 pl-3">
-            <Badge className={`${overallStatus.color} font-medium`}>
-              {overallStatus.icon}
-              <span className="ml-1">Overall: {overallStatus.status}</span>
-            </Badge>
+            <div className="flex flex-col items-end gap-1">
+              <Badge className={`${overallStatus.color} font-medium`}>
+                {overallStatus.icon}
+                <span className="ml-1">Overall: {overallStatus.status}</span>
+              </Badge>
+              {overallStatus.details && (
+                <div className="text-xs text-gray-500 text-right">
+                  {overallStatus.details}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
