@@ -709,6 +709,7 @@ const Projects = memo(() => {
                               onNewInspection={() => setActiveQAForm(true)} 
                               projectId={selectedProject.id}
                               onNavigateToTracker={() => {
+                                setActiveQAForm(false); // Reset form state
                                 setActiveTab('qa-itp');
                                 setQaActiveTab('qa-list');
                               }}
