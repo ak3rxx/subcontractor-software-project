@@ -24,6 +24,10 @@ export const useQAChangeHistory = (inspectionId: string) => {
   
   // Track the last recorded changes to prevent duplicates
   const lastRecordedChanges = useRef<Map<string, string>>(new Map());
+  
+  // Track subscription state to prevent duplicates
+  const subscriptionRef = useRef<any>(null);
+  const mountedRef = useRef(true);
 
   const fetchChangeHistory = useCallback(async () => {
     if (!inspectionId) {
@@ -173,14 +177,23 @@ export const useQAChangeHistory = (inspectionId: string) => {
   };
 
   useEffect(() => {
+    mountedRef.current = true;
+    
     if (!inspectionId) {
       setLoading(false);
       return;
     }
 
-    let isMounted = true;
+    // Clean up any existing subscription before creating a new one
+    if (subscriptionRef.current) {
+      console.log('Cleaning up existing subscription');
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
     
     const fetchData = async () => {
+      if (!mountedRef.current) return;
+      
       try {
         console.log('Fetching change history for inspection:', inspectionId);
         
@@ -190,13 +203,13 @@ export const useQAChangeHistory = (inspectionId: string) => {
 
         if (error) {
           console.error('Error fetching change history:', error);
-          if (isMounted) {
+          if (mountedRef.current) {
             setChangeHistory([]);
           }
           return;
         }
 
-        if (isMounted) {
+        if (mountedRef.current) {
           const mappedData = (data || []).map((item: any) => ({
             ...item,
             timestamp: item.change_timestamp || item.timestamp,
@@ -206,21 +219,23 @@ export const useQAChangeHistory = (inspectionId: string) => {
         }
       } catch (error) {
         console.error('Error fetching change history:', error);
-        if (isMounted) {
+        if (mountedRef.current) {
           setChangeHistory([]);
         }
       } finally {
-        if (isMounted) {
+        if (mountedRef.current) {
           setLoading(false);
         }
       }
     };
 
+    // Initial fetch
     fetchData();
 
-    // Set up real-time subscription for qa_change_history
+    // Set up real-time subscription with unique channel name
+    const channelName = `qa_change_history_${inspectionId}_${Date.now()}`;
     const channel = supabase
-      .channel(`qa_change_history_${inspectionId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -231,23 +246,49 @@ export const useQAChangeHistory = (inspectionId: string) => {
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
           console.log('Real-time change history update:', payload);
-          // Refresh the change history when new entries are added
-          if (isMounted) {
-            fetchData();
+          // Debounced refresh to prevent rapid successive calls
+          if (mountedRef.current) {
+            setTimeout(() => {
+              if (mountedRef.current) {
+                fetchData();
+              }
+            }, 100);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to real-time updates for qa_change_history');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error occurred');
+        }
+      });
 
-    console.log('Subscribed to real-time updates for qa_change_history');
+    // Store the subscription reference
+    subscriptionRef.current = channel;
     
     // Cleanup function
     return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-      console.log('Unsubscribed from qa_change_history real-time updates');
+      mountedRef.current = false;
+      if (subscriptionRef.current) {
+        console.log('Unsubscribing from qa_change_history real-time updates');
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
     };
   }, [inspectionId]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     changeHistory,
