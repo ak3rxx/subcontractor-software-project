@@ -174,7 +174,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
           inspection={selectedInspection}
           onUpdate={(updated) => {
             setSelectedInspection(updated);
-            refetch();
           }}
         />
       )}
