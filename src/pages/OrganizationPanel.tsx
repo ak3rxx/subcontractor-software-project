@@ -27,15 +27,18 @@ const OrganizationPanel: React.FC = () => {
 
   // Check access and show toast only once
   useEffect(() => {
-    if (!loading && !rolesLoading && !isOrgAdmin() && !accessDenied) {
-      toast({
-        title: "Access Denied",
-        description: "Organization admin role required to access this panel.",
-        variant: "destructive",
-      });
-      setAccessDenied(true);
+    if (!loading && !rolesLoading && !accessDenied) {
+      const hasOrgAdminAccess = isOrgAdmin();
+      if (!hasOrgAdminAccess) {
+        toast({
+          title: "Access Denied",
+          description: "Organization admin role required to access this panel.",
+          variant: "destructive",
+        });
+        setAccessDenied(true);
+      }
     }
-  }, [loading, rolesLoading, isOrgAdmin, accessDenied, toast]);
+  }, [loading, rolesLoading, accessDenied]);
 
   // Redirect if access is denied
   if (!loading && !rolesLoading && !isOrgAdmin()) {
