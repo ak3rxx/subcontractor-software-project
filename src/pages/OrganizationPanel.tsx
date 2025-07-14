@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
+import TopNav from '@/components/TopNav';
 import { Loader2, Building2 } from 'lucide-react';
 
 const OrganizationPanel: React.FC = () => {
@@ -56,7 +57,14 @@ const OrganizationPanel: React.FC = () => {
   }
 
   // Pass the user's primary organization to the dashboard
-  return <OrganizationPanelDashboard organizationId={primaryOrganization} />;
+  return (
+    <div className="flex flex-col min-h-screen">
+      <TopNav />
+      <div className="flex-1">
+        <OrganizationPanelDashboard organizationId={primaryOrganization} />
+      </div>
+    </div>
+  );
 };
 
 export default OrganizationPanel;
