@@ -75,46 +75,42 @@ const InvitationAcceptance: React.FC = () => {
 
     try {
       setLoading(true);
+      console.log('🔍 Loading invitation details for token:', token);
 
-      // Get invitation details
-      const { data: invitationData, error: invitationError } = await supabase
-        .from('organization_invitations')
-        .select(`
-          id,
-          email,
-          role,
-          status,
-          expires_at,
-          organizations!inner (name),
-          profiles!organization_invitations_invited_by_fkey (full_name, email)
-        `)
-        .eq('invitation_token', token)
-        .eq('status', 'pending')
-        .single();
+      // Use the new database function to get invitation details without authentication
+      const { data: result, error } = await supabase.rpc('get_invitation_details', {
+        invitation_token: token
+      });
 
-      if (invitationError || !invitationData) {
+      console.log('📊 Invitation details result:', result, error);
+
+      if (error) {
+        console.error('❌ Error loading invitation details:', error);
         setStatus('invalid');
-        setMessage('Invalid or expired invitation');
+        setMessage('Failed to load invitation details');
         setLoading(false);
         return;
       }
 
-      // Check if invitation is expired
-      if (invitationData.expires_at && new Date(invitationData.expires_at) < new Date()) {
+      const response = result as any;
+      if (!result || !response.success) {
+        console.log('❌ Invalid invitation result:', result);
         setStatus('invalid');
-        setMessage('This invitation has expired');
+        setMessage(response?.message || 'Invalid or expired invitation');
         setLoading(false);
         return;
       }
 
+      const invitationData = response.invitation;
       const details: InvitationDetails = {
         id: invitationData.id,
         email: invitationData.email,
         role: invitationData.role,
-        organization_name: (invitationData.organizations as any)?.name || 'Unknown Organization',
-        invited_by_name: (invitationData.profiles as any)?.full_name || (invitationData.profiles as any)?.email || 'Unknown'
+        organization_name: invitationData.organization_name,
+        invited_by_name: invitationData.invited_by_name
       };
 
+      console.log('✅ Invitation details loaded:', details);
       setInvitationDetails(details);
 
       // Pre-fill email in auth forms

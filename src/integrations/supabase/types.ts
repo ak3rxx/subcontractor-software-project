@@ -2205,6 +2205,10 @@ export type Database = {
         Args: { project_uuid: string }
         Returns: string
       }
+      get_invitation_details: {
+        Args: { invitation_token: string }
+        Returns: Json
+      }
       get_organization_invitations: {
         Args: { org_id: string }
         Returns: {
