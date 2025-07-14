@@ -12,11 +12,13 @@ export const useUserRoles = (userId: string | undefined) => {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDeveloperFlag, setIsDeveloperFlag] = useState(false);
 
   useEffect(() => {
     if (!userId) {
       setRoles([]);
       setLoading(false);
+      setIsDeveloperFlag(false);
       return;
     }
 
@@ -25,7 +27,8 @@ export const useUserRoles = (userId: string | undefined) => {
       setError(null);
       
       try {
-        const { data: orgUsers, error } = await supabase
+        // Load organization roles
+        const { data: orgUsers, error: orgError } = await supabase
           .from('organization_users')
           .select(`
             role,
@@ -35,10 +38,21 @@ export const useUserRoles = (userId: string | undefined) => {
           .eq('user_id', userId)
           .eq('status', 'active');
 
-        if (error) {
-          setError(error.message);
+        if (orgError) {
+          setError(orgError.message);
           setRoles([]);
           return;
+        }
+
+        // Load developer status from profiles
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_developer')
+          .eq('id', userId)
+          .single();
+
+        if (profileError) {
+          console.warn('Could not load profile:', profileError.message);
         }
 
         const userRoles: UserRole[] = (orgUsers || []).map(ou => ({
@@ -48,9 +62,11 @@ export const useUserRoles = (userId: string | undefined) => {
         }));
 
         setRoles(userRoles);
+        setIsDeveloperFlag(profile?.is_developer || false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load roles');
         setRoles([]);
+        setIsDeveloperFlag(false);
       } finally {
         setLoading(false);
       }
@@ -62,23 +78,23 @@ export const useUserRoles = (userId: string | undefined) => {
   const hasRole = useMemo(() => (role: string, organizationId?: string): boolean => {
     if (!roles.length) return false;
     
-    // Developer has access to everything
-    if (roles.some(r => r.role === 'developer')) return true;
+    // Developer has access to everything (check actual developer flag)
+    if (isDeveloperFlag) return true;
     
     if (organizationId) {
       return roles.some(r => r.role === role && r.organizationId === organizationId);
     }
     
     return roles.some(r => r.role === role);
-  }, [roles]);
+  }, [roles, isDeveloperFlag]);
 
   const isOrgAdmin = useMemo(() => (organizationId?: string): boolean => {
     return hasRole('org_admin', organizationId);
   }, [hasRole]);
 
   const isDeveloper = useMemo(() => (): boolean => {
-    return hasRole('developer');
-  }, [hasRole]);
+    return isDeveloperFlag;
+  }, [isDeveloperFlag]);
 
   const canAccess = useMemo(() => (module: string): boolean => {
     if (!roles.length) return false;
