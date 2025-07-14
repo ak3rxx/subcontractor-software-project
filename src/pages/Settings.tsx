@@ -7,15 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, User, Bell, Palette, Building2 } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Palette, Building2, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import TopNav from '@/components/TopNav';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
 
 const Settings = () => {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  const isOrgAdmin = () => false; // Simplified for now
+  const isOrgAdmin = () => user?.email === 'huy.nguyen@dcsquared.com.au';
   const [activeTab, setActiveTab] = useState('profile');
 
   if (loading) {
@@ -29,30 +31,7 @@ const Settings = () => {
     );
   }
 
-  // Show organization panel for org admins, but keep it within settings context
-  if (isOrgAdmin()) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <TopNav />
-        <div className="flex-1">
-          <div className="container mx-auto px-6 py-8">
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-2">
-                <Building2 className="h-8 w-8 text-blue-600" />
-                <h1 className="text-3xl font-bold text-gray-900">Organization Settings</h1>
-              </div>
-              <p className="text-gray-600">
-                Manage your organization settings, team members, and compliance requirements.
-              </p>
-            </div>
-            <OrganizationPanelDashboard />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Regular user settings (including developers who want to access personal settings)
+  // Regular user settings
   return (
     <div className="min-h-screen flex flex-col">
       <TopNav />
@@ -137,6 +116,34 @@ const Settings = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Organization Management - Only for Org Admins */}
+              {isOrgAdmin() && (
+                <Card className="border-blue-200 bg-blue-50/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-blue-600" />
+                      Organization Management
+                    </CardTitle>
+                    <CardDescription>Access full organization settings and team management</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600">
+                        Manage your organization's settings, invite team members, configure compliance requirements, and set up project defaults.
+                      </p>
+                      <Button 
+                        onClick={() => navigate('/organization-panel')}
+                        className="flex items-center gap-2"
+                      >
+                        <Building2 className="h-4 w-4" />
+                        Open Organization Panel
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
