@@ -148,29 +148,51 @@ const InvitationAcceptance: React.FC = () => {
 
     try {
       setLoading(true);
+      console.log('🔄 Starting invitation acceptance process');
+      console.log('📧 User email:', user.email);
+      console.log('🎫 Token from URL:', token);
+      console.log('📝 Invitation details:', invitationDetails);
 
       // Check if email matches
       if (invitationDetails.email !== user.email) {
+        console.log('❌ Email mismatch:', invitationDetails.email, 'vs', user.email);
         setStatus('error');
         setMessage('This invitation was sent to a different email address');
         setLoading(false);
         return;
       }
 
-      // Accept the invitation - pass as UUID not string
+      // Validate token format as UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(token)) {
+        console.log('❌ Invalid token format:', token);
+        setStatus('error');
+        setMessage('Invalid invitation token format');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Token format validated, calling database function...');
+      
+      // Accept the invitation - explicitly cast as UUID
       const { data: result, error } = await supabase.rpc('accept_organization_invitation', {
         invitation_token: token
       });
 
+      console.log('📊 Database response:', { result, error });
+
       if (error) {
-        console.error('Error accepting invitation:', error);
+        console.error('❌ Database error accepting invitation:', error);
         setStatus('error');
-        setMessage('Failed to accept invitation');
+        setMessage(`Failed to accept invitation: ${error.message}`);
         return;
       }
 
       const response = result as any;
+      console.log('📋 Parsed response:', response);
+      
       if (response.success) {
+        console.log('🎉 Invitation accepted successfully!');
         setStatus('success');
         setMessage(response.message);
         
@@ -184,11 +206,12 @@ const InvitationAcceptance: React.FC = () => {
           navigate('/dashboard');
         }, 2000);
       } else {
+        console.log('❌ Invitation acceptance failed:', response);
         setStatus('error');
         setMessage(response.message || 'Failed to accept invitation');
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('💥 Unexpected error:', error);
       setStatus('error');
       setMessage('An unexpected error occurred');
     } finally {
