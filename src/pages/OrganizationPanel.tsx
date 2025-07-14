@@ -5,17 +5,7 @@ import OrganizationPanelDashboard from '@/components/organization/OrganizationPa
 import { Loader2, Building2 } from 'lucide-react';
 
 const OrganizationPanel: React.FC = () => {
-  const { user, loading, rolesLoading, isOrgAdmin, primaryOrganization } = useAuth();
-  
-  // Debug logging
-  console.log('OrganizationPanel Debug:', {
-    loading,
-    rolesLoading,
-    user: user?.id,
-    userRoles: user?.roles?.length,
-    primaryOrganization,
-    isOrgAdminResult: isOrgAdmin()
-  });
+  const { user, loading, rolesLoading, isOrgAdmin, isDeveloper, primaryOrganization } = useAuth();
   
   // Show loading while authentication and roles are being loaded
   if (loading || rolesLoading) {
@@ -32,14 +22,13 @@ const OrganizationPanel: React.FC = () => {
     );
   }
 
-  // Ensure user is authenticated and roles are loaded
-  if (!user || !user.roles) {
+  // Ensure user is authenticated
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Check org admin access only after roles are fully loaded
-  const hasOrgAccess = isOrgAdmin();
-  console.log('Final access check:', hasOrgAccess);
+  // Check org admin access - allow developers and org admins (including full access users)
+  const hasOrgAccess = isDeveloper() || isOrgAdmin();
   
   if (!hasOrgAccess) {
     return <Navigate to="/dashboard" replace />;

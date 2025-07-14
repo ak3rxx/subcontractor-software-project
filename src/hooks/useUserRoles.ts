@@ -27,16 +27,29 @@ export const useUserRoles = (userId: string | undefined) => {
       setError(null);
       
       try {
-        // Load organization roles
+        // Load organization roles with simplified query to avoid 406 errors
         const { data: orgUsers, error: orgError } = await supabase
           .from('organization_users')
-          .select(`
-            role,
-            organization_id,
-            organizations!inner(name)
-          `)
+          .select('role, organization_id')
           .eq('user_id', userId)
           .eq('status', 'active');
+
+        // Load organization names separately if needed
+        let organizationNames: { [key: string]: string } = {};
+        if (orgUsers && orgUsers.length > 0) {
+          const orgIds = orgUsers.map(ou => ou.organization_id);
+          const { data: orgs } = await supabase
+            .from('organizations')
+            .select('id, name')
+            .in('id', orgIds);
+          
+          if (orgs) {
+            organizationNames = orgs.reduce((acc, org) => ({
+              ...acc,
+              [org.id]: org.name
+            }), {});
+          }
+        }
 
         if (orgError) {
           setError(orgError.message);
@@ -58,7 +71,7 @@ export const useUserRoles = (userId: string | undefined) => {
         const userRoles: UserRole[] = (orgUsers || []).map(ou => ({
           role: ou.role as UserRole['role'],
           organizationId: ou.organization_id,
-          organizationName: (ou.organizations as any)?.name || 'Unknown'
+          organizationName: organizationNames[ou.organization_id] || 'Unknown'
         }));
 
         setRoles(userRoles);
