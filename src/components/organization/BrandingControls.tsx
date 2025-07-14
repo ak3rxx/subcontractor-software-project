@@ -7,7 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Save, Eye, Palette } from 'lucide-react';
 
-const BrandingControls: React.FC = () => {
+interface BrandingControlsProps {
+  organizationId?: string;
+}
+
+const BrandingControls: React.FC<BrandingControlsProps> = ({ organizationId }) => {
   const [logoUrl, setLogoUrl] = useState('');
   const [companyName, setCompanyName] = useState('Your Company Name');
   const [primaryColor, setPrimaryColor] = useState('#3B82F6');

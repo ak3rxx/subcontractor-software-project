@@ -17,7 +17,11 @@ interface ComplianceDocument {
   file_url?: string;
 }
 
-const DocumentCompliance: React.FC = () => {
+interface DocumentComplianceProps {
+  organizationId?: string;
+}
+
+const DocumentCompliance: React.FC<DocumentComplianceProps> = ({ organizationId }) => {
   // Mock data - in real implementation, this would come from the database
   const [documents] = useState<ComplianceDocument[]>([
     {

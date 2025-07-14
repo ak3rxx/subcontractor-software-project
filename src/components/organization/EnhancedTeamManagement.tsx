@@ -26,7 +26,11 @@ interface PendingInvitation {
   invited_by_name: string;
 }
 
-const EnhancedTeamManagement: React.FC = () => {
+interface EnhancedTeamManagementProps {
+  organizationId?: string;
+}
+
+const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organizationId }) => {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('project_manager');

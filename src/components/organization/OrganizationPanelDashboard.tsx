@@ -9,7 +9,11 @@ import ProjectSetupDefaults from '@/components/organization/ProjectSetupDefaults
 import BrandingControls from '@/components/organization/BrandingControls';
 import MasterChecklist from '@/components/organization/MasterChecklist';
 
-const OrganizationPanelDashboard: React.FC = () => {
+interface OrganizationPanelDashboardProps {
+  organizationId?: string;
+}
+
+const OrganizationPanelDashboard: React.FC<OrganizationPanelDashboardProps> = ({ organizationId }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   return (
@@ -128,19 +132,19 @@ const OrganizationPanelDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="team">
-          <EnhancedTeamManagement />
+          <EnhancedTeamManagement organizationId={organizationId} />
         </TabsContent>
 
         <TabsContent value="compliance">
-          <DocumentCompliance />
+          <DocumentCompliance organizationId={organizationId} />
         </TabsContent>
 
         <TabsContent value="defaults">
-          <ProjectSetupDefaults />
+          <ProjectSetupDefaults organizationId={organizationId} />
         </TabsContent>
 
         <TabsContent value="branding">
-          <BrandingControls />
+          <BrandingControls organizationId={organizationId} />
         </TabsContent>
       </Tabs>
     </div>

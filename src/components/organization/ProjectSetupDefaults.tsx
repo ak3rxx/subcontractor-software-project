@@ -23,7 +23,11 @@ interface ProjectTemplate {
   checklists: string[];
 }
 
-const ProjectSetupDefaults: React.FC = () => {
+interface ProjectSetupDefaultsProps {
+  organizationId?: string;
+}
+
+const ProjectSetupDefaults: React.FC<ProjectSetupDefaultsProps> = ({ organizationId }) => {
   const [defaultFolders, setDefaultFolders] = useState<DefaultFolder[]>([
     { id: '1', name: 'Drawings', description: 'Architectural and engineering drawings', required: true },
     { id: '2', name: 'Specifications', description: 'Technical specifications and requirements', required: true },

@@ -14,10 +14,8 @@ import TopNav from '@/components/TopNav';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
 
 const Settings = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isDeveloper, isOrgAdmin } = useAuth();
   const navigate = useNavigate();
-  const isDeveloper = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  const isOrgAdmin = () => user?.email === 'huy.nguyen@dcsquared.com.au';
   const [activeTab, setActiveTab] = useState('profile');
 
   if (loading) {

@@ -4,16 +4,15 @@ import { Navigate } from 'react-router-dom';
 import OrganizationPanelDashboard from '@/components/organization/OrganizationPanelDashboard';
 
 const OrganizationPanel: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isOrgAdmin, primaryOrganization } = useAuth();
   
-  // Simple org admin check - can be expanded later
-  const isOrgAdmin = () => user?.email === 'huy.nguyen@dcsquared.com.au';
-  
+  // Check if user is an org admin for any organization
   if (!isOrgAdmin()) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <OrganizationPanelDashboard />;
+  // Pass the user's primary organization to the dashboard
+  return <OrganizationPanelDashboard organizationId={primaryOrganization} />;
 };
 
 export default OrganizationPanel;
