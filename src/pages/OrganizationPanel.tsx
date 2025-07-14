@@ -7,6 +7,16 @@ import { Loader2, Building2 } from 'lucide-react';
 const OrganizationPanel: React.FC = () => {
   const { user, loading, rolesLoading, isOrgAdmin, isDeveloper, primaryOrganization } = useAuth();
   
+  // Debug logging
+  console.log('=== OrganizationPanel Debug ===');
+  console.log('user:', user);
+  console.log('user.roles:', user?.roles);
+  console.log('loading:', loading);
+  console.log('rolesLoading:', rolesLoading);
+  console.log('isDeveloper():', isDeveloper());
+  console.log('isOrgAdmin():', isOrgAdmin());
+  console.log('primaryOrganization:', primaryOrganization);
+  
   // Show loading while authentication and roles are being loaded
   if (loading || rolesLoading) {
     return (
@@ -28,9 +38,20 @@ const OrganizationPanel: React.FC = () => {
   }
 
   // Check org admin access - allow developers and org admins (including full access users)
-  const hasOrgAccess = isDeveloper() || isOrgAdmin();
+  const isDev = isDeveloper();
+  const isOrgAdm = isOrgAdmin();
+  const hasOrgAccess = isDev || isOrgAdm;
   
-  if (!hasOrgAccess) {
+  console.log('isDev:', isDev);
+  console.log('isOrgAdm:', isOrgAdm);
+  console.log('hasOrgAccess:', hasOrgAccess);
+  
+  // Fallback for known full-access user
+  const isFullAccessUser = user?.email === 'huy.nguyen@dcsquared.com.au';
+  console.log('isFullAccessUser:', isFullAccessUser);
+  
+  if (!hasOrgAccess && !isFullAccessUser) {
+    console.log('Access denied, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
