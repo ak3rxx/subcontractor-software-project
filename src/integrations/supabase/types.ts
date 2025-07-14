@@ -933,9 +933,11 @@ export type Database = {
           company: string | null
           created_at: string | null
           email: string | null
+          first_name: string | null
           full_name: string | null
           id: string
           is_developer: boolean
+          last_name: string | null
           phone: string | null
           role: string | null
           updated_at: string | null
@@ -944,9 +946,11 @@ export type Database = {
           company?: string | null
           created_at?: string | null
           email?: string | null
+          first_name?: string | null
           full_name?: string | null
           id: string
           is_developer?: boolean
+          last_name?: string | null
           phone?: string | null
           role?: string | null
           updated_at?: string | null
@@ -955,9 +959,11 @@ export type Database = {
           company?: string | null
           created_at?: string | null
           email?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
           is_developer?: boolean
+          last_name?: string | null
           phone?: string | null
           role?: string | null
           updated_at?: string | null

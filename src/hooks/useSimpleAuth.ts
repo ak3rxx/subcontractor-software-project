@@ -42,8 +42,10 @@ export const useSimpleAuth = () => {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          ...userData,
-          company: userData.company || `${userData.full_name}'s Organization`
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
+          role: 'user', // Default role, org admin will assign actual role
+          company: userData.company || `${userData.first_name} ${userData.last_name}'s Organization`
         }
       }
     });

@@ -28,8 +28,8 @@ const Auth = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    fullName: '',
-    role: '',
+    firstName: '',
+    lastName: '',
     company: '',
     phone: ''
   });
@@ -70,15 +70,9 @@ const Auth = () => {
       return;
     }
 
-    if (!signupData.role) {
-      setError('Please select a role');
-      setLoading(false);
-      return;
-    }
-
     const { error } = await signUp(signupData.email, signupData.password, {
-      full_name: signupData.fullName,
-      role: signupData.role,
+      first_name: signupData.firstName,
+      last_name: signupData.lastName,
       company: signupData.company,
       phone: signupData.phone
     });
@@ -175,31 +169,24 @@ const Auth = () => {
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="firstName">First Name</Label>
                       <Input
-                        id="fullName"
-                        value={signupData.fullName}
-                        onChange={(e) => setSignupData(prev => ({ ...prev, fullName: e.target.value }))}
-                        placeholder="John Doe"
+                        id="firstName"
+                        value={signupData.firstName}
+                        onChange={(e) => setSignupData(prev => ({ ...prev, firstName: e.target.value }))}
+                        placeholder="John"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Select value={signupData.role} onValueChange={(value) => setSignupData(prev => ({ ...prev, role: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="project_manager">Project Manager</SelectItem>
-                          <SelectItem value="estimator">Estimator</SelectItem>
-                          <SelectItem value="finance_manager">Finance Manager</SelectItem>
-                          <SelectItem value="site_supervisor">Site Supervisor</SelectItem>
-                          <SelectItem value="client">Client</SelectItem>
-                          <SelectItem value="subcontractor">Subcontractor</SelectItem>
-                          <SelectItem value="full_access">Full Access</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={signupData.lastName}
+                        onChange={(e) => setSignupData(prev => ({ ...prev, lastName: e.target.value }))}
+                        placeholder="Doe"
+                        required
+                      />
                     </div>
                   </div>
                   
