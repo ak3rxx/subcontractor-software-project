@@ -102,13 +102,8 @@ function App() {
               </ProtectedOnboardingProvider>
             </ProtectedRoute>
           } />
-          <Route path="/invitation" element={
-            <ProtectedRoute>
-              <ProtectedOnboardingProvider>
-                <InvitationAcceptance />
-              </ProtectedOnboardingProvider>
-            </ProtectedRoute>
-          } />
+          {/* Public invitation route - no protection needed */}
+          <Route path="/invitation" element={<InvitationAcceptance />} />
           <Route path="/organization-onboarding" element={
             <ProtectedRoute>
               <ProtectedOnboardingProvider>
