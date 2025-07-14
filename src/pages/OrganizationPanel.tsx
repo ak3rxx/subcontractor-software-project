@@ -7,6 +7,16 @@ import { Loader2, Building2 } from 'lucide-react';
 const OrganizationPanel: React.FC = () => {
   const { user, loading, rolesLoading, isOrgAdmin, primaryOrganization } = useAuth();
   
+  // Debug logging
+  console.log('OrganizationPanel Debug:', {
+    loading,
+    rolesLoading,
+    user: user?.id,
+    userRoles: user?.roles?.length,
+    primaryOrganization,
+    isOrgAdminResult: isOrgAdmin()
+  });
+  
   // Show loading while authentication and roles are being loaded
   if (loading || rolesLoading) {
     return (
@@ -22,8 +32,16 @@ const OrganizationPanel: React.FC = () => {
     );
   }
 
-  // Redirect if no access
-  if (!isOrgAdmin()) {
+  // Ensure user is authenticated and roles are loaded
+  if (!user || !user.roles) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Check org admin access only after roles are fully loaded
+  const hasOrgAccess = isOrgAdmin();
+  console.log('Final access check:', hasOrgAccess);
+  
+  if (!hasOrgAccess) {
     return <Navigate to="/dashboard" replace />;
   }
 
