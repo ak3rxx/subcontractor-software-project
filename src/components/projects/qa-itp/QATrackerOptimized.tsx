@@ -96,10 +96,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
         projectId={projectId}
         onClose={() => {
           setShowCreateForm(false);
-        }}
-        onSuccess={(action) => {
-          // For both 'create' and 'draft', navigate to QA tracker
-          setShowCreateForm(false);
           refetch(); // Refresh data to show new inspection
           onNavigateToTracker?.(); // Navigate back to QA tracker tab
         }}

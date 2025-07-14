@@ -124,7 +124,7 @@ const Projects = memo(() => {
   // Set up QA inspection coordination for real-time updates
   useQAInspectionCoordination(handleQARefresh);
 
-  // Handle URL parameters for cross-module integration
+  // Handle URL parameters for cross-module integration (only on initial load)
   useEffect(() => {
     const projectId = searchParams.get('id');
     const tab = searchParams.get('tab');
@@ -133,7 +133,7 @@ const Projects = memo(() => {
 
     if (projectId && projects.length > 0) {
       const project = projects.find(p => p.id === projectId);
-      if (project) {
+      if (project && !selectedProject) { // Only set on initial load
         setSelectedProject(project);
         if (tab) {
           setActiveTab(tab);
@@ -145,7 +145,7 @@ const Projects = memo(() => {
         }
       }
     }
-  }, [searchParams, projects]);
+  }, [searchParams, projects, selectedProject]);
 
   const handleCrossModuleAction = (action: string, data: any, tab: string | null) => {
     console.log('Cross-module action:', action, data, tab);
@@ -695,19 +695,14 @@ const Projects = memo(() => {
 
                       <TabsContent value="qa-list">
                         <Suspense fallback={<ModuleLoader />}>
-                          {activeQAForm ? (
+                           {activeQAForm ? (
                            <QAITPForm 
                               onClose={() => {
                                 setActiveQAForm(false);
-                                // Don't navigate - just close the form
-                              }} 
-                              onSuccess={(action) => {
-                                // Navigate to QA tracker for both 'create' and 'draft' actions
-                                setActiveQAForm(false);
                                 setQaActiveTab('qa-list');
-                                // Update URL to ensure navigation sticks and URL state matches component state
+                                // Update URL to match the tab we're staying in
                                 navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
-                              }}
+                              }} 
                               projectId={selectedProject.id}
                             />
                           ) : (
