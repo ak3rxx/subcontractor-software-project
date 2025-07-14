@@ -181,12 +181,15 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
         description: "All changes saved successfully"
       });
       
+      // Reset edit state and keep modal open in view mode
       setIsEditing(false);
       setUnsavedChanges(false);
       setHasChecklistChanges(false);
       setHasAttachmentChanges(false);
       setChecklistChanges([]);
       setAttachmentChanges([]);
+      
+      // Update parent component with the latest data
       onUpdate?.(updatedInspection);
       
     } catch (error) {

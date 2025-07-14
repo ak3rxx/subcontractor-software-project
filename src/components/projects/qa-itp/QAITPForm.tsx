@@ -19,11 +19,13 @@ import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 interface QAITPFormProps {
   onClose: () => void;
   projectId?: string;
+  onSuccess?: (action: 'create' | 'draft') => void;
 }
 
 const QAITPForm: React.FC<QAITPFormProps> = ({ 
   onClose, 
-  projectId
+  projectId,
+  onSuccess
 }) => {
   const { createInspection } = useQAInspectionsSimple();
   const { toast } = useToast();
@@ -329,7 +331,13 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           title: "Draft Saved",
           description: message
         });
-        onClose();
+        
+        // Call success handler if provided, otherwise close
+        if (onSuccess) {
+          onSuccess('draft');
+        } else {
+          onClose();
+        }
       } else {
         setError('Failed to save draft. Please try again.');
       }
@@ -417,7 +425,13 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           title: "Success",
           description: "QA inspection created successfully. View it in the QA/ITP List tab."
         });
-        onClose();
+        
+        // Call success handler if provided, otherwise close
+        if (onSuccess) {
+          onSuccess('create');
+        } else {
+          onClose();
+        }
       } else {
         setError('Failed to create inspection. Please try again.');
       }

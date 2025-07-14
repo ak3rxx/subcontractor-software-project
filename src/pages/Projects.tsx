@@ -696,13 +696,18 @@ const Projects = memo(() => {
                       <TabsContent value="qa-list">
                         <Suspense fallback={<ModuleLoader />}>
                           {activeQAForm ? (
-                            <QAITPForm 
+                           <QAITPForm 
                               onClose={() => {
+                                setActiveQAForm(false);
+                                // Don't navigate - just close the form
+                              }} 
+                              onSuccess={(action) => {
+                                // Navigate to QA tracker for both 'create' and 'draft' actions
                                 setActiveQAForm(false);
                                 setQaActiveTab('qa-list');
                                 // Update URL to ensure navigation sticks and URL state matches component state
                                 navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
-                              }} 
+                              }}
                               projectId={selectedProject.id}
                             />
                           ) : (
