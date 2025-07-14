@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -8,6 +8,7 @@ import { Loader2, Building2 } from 'lucide-react';
 const OrganizationPanel: React.FC = () => {
   const { user, loading, rolesLoading, isOrgAdmin, primaryOrganization } = useAuth();
   const { toast } = useToast();
+  const [accessDenied, setAccessDenied] = useState(false);
   
   // Show loading while authentication and roles are being loaded
   if (loading || rolesLoading) {
@@ -24,13 +25,20 @@ const OrganizationPanel: React.FC = () => {
     );
   }
 
-  // Check if user is an org admin after loading is complete
-  if (!isOrgAdmin()) {
-    toast({
-      title: "Access Denied",
-      description: "Organization admin role required to access this panel.",
-      variant: "destructive",
-    });
+  // Check access and show toast only once
+  useEffect(() => {
+    if (!loading && !rolesLoading && !isOrgAdmin() && !accessDenied) {
+      toast({
+        title: "Access Denied",
+        description: "Organization admin role required to access this panel.",
+        variant: "destructive",
+      });
+      setAccessDenied(true);
+    }
+  }, [loading, rolesLoading, isOrgAdmin, accessDenied, toast]);
+
+  // Redirect if access is denied
+  if (!loading && !rolesLoading && !isOrgAdmin()) {
     return <Navigate to="/dashboard" replace />;
   }
 
