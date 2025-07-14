@@ -38,7 +38,7 @@ const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organiz
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(false);
 
-  const { currentOrganization, organizationUsers, inviteUser, updateUserRole, deleteInvitation, refetch } = useOrganizations();
+  const { currentOrganization, organizationUsers, inviteUser, updateUserRole, resendInvitation, deleteInvitation, refetch } = useOrganizations();
   const { user, isDeveloper, hasRole } = useAuth();
   const { toast } = useToast();
 
@@ -116,19 +116,10 @@ const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organiz
     }
   };
 
-  const handleResendInvite = async (invitationId: string) => {
-    try {
-      // In a real implementation, this would trigger a resend email
-      toast({
-        title: "Invitation Resent",
-        description: "The invitation email has been resent."
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to resend invitation",
-        variant: "destructive"
-      });
+  const handleResendInvite = async (invitationId: string, email: string) => {
+    const success = await resendInvitation(invitationId, email);
+    if (success) {
+      await fetchPendingInvitations(); // Refresh invitations
     }
   };
 
@@ -407,7 +398,7 @@ const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organiz
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleResendInvite(invitation.id)}
+                                onClick={() => handleResendInvite(invitation.id, invitation.email)}
                                 className="flex items-center gap-1"
                               >
                                 <Mail className="h-3 w-3" />

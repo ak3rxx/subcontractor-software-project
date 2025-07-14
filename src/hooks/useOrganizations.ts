@@ -218,6 +218,119 @@ export const useOrganizations = () => {
     }
   };
 
+  const resendInvitation = async (invitationId: string, email: string) => {
+    try {
+      // Get the existing invitation details
+      const { data: invitationData, error: fetchError } = await supabase
+        .from('organization_invitations')
+        .select(`
+          organization_id,
+          role,
+          organizations(name),
+          profiles!organization_invitations_invited_by_fkey(full_name, email)
+        `)
+        .eq('id', invitationId)
+        .single();
+
+      if (fetchError || !invitationData) {
+        console.error('Error fetching invitation:', fetchError);
+        toast({
+          title: "Error",
+          description: "Failed to find invitation details",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Extend the expiration date by 3 more days
+      const newExpiryDate = new Date();
+      newExpiryDate.setDate(newExpiryDate.getDate() + 3);
+
+      const { error: updateError } = await supabase
+        .from('organization_invitations')
+        .update({ 
+          expires_at: newExpiryDate.toISOString(),
+          status: 'pending' // Reset status in case it was changed
+        })
+        .eq('id', invitationId);
+
+      if (updateError) {
+        console.error('Error updating invitation:', updateError);
+        toast({
+          title: "Error",
+          description: "Failed to extend invitation",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Get the invitation token for the email
+      const { data: tokenData, error: tokenError } = await supabase
+        .from('organization_invitations')
+        .select('invitation_token')
+        .eq('id', invitationId)
+        .single();
+
+      if (tokenError || !tokenData) {
+        console.error('Error getting invitation token:', tokenError);
+        toast({
+          title: "Error",
+          description: "Failed to get invitation token",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Resend the invitation email
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          body: {
+            email,
+            organizationName: (invitationData.organizations as any)?.name || 'Your Organization',
+            role: invitationData.role,
+            invitedByName: (invitationData.profiles as any)?.full_name || (invitationData.profiles as any)?.email || 'A team member',
+            invitationToken: tokenData.invitation_token,
+            baseUrl: window.location.origin
+          }
+        });
+
+        if (emailError) {
+          console.error('Error resending invitation email:', emailError);
+          toast({
+            title: "Invitation Extended",
+            description: "Invitation was extended but email failed to send",
+            variant: "destructive"
+          });
+          return false;
+        }
+
+        toast({
+          title: "Success",
+          description: `Invitation resent to ${email} and extended for 3 more days`
+        });
+        return true;
+
+      } catch (emailError) {
+        console.error('Email service error:', emailError);
+        toast({
+          title: "Invitation Extended",
+          description: "Invitation extended but email service is unavailable",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to resend invitation",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   const deleteInvitation = async (invitationId: string, email: string) => {
     try {
       const { error } = await supabase
@@ -272,6 +385,7 @@ export const useOrganizations = () => {
     loading,
     inviteUser,
     updateUserRole,
+    resendInvitation,
     deleteInvitation,
     refetch: fetchUserOrganizations
   };

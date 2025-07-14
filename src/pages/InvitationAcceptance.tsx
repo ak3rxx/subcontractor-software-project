@@ -157,7 +157,7 @@ const InvitationAcceptance: React.FC = () => {
         return;
       }
 
-      // Accept the invitation
+      // Accept the invitation - pass as UUID not string
       const { data: result, error } = await supabase.rpc('accept_organization_invitation', {
         invitation_token: token
       });
