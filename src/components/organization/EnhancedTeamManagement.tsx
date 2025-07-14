@@ -38,7 +38,7 @@ const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organiz
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(false);
 
-  const { currentOrganization, organizationUsers, inviteUser, updateUserRole, refetch } = useOrganizations();
+  const { currentOrganization, organizationUsers, inviteUser, updateUserRole, deleteInvitation, refetch } = useOrganizations();
   const { user, isDeveloper, hasRole } = useAuth();
   const { toast } = useToast();
 
@@ -129,6 +129,17 @@ const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organiz
         description: "Failed to resend invitation",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleDeleteInvite = async (invitationId: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete the invitation for ${email}?`)) {
+      return;
+    }
+
+    const success = await deleteInvitation(invitationId, email);
+    if (success) {
+      await fetchPendingInvitations(); // Refresh invitations
     }
   };
 
@@ -392,15 +403,26 @@ const EnhancedTeamManagement: React.FC<EnhancedTeamManagementProps> = ({ organiz
                       <PermissionGate permission="admin" showMessage={false}>
                         <div className="flex items-center gap-2">
                           {invitation.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleResendInvite(invitation.id)}
-                              className="flex items-center gap-1"
-                            >
-                              <Mail className="h-3 w-3" />
-                              Resend
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleResendInvite(invitation.id)}
+                                className="flex items-center gap-1"
+                              >
+                                <Mail className="h-3 w-3" />
+                                Resend
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteInvite(invitation.id, invitation.email)}
+                                className="flex items-center gap-1 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Delete
+                              </Button>
+                            </>
                           )}
                         </div>
                       </PermissionGate>

@@ -218,6 +218,40 @@ export const useOrganizations = () => {
     }
   };
 
+  const deleteInvitation = async (invitationId: string, email: string) => {
+    try {
+      const { error } = await supabase
+        .from('organization_invitations')
+        .delete()
+        .eq('id', invitationId);
+
+      if (error) {
+        console.error('Error deleting invitation:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete invitation",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      toast({
+        title: "Success",
+        description: `Invitation for ${email} has been deleted`
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete invitation",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchUserOrganizations();
@@ -238,6 +272,7 @@ export const useOrganizations = () => {
     loading,
     inviteUser,
     updateUserRole,
+    deleteInvitation,
     refetch: fetchUserOrganizations
   };
 };
