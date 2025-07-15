@@ -56,12 +56,36 @@ export const useSimpleAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/auth`;
+    const redirectUrl = `${window.location.origin}/reset-password`;
     
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl
-    });
-    return { error };
+    try {
+      // Send custom email through our edge function
+      const { error: functionError } = await supabase.functions.invoke('send-reset-password-email', {
+        body: {
+          email,
+          resetUrl: redirectUrl
+        }
+      });
+
+      if (functionError) {
+        console.error('Custom email function error:', functionError);
+        // Fallback to Supabase's built-in reset
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: redirectUrl
+        });
+        return { error };
+      }
+
+      // Still call Supabase's reset to generate the token
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
+      
+      return { error };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return { error: error as any };
+    }
   };
 
   return {

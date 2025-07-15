@@ -25,6 +25,7 @@ import { Toaster } from '@/components/ui/toaster';
 // Add these imports for the new routes
 import Tasks from '@/pages/Tasks';
 import Settings from '@/pages/Settings';
+import ResetPassword from '@/pages/ResetPassword';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           {/* Public routes - no onboarding provider */}
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/subcontractor-onboarding" element={<SubcontractorOnboarding />} />
           
           {/* Protected routes - wrapped with onboarding provider */}
