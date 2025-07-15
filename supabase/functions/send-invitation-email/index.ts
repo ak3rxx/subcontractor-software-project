@@ -53,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
             .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
             .header { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 40px 30px; text-align: center; }
             .content { padding: 40px 30px; }
-            .button { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 20px 0; }
+            .button { display: inline-block; background: #2563eb !important; color: white !important; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 20px 0; border: none; }
             .role-badge { background: #eff6ff; color: #2563eb; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 500; }
             .footer { padding: 20px 30px; background: #f8fafc; color: #6b7280; font-size: 14px; text-align: center; }
           </style>
@@ -81,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
                 </ul>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="${invitationUrl}" class="button">Accept Invitation</a>
+                  <a href="${invitationUrl}" style="display: inline-block; background: #2563eb !important; color: white !important; padding: 12px 24px; text-decoration: none !important; border-radius: 6px; font-weight: 500; margin: 20px 0; border: none; font-family: inherit;">Accept Invitation</a>
                 </div>
                 
                 <p style="font-size: 14px; color: #6b7280;">
