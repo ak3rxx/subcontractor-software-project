@@ -939,7 +939,6 @@ export type Database = {
           is_developer: boolean
           last_name: string | null
           phone: string | null
-          role: string | null
           updated_at: string | null
         }
         Insert: {
@@ -952,7 +951,6 @@ export type Database = {
           is_developer?: boolean
           last_name?: string | null
           phone?: string | null
-          role?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -965,7 +963,6 @@ export type Database = {
           is_developer?: boolean
           last_name?: string | null
           phone?: string | null
-          role?: string | null
           updated_at?: string | null
         }
         Relationships: []
