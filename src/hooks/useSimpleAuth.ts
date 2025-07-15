@@ -44,7 +44,6 @@ export const useSimpleAuth = () => {
         data: {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
-          role: 'user', // Default role, org admin will assign actual role
           company: userData.company || `${userData.first_name} ${userData.last_name}'s Organization`
         }
       }

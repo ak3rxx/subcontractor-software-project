@@ -8,7 +8,6 @@ export interface AuthUser {
   primaryRole?: string;
   primaryOrganization?: string;
   user_metadata?: any;
-  role?: string; // Legacy compatibility
 }
 
 // Enhanced auth hook that combines simple auth with roles when needed
@@ -22,8 +21,7 @@ export const useAuth = () => {
     roles,
     primaryRole: roles[0]?.role,
     primaryOrganization: roles[0]?.organizationId,
-    user_metadata: (authUser as any).user_metadata || {},
-    role: roles[0]?.role // Legacy compatibility
+    user_metadata: (authUser as any).user_metadata || {}
   } : null;
 
   // Only show loading if auth is loading (not roles)

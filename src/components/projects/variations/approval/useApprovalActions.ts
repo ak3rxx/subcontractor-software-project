@@ -25,7 +25,7 @@ export const useApprovalActions = (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastActionResult, setLastActionResult] = useState<{success: boolean; message: string} | null>(null);
 
-  const userRole = user?.role || 'user';
+  const userRole = user?.primaryRole || 'project_manager';
 
   const permissions = {
     canApprove: isDeveloper() || canAdmin() || canEdit() || isProjectManager(),
