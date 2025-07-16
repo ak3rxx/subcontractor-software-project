@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useEnhancedQANotifications } from '@/hooks/useEnhancedQANotifications';
 
 export interface SupabaseUploadedFile {
   id: string;
@@ -26,8 +27,10 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
   const [uploadedFiles, setUploadedFiles] = useState<SupabaseUploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [hasUploadFailures, setHasUploadFailures] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
+  const qaNotifications = useEnhancedQANotifications();
 
   const uploadFile = useCallback(async (
     file: File, 
@@ -35,15 +38,18 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
     checklistItemId?: string
   ): Promise<SupabaseUploadedFile | null> => {
     if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to upload files.",
-        variant: "destructive"
-      });
+      qaNotifications.notifyUploadError(file.name, 'Authentication required. Please log in to upload files.');
       return null;
     }
 
     setUploading(true);
+    
+    // Add to upload queue for progress tracking
+    const fileId = `${file.name}-${Date.now()}`;
+    setUploadQueue(prev => [...prev, fileId]);
+    
+    // Notify upload start
+    qaNotifications.notifyUploadStart(file.name, 1, 1);
     
     // Generate unique file path
     const fileExt = file.name.split('.').pop();
@@ -98,6 +104,12 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
 
       setUploadedFiles(prev => [...prev, uploadedFile]);
       
+      // Remove from upload queue
+      setUploadQueue(prev => prev.filter(id => id !== fileId));
+      
+      // Notify successful upload
+      qaNotifications.notifyUploadSuccess(file.name, urlData.publicUrl);
+      
       toast({
         title: "File uploaded",
         description: `${file.name} has been uploaded successfully.`
@@ -122,6 +134,12 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
       setUploadedFiles(prev => [...prev, failedFile]);
       setHasUploadFailures(true);
       
+      // Remove from upload queue
+      setUploadQueue(prev => prev.filter(id => id !== fileId));
+      
+      // Notify upload error with enhanced details
+      qaNotifications.notifyUploadError(file.name, error instanceof Error ? error.message : 'Upload failed');
+      
       toast({
         title: "Upload failed",
         description: `Failed to upload ${file.name}. Please try again.`,
@@ -139,9 +157,41 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
     inspectionId?: string, 
     checklistItemId?: string
   ): Promise<SupabaseUploadedFile[]> => {
-    const results = await Promise.all(files.map(file => uploadFile(file, inspectionId, checklistItemId)));
-    return results.filter((file): file is SupabaseUploadedFile => file !== null);
-  }, [uploadFile]);
+    // Notify start of batch upload
+    qaNotifications.notifyUploadStart(
+      `${files.length} files`, 
+      0, 
+      files.length
+    );
+    
+    // Process files sequentially to prevent overwhelming the system
+    const results: SupabaseUploadedFile[] = [];
+    const failedFiles: string[] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Update progress notification
+      qaNotifications.notifyUploadProgress(file.name, i + 1, files.length);
+      
+      try {
+        const result = await uploadFile(file, inspectionId, checklistItemId);
+        if (result) {
+          results.push(result);
+        } else {
+          failedFiles.push(file.name);
+        }
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        failedFiles.push(file.name);
+      }
+    }
+    
+    // Notify completion with summary
+    qaNotifications.notifyUploadQueueComplete(files.length, failedFiles.length);
+    
+    return results;
+  }, [uploadFile, qaNotifications]);
 
   const removeFile = useCallback(async (fileId: string) => {
     const fileToRemove = uploadedFiles.find(f => f.id === fileId);
@@ -220,6 +270,7 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
     uploadedFiles,
     uploading,
     hasUploadFailures,
+    uploadQueue,
     uploadFile,
     uploadFiles,
     removeFile,

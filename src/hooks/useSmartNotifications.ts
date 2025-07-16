@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface SmartNotification {
   id: string;
-  type: 'info' | 'warning' | 'error' | 'success';
+  type: 'info' | 'warning' | 'error' | 'success' | 'progress';
   priority: 'low' | 'medium' | 'high' | 'critical';
   title: string;
   message: string;
@@ -16,6 +16,10 @@ export interface SmartNotification {
   read: boolean;
   dismissed: boolean;
   autoAction?: () => void;
+  progress?: number;
+  progressText?: string;
+  category?: string;
+  metadata?: any;
 }
 
 export interface NotificationAction {
@@ -383,6 +387,108 @@ export const useSmartNotifications = () => {
     };
   }, [systemHealth, notifications.length, unreadCount, rules]);
 
+  // QA-specific notification helpers
+  const createQAUploadProgress = useCallback((fileName: string, progress: number, total: number) => {
+    return addNotification({
+      type: 'progress',
+      priority: 'medium',
+      title: 'File Upload in Progress',
+      message: `Uploading ${fileName}...`,
+      moduleSource: 'qa-upload',
+      actionable: false,
+      progress,
+      progressText: `${progress}/${total} files`,
+      category: 'file-upload'
+    });
+  }, [addNotification]);
+
+  const createQAUploadSuccess = useCallback((fileName: string, fileUrl?: string) => {
+    return addNotification({
+      type: 'success',
+      priority: 'low',
+      title: 'File Upload Complete',
+      message: `${fileName} uploaded successfully`,
+      moduleSource: 'qa-upload',
+      actionable: fileUrl ? true : false,
+      actions: fileUrl ? [{
+        label: 'View File',
+        action: () => window.open(fileUrl, '_blank')
+      }] : undefined,
+      category: 'file-upload'
+    });
+  }, [addNotification]);
+
+  const createQAUploadError = useCallback((fileName: string, error: string) => {
+    return addNotification({
+      type: 'error',
+      priority: 'high',
+      title: 'File Upload Failed',
+      message: `Failed to upload ${fileName}: ${error}`,
+      moduleSource: 'qa-upload',
+      actionable: true,
+      actions: [{
+        label: 'Retry Upload',
+        action: () => {
+          // This will be handled by the component
+          console.log('Retry upload action triggered');
+        }
+      }],
+      category: 'file-upload'
+    });
+  }, [addNotification]);
+
+  const createQAValidationWarning = useCallback((fieldName: string, message: string, relatedId?: string) => {
+    return addNotification({
+      type: 'warning',
+      priority: 'medium',
+      title: 'Form Validation',
+      message: `${fieldName}: ${message}`,
+      moduleSource: 'qa-validation',
+      relatedId,
+      actionable: true,
+      category: 'form-validation'
+    });
+  }, [addNotification]);
+
+  const createQAFormMilestone = useCallback((milestone: string, message: string, relatedId?: string) => {
+    return addNotification({
+      type: 'success',
+      priority: 'low',
+      title: `${milestone} Complete ✓`,
+      message,
+      moduleSource: 'qa-progress',
+      relatedId,
+      actionable: false,
+      category: 'form-milestone'
+    });
+  }, [addNotification]);
+
+  const createQAContextualHelp = useCallback((helpTitle: string, helpMessage: string, helpActions?: NotificationAction[]) => {
+    return addNotification({
+      type: 'info',
+      priority: 'low',
+      title: helpTitle,
+      message: helpMessage,
+      moduleSource: 'qa-help',
+      actionable: helpActions ? true : false,
+      actions: helpActions,
+      category: 'contextual-help'
+    });
+  }, [addNotification]);
+
+  const createQAProcessGuide = useCallback((stage: string, nextSteps: string, relatedId?: string) => {
+    return addNotification({
+      type: 'info',
+      priority: 'medium',
+      title: `Process Guide: ${stage}`,
+      message: nextSteps,
+      moduleSource: 'qa-guide',
+      relatedId,
+      actionable: true,
+      category: 'process-guide'
+    });
+  }, [addNotification]);
+
   return {
     notifications: activeNotifications,
     unreadCount,
@@ -393,6 +499,14 @@ export const useSmartNotifications = () => {
     markAsDismissed,
     clearAll,
     getSystemHealth,
-    systemHealth
+    systemHealth,
+    // QA-specific notification helpers
+    createQAUploadProgress,
+    createQAUploadSuccess,
+    createQAUploadError,
+    createQAValidationWarning,
+    createQAFormMilestone,
+    createQAContextualHelp,
+    createQAProcessGuide
   };
 };

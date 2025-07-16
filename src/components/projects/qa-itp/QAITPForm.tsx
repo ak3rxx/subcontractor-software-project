@@ -13,8 +13,10 @@ import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
+import { useEnhancedQANotifications } from '@/hooks/useEnhancedQANotifications';
 import { QAStatusBar } from './QAStatusBar';
 import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
+import EnhancedNotificationTooltip from '@/components/notifications/EnhancedNotificationTooltip';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -29,6 +31,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   const { toast } = useToast();
   const { projects, refetch: refetchProjects } = useProjects();
   const { addNotification } = useSmartNotifications();
+  const qaNotifications = useEnhancedQANotifications();
   
   // Coordinate data updates with other components
   useQAInspectionCoordination(refetchProjects);
@@ -65,7 +68,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       comments: '',
       evidenceFiles: []
     })));
-  }, [formData.template]);
+    
+    // Show template-specific help
+    qaNotifications.notifyTemplateHelp(formData.template);
+  }, [formData.template, qaNotifications]);
 
   // Form is now only for creation - no editing logic needed
 
@@ -78,7 +84,18 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         const selectedProject = projects.find(p => p.id === value);
         if (selectedProject) {
           updated.projectName = selectedProject.name;
+          // Celebrate milestone
+          qaNotifications.notifyFormMilestone('Project Selected', `Working on "${selectedProject.name}"`);
         }
+      }
+      
+      // Check for important field completions
+      if (field === 'inspectorName' && value) {
+        qaNotifications.notifyFormMilestone('Inspector Set', `Inspector: ${value}`);
+      }
+      
+      if (field === 'taskArea' && value) {
+        qaNotifications.notifyFormMilestone('Task Area Defined', `Area: ${value}`);
       }
       
       return updated;
@@ -168,15 +185,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     if (isDraft) {
       // For drafts, we only need project ID to be valid
       if (!formData.projectId.trim()) {
-        addNotification({
-          type: 'warning',
-          priority: 'medium',
-          title: 'Form Incomplete',
-          message: 'Please select a project to save the draft',
-          moduleSource: 'qa',
-          relatedId: projectId,
-          actionable: true
-        });
+        qaNotifications.notifyFieldValidation('Project', false, 'Please select a project to save the draft');
         focusFirstIncompleteField('projectId');
         return false;
       }
@@ -198,43 +207,25 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     // Find first incomplete field
     for (const { field, label } of requiredFields) {
       if (!formData[field as keyof typeof formData].trim()) {
-        addNotification({
-          type: 'warning',
-          priority: 'medium',
-          title: 'Form Incomplete',
-          message: `Please complete the ${label} field`,
-          moduleSource: 'qa',
-          relatedId: projectId,
-          actionable: true
-        });
+        qaNotifications.notifyFieldValidation(label, false, `Please complete the ${label} field`);
         focusFirstIncompleteField(field);
         return false;
       }
     }
 
     if (uploadingFiles) {
-      addNotification({
-        type: 'warning',
-        priority: 'medium',
-        title: 'Upload in Progress',
-        message: 'Please wait for file uploads to complete',
-        moduleSource: 'qa',
-        relatedId: projectId,
-        actionable: false
-      });
+      qaNotifications.notifyProcessStage(
+        'Upload in Progress',
+        'Please wait for file uploads to complete before submitting the inspection'
+      );
       return false;
     }
 
     if (hasUploadFailures) {
-      addNotification({
-        type: 'warning',
-        priority: 'high',
-        title: 'Upload Failed',
-        message: 'Some file uploads failed. Please retry or remove failed uploads',
-        moduleSource: 'qa',
-        relatedId: projectId,
-        actionable: true
-      });
+      qaNotifications.notifyRecoveryAction(
+        'Upload Failed',
+        ['Some file uploads failed', 'Retry failed uploads', 'Remove failed files', 'Submit without failed files']
+      );
       return false;
     }
 
@@ -437,6 +428,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <EnhancedNotificationTooltip />
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
