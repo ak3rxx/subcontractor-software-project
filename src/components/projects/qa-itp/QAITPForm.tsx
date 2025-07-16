@@ -21,6 +21,11 @@ import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 import EnhancedNotificationTooltip from '@/components/notifications/EnhancedNotificationTooltip';
 import EnhancedFileUpload from './EnhancedFileUpload';
 import QAFormValidation from './QAFormValidation';
+import QAContextualHelp from './QAContextualHelp';
+import QAProcessGuide from './QAProcessGuide';
+import QAErrorRecovery from './QAErrorRecovery';
+import QAOnboardingTour from './QAOnboardingTour';
+import { useQAErrorTracking } from '@/hooks/useQAErrorTracking';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -41,6 +46,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   useQAInspectionCoordination(refetchProjects);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false);
+  
+  // Enhanced error tracking
+  const errorTracking = useQAErrorTracking();
 
   const [formData, setFormData] = useState({
     projectId: projectId || '',
@@ -98,8 +107,6 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     // Show template-specific help
     qaNotifications.notifyTemplateHelp(formData.template);
   }, [formData.template, qaNotifications]);
-
-  // Form is now only for creation - no editing logic needed
 
   const handleFormDataChange = (field: string, value: any) => {
     setFormData(prev => {
@@ -163,8 +170,6 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
     // Legacy handler for compatibility
   };
-
-  // Using imported shared status calculation function
 
   // Get missing form fields for better user feedback
   const getMissingFormFields = (): string[] => {
@@ -470,47 +475,122 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <EnhancedNotificationTooltip />
+      
+      {/* Onboarding Tour */}
+      <QAOnboardingTour
+        isVisible={showOnboardingTour}
+        userRole="beginner" // TODO: Get from user context
+        onComplete={() => setShowOnboardingTour(false)}
+        onSkip={() => setShowOnboardingTour(false)}
+        onStepComplete={(step) => console.log('Step completed:', step)}
+      />
+      
+      {/* Process Guide */}
+      <QAProcessGuide
+        formData={formData}
+        checklist={filteredChecklist}
+        onStageAction={(stage, action) => {
+          console.log('Stage action:', stage, action);
+          // TODO: Implement stage navigation
+        }}
+      />
+      
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>
-              Create New QA Inspection
-            </CardTitle>
             <div className="flex items-center gap-2">
+              <CardTitle>
+                Create New QA Inspection
+              </CardTitle>
+              <QAContextualHelp
+                fieldName="inspection_title"
+                templateType={formData.template}
+                currentValue={formData.taskArea}
+                validationErrors={error ? [error] : []}
+                isRequired={true}
+                onHelpAction={(action) => console.log('Help action:', action)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => setShowOnboardingTour(true)}
+                variant="ghost"
+                size="sm"
+              >
+                Show Tour
+              </Button>
               <Button 
                 onClick={saveDraft}
                 disabled={saving || uploadManager.isProcessing}
                 variant={isFormComplete() ? "default" : "secondary"}
               >
                 <Save className="h-4 w-4 mr-2" />
-                {isFormComplete() ? 'Create Inspection' : 'Save Draft'}
+                Save Draft
               </Button>
-              <Button variant="outline" onClick={onClose} disabled={saving}>
+              <Button 
+                onClick={onClose}
+                disabled={saving || uploadManager.isProcessing}
+                variant="outline"
+              >
                 <X className="h-4 w-4 mr-2" />
-                Close
+                Cancel
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Enhanced validation and guidance */}
-          <QAFormValidation 
-            formData={formData}
-            checklist={checklist}
-            onFieldFocus={focusFirstIncompleteField}
-            enableAutoSave={true}
-            lastSaved={autoSave.lastSaved}
-            hasUnsavedChanges={autoSave.hasUnsavedChanges}
-          />
-
-          {!isFormComplete() && (
-            <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-700">
-              <AlertCircle className="h-4 w-4" />
-              <span>Form is incomplete. You can save as draft or complete all required fields to create the inspection.</span>
-            </div>
+          {/* Error Recovery Component */}
+          {(error || uploadManager.failedFiles.length > 0) && (
+            <QAErrorRecovery
+              errors={[
+                ...(error ? [{
+                  id: 'form-error',
+                  type: 'validation' as const,
+                  severity: 'high' as const,
+                  message: error,
+                  details: 'Form validation error occurred'
+                }] : []),
+                ...uploadManager.failedFiles.map(file => ({
+                  id: file.id,
+                  type: 'upload' as const,
+                  severity: 'medium' as const,
+                  message: `Upload failed for ${file.name}`,
+                  details: file.error || 'Unknown upload error'
+                }))
+              ]}
+              onErrorResolved={(errorId) => {
+                if (errorId === 'form-error') {
+                  setError(null);
+                }
+              }}
+              onRetry={async (context) => {
+                if (context.type === 'upload') {
+                  uploadManager.retryUpload(context.id);
+                  return true;
+                } else if (context.type === 'form') {
+                  try {
+                    await handleSubmit();
+                    return true;
+                  } catch {
+                    return false;
+                  }
+                }
+                return false;
+              }}
+              onEscalate={(errorId, details) => {
+                console.log('Escalating error:', errorId, details);
+                // TODO: Implement escalation system
+              }}
+            />
           )}
 
-          <QAITPProjectInfo 
+          <QAStatusBar 
+            checklist={filteredChecklist}
+            isFormComplete={isFormComplete()}
+            missingFormFields={getMissingFormFields()}
+          />
+
+          <QAITPProjectInfo
             formData={formData}
             isFireDoor={isFireDoor}
             projects={projects}
@@ -519,56 +599,76 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
             onTemplateChange={handleTemplateChange}
           />
 
-          {/* Status Bar - Shows real-time progress */}
-          <QAStatusBar 
-            checklist={filteredChecklist} 
-            isFormComplete={isFormComplete()} 
-            missingFormFields={getMissingFormFields()}
-          />
+          {checklist.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground">Inspection Checklist</h3>
+                <QAContextualHelp
+                  fieldName="checklist_items"
+                  templateType={formData.template}
+                  currentValue={filteredChecklist.length.toString()}
+                  validationErrors={[]}
+                  isRequired={true}
+                  onHelpAction={(action) => console.log('Checklist help action:', action)}
+                />
+              </div>
+              <div className="space-y-3">
+                {filteredChecklist.map((item, index) => (
+                  <div key={item.id} className="relative">
+                    <QAITPChecklistItem
+                      item={item}
+                      onChecklistChange={handleChecklistChange}
+                      onUploadStatusChange={handleUploadStatusChange}
+                      inspectionId={null}
+                    />
+                    <div className="absolute -right-8 top-2">
+                      <QAContextualHelp
+                        fieldName="checklist_item"
+                        templateType={formData.template}
+                        currentValue={item.status || ''}
+                        validationErrors={[]}
+                        isRequired={true}
+                        onHelpAction={(action) => console.log('Item help action:', action)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Inspection Checklist</h3>
-            {filteredChecklist.map((item) => (
-              <QAITPChecklistItem
-                key={item.id}
-                item={item}
-                onChecklistChange={(id, field, value) => handleChecklistChange(id, field, value)}
-                onUploadStatusChange={handleUploadStatusChange}
-              />
-            ))}
+          <div className="flex items-center gap-2">
+            <QAITPSignOff
+              formData={formData}
+              onFormDataChange={handleFormDataChange}
+              calculatedStatus={calculateOverallStatus(filteredChecklist, isFormComplete())}
+            />
+            <QAContextualHelp
+              fieldName="digital_signature"
+              templateType={formData.template}
+              currentValue={formData.digitalSignature}
+              validationErrors={error && formData.digitalSignature === '' ? [error] : []}
+              isRequired={true}
+              onHelpAction={(action) => console.log('Signature help action:', action)}
+            />
           </div>
 
-          <QAITPSignOff
-            formData={formData}
-            onFormDataChange={handleFormDataChange}
-            calculatedStatus={calculateOverallStatus(filteredChecklist, isFormComplete())}
-          />
-
-          <div className="flex justify-between items-center">
+          <div className="flex justify-end gap-3">
             <Button 
               onClick={saveDraft}
               disabled={saving || uploadManager.isProcessing}
-              variant="secondary"
+              variant="outline"
             >
               <Save className="h-4 w-4 mr-2" />
-              Save Draft
+              {saving ? 'Saving...' : 'Save Draft'}
             </Button>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={onClose}
-                disabled={saving}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSubmit}
-                disabled={saving || uploadManager.isProcessing}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Creating...' : 'Create Inspection'}
-              </Button>
-            </div>
+            <Button 
+              onClick={handleSubmit}
+              disabled={saving || uploadManager.isProcessing}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {saving ? 'Submitting...' : 'Submit Inspection'}
+            </Button>
           </div>
         </CardContent>
       </Card>
