@@ -52,7 +52,17 @@ export const useSimpleAuth = () => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        return;
+      }
+      // Force navigation to auth page after successful sign out
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
   };
 
   const resetPassword = async (email: string) => {

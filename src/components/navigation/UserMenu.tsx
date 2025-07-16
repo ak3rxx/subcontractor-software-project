@@ -18,8 +18,9 @@ const UserMenu = memo(() => {
     avatarUrl: user?.user_metadata?.avatar_url
   }), [user?.email, user?.user_metadata?.avatar_url]);
 
-  const handleSignOut = useCallback(() => {
-    signOut();
+  const handleSignOut = useCallback(async () => {
+    console.log('Sign out button clicked');
+    await signOut();
   }, [signOut]);
 
   return (
