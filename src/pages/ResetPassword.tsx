@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,27 +9,83 @@ import { useToast } from '@/hooks/use-toast';
 import { Building2, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Utility function to parse URL fragment parameters
+const parseUrlFragment = (hash: string) => {
+  const params = new URLSearchParams(hash.substring(1));
+  return {
+    access_token: params.get('access_token'),
+    refresh_token: params.get('refresh_token'),
+    type: params.get('type'),
+    error: params.get('error'),
+    error_description: params.get('error_description')
+  };
+};
+
 const ResetPassword = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [validSession, setValidSession] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  // Check for error parameters in URL
+  // Handle URL fragments and establish recovery session
   useEffect(() => {
-    const errorCode = searchParams.get('error_code');
-    const errorDescription = searchParams.get('error_description');
-    
-    if (errorCode === 'otp_expired' || errorDescription?.includes('expired')) {
-      setError('This password reset link has expired. Please request a new one.');
-    } else if (searchParams.get('error') === 'access_denied') {
-      setError('Invalid or expired password reset link. Please request a new one.');
-    }
-  }, [searchParams]);
+    const handlePasswordReset = async () => {
+      try {
+        // Parse URL fragment for tokens
+        const fragmentParams = parseUrlFragment(location.hash);
+        
+        // Check for errors in URL
+        if (fragmentParams.error) {
+          if (fragmentParams.error === 'access_denied' || fragmentParams.error_description?.includes('expired')) {
+            setError('This password reset link has expired or is invalid. Please request a new one.');
+          } else {
+            setError(fragmentParams.error_description || 'Invalid password reset link.');
+          }
+          setCheckingSession(false);
+          return;
+        }
+
+        // If we have tokens, establish the session
+        if (fragmentParams.access_token && fragmentParams.refresh_token && fragmentParams.type === 'recovery') {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: fragmentParams.access_token,
+            refresh_token: fragmentParams.refresh_token
+          });
+
+          if (error) {
+            console.error('Session error:', error);
+            setError('Invalid or expired password reset link. Please request a new one.');
+          } else if (data.session) {
+            // Verify this is a recovery session
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              setValidSession(true);
+              // Clear the URL fragment for security
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+              setError('Invalid password reset session. Please request a new one.');
+            }
+          }
+        } else {
+          // No valid tokens found
+          setError('Invalid password reset link. Please request a new one.');
+        }
+      } catch (err) {
+        console.error('Password reset initialization error:', err);
+        setError('An error occurred while processing the password reset link.');
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    handlePasswordReset();
+  }, [location.hash]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +141,30 @@ const ResetPassword = () => {
     navigate('/auth');
   };
 
+  // Show loading state while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <Building2 className="h-12 w-12 text-blue-600" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Grandscale</h1>
+            <p className="text-gray-600 mt-2">Construction Project Management</p>
+          </div>
+          <Card>
+            <CardContent className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Verifying password reset link...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show success state
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -133,7 +213,7 @@ const ResetPassword = () => {
           <CardHeader>
             <CardTitle>Reset Your Password</CardTitle>
             <CardDescription>
-              Enter your new password below
+              {validSession ? 'Enter your new password below' : 'Password Reset Link Required'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -144,13 +224,13 @@ const ResetPassword = () => {
               </Alert>
             )}
 
-            {error.includes('expired') || error.includes('Invalid') ? (
+            {!validSession || error ? (
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  The password reset link has expired or is invalid. Please request a new one.
+                  {error ? error : 'Please use a valid password reset link to access this page.'}
                 </p>
                 <Button onClick={handleRequestNewLink} className="w-full">
-                  Request New Password Reset
+                  Go to Sign In
                 </Button>
               </div>
             ) : (
