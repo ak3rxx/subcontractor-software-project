@@ -14,9 +14,12 @@ import { useOrganizations } from '@/hooks/useOrganizations';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { useEnhancedQANotifications } from '@/hooks/useEnhancedQANotifications';
+import { useFormAutoSave } from '@/hooks/useFormAutoSave';
 import { QAStatusBar } from './QAStatusBar';
 import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 import EnhancedNotificationTooltip from '@/components/notifications/EnhancedNotificationTooltip';
+import EnhancedFileUpload from './EnhancedFileUpload';
+import QAFormValidation from './QAFormValidation';
 
 interface QAITPFormProps {
   onClose: () => void;
@@ -58,6 +61,15 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   const [isFireDoor, setIsFireDoor] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [hasUploadFailures, setHasUploadFailures] = useState(false);
+
+  // Auto-save functionality
+  const autoSave = useFormAutoSave(formData, {
+    key: `qa-form-${projectId || 'new'}`,
+    onRestore: (data) => {
+      setFormData(data);
+      qaNotifications.notifyFormMilestone('Draft Restored', 'Previous work restored from auto-save');
+    }
+  });
 
   // Initialize checklist when template changes
   useEffect(() => {

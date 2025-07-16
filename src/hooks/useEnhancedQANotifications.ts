@@ -172,6 +172,14 @@ export const useEnhancedQANotifications = () => {
     );
   }, [createQAValidationWarning]);
 
+  const notifyAutoSave = useCallback((fileCount: number) => {
+    return createQAFormMilestone(
+      'Auto-saved',
+      `${fileCount} files saved to draft`,
+      'autosave'
+    );
+  }, [createQAFormMilestone]);
+
   return {
     // Upload notifications
     notifyUploadStart,
@@ -197,6 +205,9 @@ export const useEnhancedQANotifications = () => {
     // Error recovery
     notifyRecoveryAction,
     notifyDataLoss,
+    
+    // Auto-save
+    notifyAutoSave,
     
     // Utility
     markAsDismissed
