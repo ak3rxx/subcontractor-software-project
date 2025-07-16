@@ -15,6 +15,7 @@ import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { useEnhancedQANotifications } from '@/hooks/useEnhancedQANotifications';
 import { useFormAutoSave } from '@/hooks/useFormAutoSave';
+import { useQAUploadManager } from '@/hooks/useQAUploadManager';
 import { QAStatusBar } from './QAStatusBar';
 import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 import EnhancedNotificationTooltip from '@/components/notifications/EnhancedNotificationTooltip';
@@ -59,17 +60,30 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [isFireDoor, setIsFireDoor] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [hasUploadFailures, setHasUploadFailures] = useState(false);
 
-  // Auto-save functionality
-  const autoSave = useFormAutoSave(formData, {
-    key: `qa-form-${projectId || 'new'}`,
-    onRestore: (data) => {
-      setFormData(data);
-      qaNotifications.notifyFormMilestone('Draft Restored', 'Previous work restored from auto-save');
-    }
+  // Enhanced upload management
+  const uploadManager = useQAUploadManager({
+    folder: `inspections/${formData.projectId || 'temp'}`
   });
+
+  // Auto-save functionality with enhanced persistence
+  const autoSave = useFormAutoSave(
+    { ...formData, checklist }, 
+    {
+      key: `qa-form-${projectId || 'new'}`,
+      interval: 30000, // Save every 30 seconds
+      onSave: (data) => {
+        qaNotifications.notifyAutoSave(Object.keys(data).length);
+      },
+      onRestore: (data) => {
+        setFormData(data.formData || data);
+        if (data.checklist) {
+          setChecklist(data.checklist);
+        }
+        qaNotifications.notifyFormMilestone('Draft Restored', 'Previous work restored from auto-save');
+      }
+    }
+  );
 
   // Initialize checklist when template changes
   useEffect(() => {
@@ -130,9 +144,24 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     ));
   };
 
+  const handleFileUpload = async (files: FileList, itemId: string) => {
+    const fileArray = Array.from(files);
+    
+    for (const file of fileArray) {
+      try {
+        await uploadManager.queueFiles([file]);
+        qaNotifications.notifyUploadProgress(file.name, 100, 100);
+      } catch (error) {
+        qaNotifications.notifyRecoveryAction(
+          'Upload Failed',
+          [`Failed to upload ${file.name}`, 'Check file size and type', 'Retry upload', 'Continue without this file']
+        );
+      }
+    }
+  };
+
   const handleUploadStatusChange = (isUploading: boolean, hasFailures: boolean) => {
-    setUploadingFiles(isUploading);
-    setHasUploadFailures(hasFailures);
+    // Legacy handler for compatibility
   };
 
   // Using imported shared status calculation function
@@ -225,7 +254,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       }
     }
 
-    if (uploadingFiles) {
+    if (uploadManager.isProcessing) {
       qaNotifications.notifyProcessStage(
         'Upload in Progress',
         'Please wait for file uploads to complete before submitting the inspection'
@@ -233,7 +262,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       return false;
     }
 
-    if (hasUploadFailures) {
+    if (uploadManager.failedFiles.length > 0) {
       qaNotifications.notifyRecoveryAction(
         'Upload Failed',
         ['Some file uploads failed', 'Retry failed uploads', 'Remove failed files', 'Submit without failed files']
@@ -450,7 +479,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
             <div className="flex items-center gap-2">
               <Button 
                 onClick={saveDraft}
-                disabled={saving || uploadingFiles}
+                disabled={saving || uploadManager.isProcessing}
                 variant={isFormComplete() ? "default" : "secondary"}
               >
                 <Save className="h-4 w-4 mr-2" />
@@ -464,6 +493,15 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Enhanced validation and guidance */}
+          <QAFormValidation 
+            formData={formData}
+            checklist={checklist}
+            onFieldFocus={focusFirstIncompleteField}
+            enableAutoSave={true}
+            lastSaved={autoSave.lastSaved}
+            hasUnsavedChanges={autoSave.hasUnsavedChanges}
+          />
 
           {!isFormComplete() && (
             <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-700">
@@ -494,7 +532,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               <QAITPChecklistItem
                 key={item.id}
                 item={item}
-                onChecklistChange={handleChecklistChange}
+                onChecklistChange={(id, field, value) => handleChecklistChange(id, field, value)}
                 onUploadStatusChange={handleUploadStatusChange}
               />
             ))}
@@ -509,7 +547,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           <div className="flex justify-between items-center">
             <Button 
               onClick={saveDraft}
-              disabled={saving || uploadingFiles}
+              disabled={saving || uploadManager.isProcessing}
               variant="secondary"
             >
               <Save className="h-4 w-4 mr-2" />
@@ -525,7 +563,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               </Button>
               <Button 
                 onClick={handleSubmit}
-                disabled={saving || uploadingFiles}
+                disabled={saving || uploadManager.isProcessing}
               >
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? 'Creating...' : 'Create Inspection'}
