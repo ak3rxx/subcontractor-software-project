@@ -110,89 +110,134 @@ export const useQAInspectionsSimple = (projectId?: string) => {
   ) => {
     if (!user) return null;
 
-    try {
-      // Generate project-specific inspection number
-      const { data: numberData, error: numberError } = await supabase
-        .rpc('generate_qa_inspection_number', { project_uuid: inspectionData.project_id });
+    const maxRetries = 3;
+    let attempt = 0;
 
-      if (numberError) {
+    while (attempt < maxRetries) {
+      try {
+        attempt++;
+        console.log(`QA: Creating inspection attempt ${attempt}/${maxRetries}`);
+
+        // Generate project-specific inspection number
+        const { data: numberData, error: numberError } = await supabase
+          .rpc('generate_qa_inspection_number', { project_uuid: inspectionData.project_id });
+
+        if (numberError) {
+          console.error('QA: Number generation error:', numberError);
+          if (attempt === maxRetries) {
+            toast({
+              title: "Error",
+              description: "Failed to generate inspection number after multiple attempts",
+              variant: "destructive"
+            });
+            return null;
+          }
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+          continue;
+        }
+
+        console.log(`QA: Generated inspection number: ${numberData}`);
+
+        // Get user's organization
+        const { data: orgData } = await supabase
+          .from('organization_users')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        const insertData = {
+          ...inspectionData,
+          inspection_number: numberData,
+          created_by: user.id,
+          organization_id: orgData?.organization_id || null
+        };
+
+        const { data: inspectionResult, error: inspectionError } = await supabase
+          .from('qa_inspections')
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (inspectionError) {
+          console.error('QA: Inspection creation error:', inspectionError);
+          
+          // Check if it's a unique constraint violation (duplicate inspection number)
+          if (inspectionError.code === '23505' && 
+              inspectionError.message?.includes('unique_inspection_number_per_project')) {
+            console.log('QA: Duplicate inspection number detected, retrying...');
+            if (attempt < maxRetries) {
+              // Wait before retry with exponential backoff
+              await new Promise(resolve => setTimeout(resolve, 200 * Math.pow(2, attempt - 1)));
+              continue;
+            }
+          }
+          
+          // For other errors or max retries reached
+          toast({
+            title: "Error",
+            description: attempt === maxRetries ? 
+              "Failed to create inspection after multiple attempts" : 
+              "Failed to create inspection",
+            variant: "destructive"
+          });
+          return null;
+        }
+
+        // Success - break out of retry loop
+        console.log(`QA: Inspection created successfully with number: ${numberData}`);
+
+        // Insert checklist items
+        if (checklistItems.length > 0) {
+          const checklistInserts = checklistItems.map(item => ({
+            inspection_id: inspectionResult.id,
+            item_id: item.item_id,
+            description: item.description,
+            requirements: item.requirements,
+            status: item.status || '',
+            comments: item.comments || null,
+            evidence_files: item.evidence_files.length > 0 ? item.evidence_files : null
+          }));
+
+          await supabase
+            .from('qa_checklist_items')
+            .insert(checklistInserts);
+        }
+
         toast({
-          title: "Error",
-          description: "Failed to generate inspection number",
-          variant: "destructive"
+          title: "Success",
+          description: "QA inspection created successfully"
         });
-        return null;
-      }
 
-      // Get user's organization
-      const { data: orgData } = await supabase
-        .from('organization_users')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      const insertData = {
-        ...inspectionData,
-        inspection_number: numberData,
-        created_by: user.id,
-        organization_id: orgData?.organization_id || null
-      };
-
-      const { data: inspectionResult, error: inspectionError } = await supabase
-        .from('qa_inspections')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (inspectionError) {
-        console.error('Error creating inspection:', inspectionError);
-        toast({
-          title: "Error",
-          description: "Failed to create inspection",
-          variant: "destructive"
-        });
-        return null;
-      }
-
-      // Insert checklist items
-      if (checklistItems.length > 0) {
-        const checklistInserts = checklistItems.map(item => ({
-          inspection_id: inspectionResult.id,
-          item_id: item.item_id,
-          description: item.description,
-          requirements: item.requirements,
-          status: item.status || '',
-          comments: item.comments || null,
-          evidence_files: item.evidence_files.length > 0 ? item.evidence_files : null
+        // Notify other components about the new inspection
+        window.dispatchEvent(new CustomEvent('qa-inspection-created', { 
+          detail: { inspectionId: inspectionResult.id, projectId } 
         }));
 
-        await supabase
-          .from('qa_checklist_items')
-          .insert(checklistInserts);
+        await fetchInspections(projectId, user);
+        return inspectionResult;
+
+      } catch (error) {
+        console.error(`QA: Error on attempt ${attempt}:`, error);
+        
+        // If this was the last attempt, show error and return
+        if (attempt === maxRetries) {
+          toast({
+            title: "Error",
+            description: "Failed to create inspection after multiple attempts",
+            variant: "destructive"
+          });
+          return null;
+        }
+        
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 200 * Math.pow(2, attempt - 1)));
       }
-
-      toast({
-        title: "Success",
-        description: "QA inspection created successfully"
-      });
-
-      // Notify other components about the new inspection
-      window.dispatchEvent(new CustomEvent('qa-inspection-created', { 
-        detail: { inspectionId: inspectionResult.id, projectId } 
-      }));
-
-      await fetchInspections(projectId, user);
-      return inspectionResult;
-    } catch (error) {
-      console.error('Error creating inspection:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create inspection",
-        variant: "destructive"
-      });
-      return null;
     }
+
+    // This should never be reached, but just in case
+    return null;
   }, [user, toast, fetchInspections, projectId]);
 
   const updateInspection = useCallback(async (

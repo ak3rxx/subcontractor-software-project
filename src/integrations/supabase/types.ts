@@ -2204,6 +2204,14 @@ export type Database = {
         Args: { project_uuid: string }
         Returns: string
       }
+      generate_qa_inspection_number_atomic: {
+        Args: { project_uuid: string }
+        Returns: string
+      }
+      generate_qa_inspection_number_sequence: {
+        Args: { project_uuid: string }
+        Returns: string
+      }
       generate_variation_number: {
         Args: { project_uuid: string }
         Returns: string
