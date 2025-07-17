@@ -1,8 +1,12 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { History } from 'lucide-react';
 import QADetailsTab from './QADetailsTab';
 import QAChecklistTab from './QAChecklistTab';
 import QAAttachmentsTab from './QAAttachmentsTab';
+import QAChangeHistory from './QAChangeHistory';
+import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 
 interface QAInspectionTabsProps {
   inspection: any;
@@ -25,13 +29,23 @@ const QAInspectionTabs: React.FC<QAInspectionTabsProps> = ({
   onUpdate,
   onInspectionUpdate
 }) => {
+  const { changeHistory } = useQAChangeHistory(inspection?.id);
   return (
     <div className="flex-1 overflow-hidden">
       <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
-        <TabsList className="flex-shrink-0 grid w-full grid-cols-3">
+        <TabsList className="flex-shrink-0 grid w-full grid-cols-4">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
           <TabsTrigger value="attachments">Attachments</TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            History
+            {changeHistory.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 text-xs">
+                {changeHistory.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-hidden">
@@ -55,6 +69,13 @@ const QAInspectionTabs: React.FC<QAInspectionTabsProps> = ({
             <QAAttachmentsTab
               inspection={inspection}
               isEditing={isEditing}
+            />
+          </TabsContent>
+
+          <TabsContent value="history" className="h-full mt-4">
+            <QAChangeHistory
+              inspectionId={inspection?.id}
+              changeHistory={changeHistory}
             />
           </TabsContent>
         </div>
