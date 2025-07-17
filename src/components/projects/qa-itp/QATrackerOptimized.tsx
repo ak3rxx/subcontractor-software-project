@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import QAITPForm from './QAITPForm';
 import QAInspectionModal from './QAInspectionModal';
 import QABulkExport from './QABulkExport';
@@ -6,7 +6,11 @@ import QATrackerHeader from './tracker/QATrackerHeader';
 import QATrackerStats from './tracker/QATrackerStats';
 import QATrackerFilters from './tracker/QATrackerFilters';
 import QATrackerTable from './tracker/QATrackerTable';
+import QAMetricsDashboard from './analytics/QAMetricsDashboard';
+import QAReportGenerator from './analytics/QAReportGenerator';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart3, FileText, List } from 'lucide-react';
 
 interface QATrackerProps {
   projectId: string;
@@ -19,6 +23,7 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   onNewInspection,
   onNavigateToTracker
 }) => {
+  const [showReportGenerator, setShowReportGenerator] = useState(false);
   const {
     // Data
     loading,
@@ -112,60 +117,99 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     );
   }
 
+  if (showReportGenerator) {
+    return (
+      <QAReportGenerator
+        projectId={projectId}
+        onClose={() => setShowReportGenerator(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <QATrackerHeader onNewInspection={() => setShowCreateForm(true)} />
       
-      <QATrackerStats statusCounts={statusCounts} />
-      
-      <QATrackerFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        inspectionTypeFilter={inspectionTypeFilter}
-        setInspectionTypeFilter={setInspectionTypeFilter}
-        templateTypeFilter={templateTypeFilter}
-        setTemplateTypeFilter={setTemplateTypeFilter}
-        inspectorFilter={inspectorFilter}
-        setInspectorFilter={setInspectorFilter}
-        dateRangeFilter={dateRangeFilter}
-        setDateRangeFilter={setDateRangeFilter}
-        buildingFilter={buildingFilter}
-        setBuildingFilter={setBuildingFilter}
-        levelFilter={levelFilter}
-        setLevelFilter={setLevelFilter}
-        taskFilter={taskFilter}
-        setTaskFilter={setTaskFilter}
-        tradeFilter={tradeFilter}
-        setTradeFilter={setTradeFilter}
-        showAdvancedFilters={showAdvancedFilters}
-        setShowAdvancedFilters={setShowAdvancedFilters}
-        hasActiveFilters={hasActiveFilters}
-        clearFilters={clearFilters}
-        statusCounts={statusCounts}
-        uniqueInspectors={uniqueInspectors}
-        uniqueBuildings={uniqueBuildings}
-        uniqueLevels={uniqueLevels}
-        uniqueTasks={uniqueTasks}
-        uniqueTrades={uniqueTrades}
-      />
-      
-      <QATrackerTable
-        filteredInspections={filteredInspections}
-        selectedItems={selectedItems}
-        onSelectItem={handleSelectItem}
-        onSelectAll={handleSelectAll}
-        onViewInspection={handleViewInspection}
-        onEditInspection={handleEditInspection}
-        onDeleteInspection={handleDeleteInspection}
-        getStatusColor={getStatusColor}
-        getStatusIcon={getStatusIcon}
-        hasActiveFilters={hasActiveFilters}
-        onNewInspection={() => setShowCreateForm(true)}
-        onExportSelected={() => setShowBulkExport(true)}
-        onBulkDelete={handleBulkDelete}
-      />
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">QA List</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Analytics</span>
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Reports</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="space-y-6 mt-6">
+          <QATrackerStats statusCounts={statusCounts} />
+          
+          <QATrackerFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            inspectionTypeFilter={inspectionTypeFilter}
+            setInspectionTypeFilter={setInspectionTypeFilter}
+            templateTypeFilter={templateTypeFilter}
+            setTemplateTypeFilter={setTemplateTypeFilter}
+            inspectorFilter={inspectorFilter}
+            setInspectorFilter={setInspectorFilter}
+            dateRangeFilter={dateRangeFilter}
+            setDateRangeFilter={setDateRangeFilter}
+            buildingFilter={buildingFilter}
+            setBuildingFilter={setBuildingFilter}
+            levelFilter={levelFilter}
+            setLevelFilter={setLevelFilter}
+            taskFilter={taskFilter}
+            setTaskFilter={setTaskFilter}
+            tradeFilter={tradeFilter}
+            setTradeFilter={setTradeFilter}
+            showAdvancedFilters={showAdvancedFilters}
+            setShowAdvancedFilters={setShowAdvancedFilters}
+            hasActiveFilters={hasActiveFilters}
+            clearFilters={clearFilters}
+            statusCounts={statusCounts}
+            uniqueInspectors={uniqueInspectors}
+            uniqueBuildings={uniqueBuildings}
+            uniqueLevels={uniqueLevels}
+            uniqueTasks={uniqueTasks}
+            uniqueTrades={uniqueTrades}
+          />
+          
+          <QATrackerTable
+            filteredInspections={filteredInspections}
+            selectedItems={selectedItems}
+            onSelectItem={handleSelectItem}
+            onSelectAll={handleSelectAll}
+            onViewInspection={handleViewInspection}
+            onEditInspection={handleEditInspection}
+            onDeleteInspection={handleDeleteInspection}
+            getStatusColor={getStatusColor}
+            getStatusIcon={getStatusIcon}
+            hasActiveFilters={hasActiveFilters}
+            onNewInspection={() => setShowCreateForm(true)}
+            onExportSelected={() => setShowBulkExport(true)}
+            onBulkDelete={handleBulkDelete}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-6">
+          <QAMetricsDashboard projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="reports" className="mt-6">
+          <QAReportGenerator 
+            projectId={projectId}
+            onClose={() => setShowReportGenerator(false)}
+          />
+        </TabsContent>
+      </Tabs>
 
       {selectedInspection && (
         <QAInspectionModal
