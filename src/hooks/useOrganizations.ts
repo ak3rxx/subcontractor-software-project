@@ -50,14 +50,16 @@ export const useOrganizations = () => {
         .from('organization_users')
         .select(`
           *,
-          organizations (*)
+          organizations!organization_users_organization_id_fkey (*)
         `)
         .eq('user_id', user.id)
         .eq('status', 'active');
 
       if (error) {
         console.error('Error fetching organizations:', error);
-        // Don't show error toast as organization is optional
+        // Graceful degradation - continue without organization context
+        setOrganizations([]);
+        setCurrentOrganization(null);
         return;
       }
 
@@ -70,6 +72,9 @@ export const useOrganizations = () => {
       }
     } catch (error) {
       console.error('Error:', error);
+      // Graceful degradation - continue without organization context
+      setOrganizations([]);
+      setCurrentOrganization(null);
     } finally {
       setLoading(false);
     }
@@ -81,7 +86,7 @@ export const useOrganizations = () => {
         .from('organization_users')
         .select(`
           *,
-          profiles (
+          profiles!organization_users_user_id_fkey (
             full_name,
             email
           )
@@ -91,6 +96,7 @@ export const useOrganizations = () => {
 
       if (error) {
         console.error('Error fetching organization users:', error);
+        setOrganizationUsers([]);
         return;
       }
 
@@ -102,6 +108,7 @@ export const useOrganizations = () => {
       setOrganizationUsers(users || []);
     } catch (error) {
       console.error('Error:', error);
+      setOrganizationUsers([]);
     }
   };
 

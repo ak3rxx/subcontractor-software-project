@@ -66,17 +66,21 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
   const autoSaveTimerRef = useRef<NodeJS.Timeout>();
   const uploadStartTimes = useRef<Map<string, number>>(new Map());
 
-  // Auto-save functionality
+  // Auto-save functionality with conflict prevention
   useEffect(() => {
     if (enableAutoSave && uploadedFiles.length > 0) {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
       
+      // Use longer interval to prevent conflicts with form auto-save
       autoSaveTimerRef.current = setTimeout(() => {
         saveToLocalStorage();
-        qaNotifications.notifyAutoSave(uploadedFiles.length);
-      }, autoSaveInterval);
+        // Only notify occasionally to prevent spam
+        if (uploadedFiles.length % 5 === 0) {
+          qaNotifications.notifyAutoSave(uploadedFiles.length);
+        }
+      }, autoSaveInterval + 5000); // Offset by 5 seconds
     }
 
     return () => {

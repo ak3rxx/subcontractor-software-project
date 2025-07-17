@@ -8,14 +8,13 @@ import { ChecklistItem, templates } from './QAITPTemplates';
 import QAITPChecklistItem from './QAITPChecklistItem';
 import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
-import { AlertCircle, Save, X } from 'lucide-react';
+import { AlertCircle, Save, X, RefreshCw } from 'lucide-react';
 import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useQAInspectionCoordination } from '@/hooks/useDataCoordination';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { useEnhancedQANotifications } from '@/hooks/useEnhancedQANotifications';
-import { useFormAutoSave } from '@/hooks/useFormAutoSave';
-import { useQAUploadManager } from '@/hooks/useQAUploadManager';
+import { useCoordinatedFormState } from '@/hooks/useCoordinatedFormState';
 import { QAStatusBar } from './QAStatusBar';
 import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 import EnhancedNotificationTooltip from '@/components/notifications/EnhancedNotificationTooltip';
@@ -44,14 +43,13 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   
   // Coordinate data updates with other components
   useQAInspectionCoordination(refetchProjects);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOnboardingTour, setShowOnboardingTour] = useState(false);
   
   // Enhanced error tracking
   const errorTracking = useQAErrorTracking();
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     projectId: projectId || '',
     projectName: '',
     taskArea: '',
@@ -65,34 +63,20 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
     inspectionDate: new Date().toISOString().split('T')[0],
     digitalSignature: '',
     overallStatus: 'incomplete-draft'
-  });
+  };
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [isFireDoor, setIsFireDoor] = useState(false);
 
-  // Enhanced upload management
-  const uploadManager = useQAUploadManager({
-    folder: `inspections/${formData.projectId || 'temp'}`
+  // Enhanced coordinated form state management
+  const coordinatedForm = useCoordinatedFormState(initialFormData, {
+    formKey: `qa-form-${projectId || 'new'}`,
+    projectId,
+    autoSaveInterval: 30000,
+    enableValidation: true
   });
 
-  // Auto-save functionality with enhanced persistence
-  const autoSave = useFormAutoSave(
-    { ...formData, checklist }, 
-    {
-      key: `qa-form-${projectId || 'new'}`,
-      interval: 30000, // Save every 30 seconds
-      onSave: (data) => {
-        qaNotifications.notifyAutoSave(Object.keys(data).length);
-      },
-      onRestore: (data) => {
-        setFormData(data.formData || data);
-        if (data.checklist) {
-          setChecklist(data.checklist);
-        }
-        qaNotifications.notifyFormMilestone('Draft Restored', 'Previous work restored from auto-save');
-      }
-    }
-  );
+  const { formData, updateFormData, isSubmitting, formLocked, uploadManager, autoSave } = coordinatedForm;
 
   // Initialize checklist when template changes
   useEffect(() => {
@@ -109,35 +93,37 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   }, [formData.template, qaNotifications]);
 
   const handleFormDataChange = (field: string, value: any) => {
-    setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      
-      // Auto-fill project name when project is selected
-      if (field === 'projectId' && value) {
-        const selectedProject = projects.find(p => p.id === value);
-        if (selectedProject) {
-          updated.projectName = selectedProject.name;
-          // Celebrate milestone
-          qaNotifications.notifyFormMilestone('Project Selected', `Working on "${selectedProject.name}"`);
-        }
+    if (formLocked) {
+      qaNotifications.notifyFieldValidation(field, false, 'Form is locked during submission');
+      return;
+    }
+
+    const updates: Partial<typeof formData> = { [field]: value };
+    
+    // Auto-fill project name when project is selected
+    if (field === 'projectId' && value) {
+      const selectedProject = projects.find(p => p.id === value);
+      if (selectedProject) {
+        updates.projectName = selectedProject.name;
+        qaNotifications.notifyFormMilestone('Project Selected', `Working on "${selectedProject.name}"`);
       }
-      
-      // Check for important field completions
-      if (field === 'inspectorName' && value) {
-        qaNotifications.notifyFormMilestone('Inspector Set', `Inspector: ${value}`);
-      }
-      
-      if (field === 'taskArea' && value) {
-        qaNotifications.notifyFormMilestone('Task Area Defined', `Area: ${value}`);
-      }
-      
-      return updated;
-    });
+    }
+    
+    // Check for important field completions
+    if (field === 'inspectorName' && value) {
+      qaNotifications.notifyFormMilestone('Inspector Set', `Inspector: ${value}`);
+    }
+    
+    if (field === 'taskArea' && value) {
+      qaNotifications.notifyFormMilestone('Task Area Defined', `Area: ${value}`);
+    }
+    
+    updateFormData(updates);
     setError(null);
   };
 
   const handleTemplateChange = (templateKey: string) => {
-    setFormData(prev => ({ ...prev, template: templateKey }));
+    updateFormData('template', templateKey);
     if (templateKey && templates[templateKey as keyof typeof templates]) {
       setChecklist(templates[templateKey as keyof typeof templates].items);
     } else {
@@ -284,188 +270,195 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   };
 
   const saveDraft = async () => {
-    if (!validateFormWithNotification(true)) {
-      return;
-    }
-
-    // Show confirmation for incomplete forms
-    if (!isFormComplete()) {
-      const confirmed = window.confirm(
-        'This form is incomplete. Are you sure you want to save it as a draft?\n\nIncomplete fields will need to be filled before the inspection can be finalized.'
-      );
-      if (!confirmed) return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      // Filter checklist based on fire door setting
-      const filteredChecklist = checklist.filter(item => 
-        !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
-      );
-
-      // Combine building, level, and building reference for location_reference
-      const locationParts = [formData.building || 'TBD'];
-      if (formData.level.trim()) {
-        locationParts.push(`Level ${formData.level}`);
-      }
-      if (formData.buildingReference.trim()) {
-        locationParts.push(formData.buildingReference);
-      }
-      const locationReference = locationParts.join(' - ');
-
-      // Transform camelCase UI data to snake_case database format
-      const inspectionData = {
-        project_id: formData.projectId,
-        project_name: formData.projectName || 'Draft Inspection',
-        task_area: formData.taskArea || 'TBD',
-        location_reference: locationReference,
-        inspection_type: (formData.inspectionType || 'pre-installation') as 'pre-installation' | 'final' | 'progress',
-        template_type: formData.template as 'doors-jambs-hardware' | 'skirting',
-        trade: formData.trade,
-        is_fire_door: isFireDoor,
-        inspector_name: formData.inspectorName || 'TBD',
-        inspection_date: formData.inspectionDate,
-        digital_signature: formData.digitalSignature || 'TBD',
-        overall_status: 'incomplete-draft' as const
-      };
-
-      const checklistItems = filteredChecklist.map(item => {
-        // Extract file paths from SupabaseUploadedFile objects
-        let evidenceFileNames: string[] = [];
-        if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
-          evidenceFileNames = item.evidenceFiles
-            .filter((file): file is SupabaseUploadedFile => 
-              file && 
-              typeof file === 'object' && 
-              'uploaded' in file && 
-              'path' in file && 
-              file.uploaded === true
-            )
-            .map(file => file.path);
+    const requiredFields = ['projectId']; // Only project ID required for draft
+    
+    return await coordinatedForm.submitForm(
+      async (formData, files) => {
+        // Show confirmation for incomplete forms
+        if (!isFormComplete()) {
+          const confirmed = window.confirm(
+            'This form is incomplete. Are you sure you want to save it as a draft?\n\nIncomplete fields will need to be filled before the inspection can be finalized.'
+          );
+          if (!confirmed) return false;
         }
 
-        return {
-          item_id: item.id,
-          description: item.description,
-          requirements: item.requirements,
-          status: item.status || '',
-          comments: item.comments || '',
-          evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : []
-        };
-      });
+        try {
+          // Filter checklist based on fire door setting
+          const filteredChecklist = checklist.filter(item => 
+            !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
+          );
 
-      const result = await createInspection(inspectionData, checklistItems);
+          // Combine building, level, and building reference for location_reference
+          const locationParts = [formData.building || 'TBD'];
+          if (formData.level?.trim()) {
+            locationParts.push(`Level ${formData.level}`);
+          }
+          if (formData.buildingReference?.trim()) {
+            locationParts.push(formData.buildingReference);
+          }
+          const locationReference = locationParts.join(' - ');
 
-      if (result) {
-        const message = isFormComplete() ? 
-          "Complete inspection saved successfully. View it in the QA/ITP List tab." : 
-          "Incomplete draft saved. You can continue editing it in the QA/ITP List tab.";
-        toast({
-          title: "Draft Saved",
-          description: message
-        });
-        
-        onClose();
-      } else {
-        setError('Failed to save draft. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error saving QA inspection draft:', error);
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+          // Transform camelCase UI data to snake_case database format
+          const inspectionData = {
+            project_id: formData.projectId,
+            project_name: formData.projectName || 'Draft Inspection',
+            task_area: formData.taskArea || 'TBD',
+            location_reference: locationReference,
+            inspection_type: (formData.inspectionType || 'pre-installation') as 'pre-installation' | 'final' | 'progress',
+            template_type: formData.template as 'doors-jambs-hardware' | 'skirting',
+            trade: formData.trade,
+            is_fire_door: isFireDoor,
+            inspector_name: formData.inspectorName || 'TBD',
+            inspection_date: formData.inspectionDate,
+            digital_signature: formData.digitalSignature || 'TBD',
+            overall_status: 'incomplete-draft' as const
+          };
+
+          const checklistItems = filteredChecklist.map(item => {
+            // Extract file paths from uploaded files
+            let evidenceFileNames: string[] = [];
+            if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
+              evidenceFileNames = item.evidenceFiles
+                .filter((file): file is SupabaseUploadedFile => 
+                  file && 
+                  typeof file === 'object' && 
+                  'uploaded' in file && 
+                  'path' in file && 
+                  file.uploaded === true
+                )
+                .map(file => file.path);
+            }
+
+            return {
+              item_id: item.id,
+              description: item.description,
+              requirements: item.requirements,
+              status: item.status || '',
+              comments: item.comments || '',
+              evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : []
+            };
+          });
+
+          const result = await createInspection(inspectionData, checklistItems);
+
+          if (result) {
+            const message = isFormComplete() ? 
+              "Complete inspection saved successfully. View it in the QA/ITP List tab." : 
+              "Incomplete draft saved. You can continue editing it in the QA/ITP List tab.";
+            toast({
+              title: "Draft Saved",
+              description: message
+            });
+            
+            onClose();
+            return true;
+          } else {
+            setError('Failed to save draft. Please try again.');
+            return false;
+          }
+        } catch (error) {
+          console.error('Error saving QA inspection draft:', error);
+          setError('An unexpected error occurred. Please try again.');
+          return false;
+        }
+      },
+      requiredFields,
+      true // isDraft
+    );
   };
 
   const handleSubmit = async () => {
-    if (!validateFormWithNotification()) {
-      return;
-    }
+    const requiredFields = [
+      'projectId', 'taskArea', 'building', 'inspectionType', 
+      'template', 'inspectorName', 'inspectionDate', 'digitalSignature'
+    ];
+    
+    return await coordinatedForm.submitForm(
+      async (formData, files) => {
+        try {
+          // Filter checklist based on fire door setting
+          const filteredChecklist = checklist.filter(item => 
+            !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
+          );
 
-    setSaving(true);
-    setError(null);
+          // Calculate automated overall status
+          const formComplete = isFormComplete();
+          const calculatedStatus = calculateOverallStatus(filteredChecklist, formComplete);
 
-    try {
-      // Filter checklist based on fire door setting
-      const filteredChecklist = checklist.filter(item => 
-        !item.isFireDoorOnly || (item.isFireDoorOnly && isFireDoor)
-      );
+          // Combine building, level, and building reference for location_reference
+          const locationParts = [formData.building];
+          if (formData.level?.trim()) {
+            locationParts.push(`Level ${formData.level}`);
+          }
+          if (formData.buildingReference?.trim()) {
+            locationParts.push(formData.buildingReference);
+          }
+          const locationReference = locationParts.join(' - ');
 
-      // Calculate automated overall status
-      const formComplete = isFormComplete();
-      const calculatedStatus = calculateOverallStatus(filteredChecklist, formComplete);
+          // Transform camelCase UI data to snake_case database format
+          const inspectionData = {
+            project_id: formData.projectId,
+            project_name: formData.projectName,
+            task_area: formData.taskArea,
+            location_reference: locationReference,
+            inspection_type: formData.inspectionType as 'pre-installation' | 'final' | 'progress',
+            template_type: formData.template as 'doors-jambs-hardware' | 'skirting',
+            trade: formData.trade,
+            is_fire_door: isFireDoor,
+            inspector_name: formData.inspectorName,
+            inspection_date: formData.inspectionDate,
+            digital_signature: formData.digitalSignature,
+            overall_status: calculatedStatus
+          };
 
-      // Combine building, level, and building reference for location_reference
-      const locationParts = [formData.building];
-      if (formData.level.trim()) {
-        locationParts.push(`Level ${formData.level}`);
-      }
-      if (formData.buildingReference.trim()) {
-        locationParts.push(formData.buildingReference);
-      }
-      const locationReference = locationParts.join(' - ');
+          const checklistItems = filteredChecklist.map(item => {
+            // Extract file paths from uploaded files
+            let evidenceFileNames: string[] = [];
+            if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
+              evidenceFileNames = item.evidenceFiles
+                .filter((file): file is SupabaseUploadedFile => 
+                  file && 
+                  typeof file === 'object' && 
+                  'uploaded' in file && 
+                  'path' in file && 
+                  file.uploaded === true
+                )
+                .map(file => file.path);
+            }
 
-      // Transform camelCase UI data to snake_case database format
-      const inspectionData = {
-        project_id: formData.projectId,
-        project_name: formData.projectName,
-        task_area: formData.taskArea,
-        location_reference: locationReference,
-        inspection_type: formData.inspectionType as 'pre-installation' | 'final' | 'progress',
-        template_type: formData.template as 'doors-jambs-hardware' | 'skirting',
-        trade: formData.trade,
-        is_fire_door: isFireDoor,
-        inspector_name: formData.inspectorName,
-        inspection_date: formData.inspectionDate,
-        digital_signature: formData.digitalSignature,
-        overall_status: calculatedStatus
-      };
+            return {
+              item_id: item.id,
+              description: item.description,
+              requirements: item.requirements,
+              status: item.status || '',
+              comments: item.comments || '',
+              evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : []
+            };
+          });
 
-      const checklistItems = filteredChecklist.map(item => {
-        // Extract file paths from SupabaseUploadedFile objects
-        let evidenceFileNames: string[] = [];
-        if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
-          evidenceFileNames = item.evidenceFiles
-            .filter((file): file is SupabaseUploadedFile => 
-              file && 
-              typeof file === 'object' && 
-              'uploaded' in file && 
-              'path' in file && 
-              file.uploaded === true
-            )
-            .map(file => file.path);
+          const result = await createInspection(inspectionData, checklistItems);
+
+          if (result) {
+            toast({
+              title: "Success",
+              description: "QA inspection created successfully. View it in the QA/ITP List tab."
+            });
+            
+            onClose();
+            return true;
+          } else {
+            setError('Failed to create inspection. Please try again.');
+            return false;
+          }
+        } catch (error) {
+          console.error('Error saving QA inspection:', error);
+          setError('An unexpected error occurred. Please try again.');
+          return false;
         }
-
-        return {
-          item_id: item.id,
-          description: item.description,
-          requirements: item.requirements,
-          status: item.status || '',
-          comments: item.comments || '',
-          evidence_files: evidenceFileNames.length > 0 ? evidenceFileNames : []
-        };
-      });
-
-      const result = await createInspection(inspectionData, checklistItems);
-
-      if (result) {
-        toast({
-          title: "Success",
-          description: "QA inspection created successfully. View it in the QA/ITP List tab."
-        });
-        
-        onClose();
-      } else {
-        setError('Failed to create inspection. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error saving QA inspection:', error);
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+      },
+      requiredFields,
+      false // isDraft
+    );
   };
 
   const filteredChecklist = checklist.filter(item => 
@@ -521,7 +514,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               </Button>
               <Button 
                 onClick={saveDraft}
-                disabled={saving || uploadManager.isProcessing}
+                disabled={isSubmitting || uploadManager.isProcessing}
                 variant={isFormComplete() ? "default" : "secondary"}
               >
                 <Save className="h-4 w-4 mr-2" />
@@ -529,7 +522,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               </Button>
               <Button 
                 onClick={onClose}
-                disabled={saving || uploadManager.isProcessing}
+                disabled={isSubmitting || uploadManager.isProcessing}
                 variant="outline"
               >
                 <X className="h-4 w-4 mr-2" />
@@ -656,18 +649,18 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
           <div className="flex justify-end gap-3">
             <Button 
               onClick={saveDraft}
-              disabled={saving || uploadManager.isProcessing}
+              disabled={isSubmitting || uploadManager.isProcessing}
               variant="outline"
             >
               <Save className="h-4 w-4 mr-2" />
-              {saving ? 'Saving...' : 'Save Draft'}
+              {isSubmitting ? 'Saving...' : 'Save Draft'}
             </Button>
             <Button 
               onClick={handleSubmit}
-              disabled={saving || uploadManager.isProcessing}
+              disabled={isSubmitting || uploadManager.isProcessing}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              {saving ? 'Submitting...' : 'Submit Inspection'}
+              {isSubmitting ? 'Submitting...' : 'Submit Inspection'}
             </Button>
           </div>
         </CardContent>

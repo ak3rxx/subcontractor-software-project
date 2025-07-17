@@ -29,7 +29,7 @@ export const useFormAutoSave = <T extends Record<string, any>>(
   const saveTimerRef = useRef<NodeJS.Timeout>();
   const previousDataRef = useRef<T>(formData);
 
-  // Auto-save function
+  // Auto-save function with error handling
   const saveToLocalStorage = useCallback(() => {
     if (!enabled) return;
 
@@ -37,22 +37,42 @@ export const useFormAutoSave = <T extends Record<string, any>>(
       const saveData = {
         formData,
         timestamp: Date.now(),
-        saveCount: saveCount + 1
+        saveCount: saveCount + 1,
+        version: '1.0' // For future compatibility
       };
       
-      localStorage.setItem(`autosave-${key}`, JSON.stringify(saveData));
+      // Use a unique key to prevent conflicts between different form instances
+      const storageKey = `autosave-${key}-${Date.now().toString().slice(-6)}`;
+      localStorage.setItem(storageKey, JSON.stringify(saveData));
+      
+      // Clean up old saves (keep only the latest 3)
+      const allKeys = Object.keys(localStorage).filter(k => k.startsWith(`autosave-${key}`));
+      if (allKeys.length > 3) {
+        allKeys.sort().slice(0, -3).forEach(oldKey => localStorage.removeItem(oldKey));
+      }
+      
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       setSaveCount(prev => prev + 1);
       
       onSave?.(formData);
       
-      // Only notify after the first auto-save to avoid spam
-      if (saveCount > 0) {
+      // Only notify after the first auto-save and occasionally to avoid spam
+      if (saveCount > 0 && saveCount % 3 === 0) {
         qaNotifications.notifyAutoSave(Object.keys(formData).length);
       }
     } catch (error) {
       console.error('Failed to auto-save form data:', error);
+      // Try to free up space and retry once
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        try {
+          const allKeys = Object.keys(localStorage).filter(k => k.startsWith('autosave-'));
+          allKeys.slice(0, -1).forEach(key => localStorage.removeItem(key));
+          localStorage.setItem(`autosave-${key}`, JSON.stringify({ formData, timestamp: Date.now() }));
+        } catch (retryError) {
+          console.error('Retry save also failed:', retryError);
+        }
+      }
     }
   }, [formData, enabled, key, saveCount, onSave, qaNotifications]);
 
@@ -64,24 +84,39 @@ export const useFormAutoSave = <T extends Record<string, any>>(
     saveToLocalStorage();
   }, [saveToLocalStorage]);
 
-  // Load from localStorage
+  // Load from localStorage with fallback
   const loadFromLocalStorage = useCallback(() => {
     if (!enabled) return null;
 
     try {
-      const saved = localStorage.getItem(`autosave-${key}`);
+      // Find the most recent save
+      const allKeys = Object.keys(localStorage).filter(k => k.startsWith(`autosave-${key}`));
+      if (allKeys.length === 0) return null;
+      
+      // Sort by timestamp (embedded in key) and get the latest
+      const latestKey = allKeys.sort().pop();
+      if (!latestKey) return null;
+      
+      const saved = localStorage.getItem(latestKey);
       if (saved) {
         const data = JSON.parse(saved);
         // Only load if saved within last 7 days
         if (Date.now() - data.timestamp < 7 * 24 * 60 * 60 * 1000) {
-          onRestore?.(data.formData);
+          onRestore?.(data.formData || data); // Handle both old and new formats
           setLastSaved(new Date(data.timestamp));
           setSaveCount(data.saveCount || 0);
-          return data.formData;
+          return data.formData || data;
         }
       }
     } catch (error) {
       console.error('Failed to load saved form data:', error);
+      // Try to clean up corrupted data
+      try {
+        const allKeys = Object.keys(localStorage).filter(k => k.startsWith(`autosave-${key}`));
+        allKeys.forEach(key => localStorage.removeItem(key));
+      } catch (cleanupError) {
+        console.error('Failed to cleanup corrupted data:', cleanupError);
+      }
     }
     return null;
   }, [enabled, key, onRestore]);
