@@ -164,27 +164,64 @@ export const useSupabaseFileUpload = (options: UseSupabaseFileUploadOptions = {}
       files.length
     );
     
-    // Process files sequentially to prevent overwhelming the system
+    // Process files in parallel with concurrency limit
+    const maxConcurrency = 3;
     const results: SupabaseUploadedFile[] = [];
     const failedFiles: string[] = [];
     
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    // Split files into chunks for parallel processing
+    const processChunk = async (fileChunk: File[], chunkIndex: number) => {
+      const uploadPromises = fileChunk.map(async (file, index) => {
+        const globalIndex = chunkIndex * maxConcurrency + index;
+        
+        // Update progress notification
+        qaNotifications.notifyUploadProgress(file.name, globalIndex + 1, files.length);
+        
+        // Retry logic with exponential backoff
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount <= maxRetries) {
+          try {
+            const result = await uploadFile(file, inspectionId, checklistItemId);
+            if (result) {
+              return { success: true, result, fileName: file.name };
+            } else {
+              if (retryCount === maxRetries) {
+                return { success: false, result: null, fileName: file.name };
+              }
+              retryCount++;
+              // Exponential backoff: 1s, 2s, 4s
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+            }
+          } catch (error) {
+            console.error(`Failed to upload ${file.name} (attempt ${retryCount + 1}):`, error);
+            if (retryCount === maxRetries) {
+              return { success: false, result: null, fileName: file.name };
+            }
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
+        }
+        
+        return { success: false, result: null, fileName: file.name };
+      });
       
-      // Update progress notification
-      qaNotifications.notifyUploadProgress(file.name, i + 1, files.length);
+      return Promise.all(uploadPromises);
+    };
+    
+    // Process files in chunks
+    for (let i = 0; i < files.length; i += maxConcurrency) {
+      const chunk = files.slice(i, i + maxConcurrency);
+      const chunkResults = await processChunk(chunk, Math.floor(i / maxConcurrency));
       
-      try {
-        const result = await uploadFile(file, inspectionId, checklistItemId);
-        if (result) {
+      chunkResults.forEach(({ success, result, fileName }) => {
+        if (success && result) {
           results.push(result);
         } else {
-          failedFiles.push(file.name);
+          failedFiles.push(fileName);
         }
-      } catch (error) {
-        console.error(`Failed to upload ${file.name}:`, error);
-        failedFiles.push(file.name);
-      }
+      });
     }
     
     // Notify completion with summary

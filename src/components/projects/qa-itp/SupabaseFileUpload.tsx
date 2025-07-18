@@ -2,17 +2,17 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Upload, X, FileText, Image, Download, AlertCircle, CheckCircle, RotateCcw } from 'lucide-react';
-import { useSupabaseFileUpload, SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
+import { useQAUploadManager, QAUploadedFile } from '@/hooks/useQAUploadManager';
 
 interface SupabaseFileUploadProps {
-  onFilesChange?: (files: SupabaseUploadedFile[]) => void;
+  onFilesChange?: (files: QAUploadedFile[]) => void;
   onUploadStatusChange?: (isUploading: boolean, hasFailures: boolean) => void;
   accept?: string;
   multiple?: boolean;
   maxFiles?: number;
   className?: string;
   label?: string;
-  files?: SupabaseUploadedFile[];
+  files?: QAUploadedFile[];
   inspectionId?: string;
   checklistItemId?: string;
 }
@@ -29,8 +29,19 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
   inspectionId,
   checklistItemId
 }) => {
-  const { uploadFiles, uploading, hasUploadFailures, removeFile, retryFailedUpload } = useSupabaseFileUpload();
-  const [currentFiles, setCurrentFiles] = useState<SupabaseUploadedFile[]>([]);
+  const { 
+    queueFiles, 
+    isUploading, 
+    hasFailures, 
+    removeFile, 
+    retryUpload,
+    uploadedFiles,
+    totalProgress
+  } = useQAUploadManager({
+    maxConcurrentUploads: 3,
+    enableAutoSave: false
+  });
+  const [currentFiles, setCurrentFiles] = useState<QAUploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
   // Initialize with provided files
@@ -43,11 +54,16 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
     }
   }, [files]);
 
+  // Sync uploaded files with current files
+  useEffect(() => {
+    setCurrentFiles(uploadedFiles);
+    onFilesChange?.(uploadedFiles);
+  }, [uploadedFiles, onFilesChange]);
+
   // Notify parent about upload status
   useEffect(() => {
-    const fileHasFailures = currentFiles.some(f => !f.uploaded);
-    onUploadStatusChange?.(uploading, fileHasFailures);
-  }, [uploading, currentFiles, onUploadStatusChange]);
+    onUploadStatusChange?.(isUploading, hasFailures);
+  }, [isUploading, hasFailures, onUploadStatusChange]);
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
@@ -61,35 +77,22 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
       return;
     }
 
-    try {
-      // Upload files to Supabase
-      const uploadedFiles = await uploadFiles(selectedFiles, inspectionId, checklistItemId);
-      console.log('Files uploaded successfully:', uploadedFiles);
-      
-      const updatedFiles = [...currentFiles, ...uploadedFiles];
-      setCurrentFiles(updatedFiles);
-      onFilesChange?.(updatedFiles);
-    } catch (error) {
-      console.error('Error uploading files:', error);
-    } finally {
-      // Reset input
-      event.target.value = '';
-    }
-  }, [currentFiles, maxFiles, onFilesChange, uploadFiles, inspectionId, checklistItemId]);
+    // Queue files for upload with high priority
+    queueFiles(selectedFiles, inspectionId, checklistItemId, 'high');
+    
+    // Reset input
+    event.target.value = '';
+  }, [currentFiles, maxFiles, queueFiles, inspectionId, checklistItemId]);
 
   const handleRemoveFile = useCallback(async (fileId: string) => {
     console.log('Removing file:', fileId);
     await removeFile(fileId);
-    const updatedFiles = currentFiles.filter(f => f.id !== fileId);
-    setCurrentFiles(updatedFiles);
-    onFilesChange?.(updatedFiles);
-  }, [currentFiles, onFilesChange, removeFile]);
+  }, [removeFile]);
 
   const handleRetryUpload = useCallback(async (fileId: string) => {
     console.log('Retrying upload for file:', fileId);
-    await retryFailedUpload(fileId, inspectionId, checklistItemId);
-    // The hook will automatically update the files list
-  }, [retryFailedUpload, inspectionId, checklistItemId]);
+    retryUpload(fileId);
+  }, [retryUpload]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -119,20 +122,11 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
       return;
     }
 
-    try {
-      // Upload files to Supabase
-      const uploadedFiles = await uploadFiles(droppedFiles, inspectionId, checklistItemId);
-      console.log('Dropped files uploaded successfully:', uploadedFiles);
-      
-      const updatedFiles = [...currentFiles, ...uploadedFiles];
-      setCurrentFiles(updatedFiles);
-      onFilesChange?.(updatedFiles);
-    } catch (error) {
-      console.error('Error uploading dropped files:', error);
-    }
-  }, [currentFiles, maxFiles, onFilesChange, uploadFiles, inspectionId, checklistItemId]);
+    // Queue dropped files for upload with high priority
+    queueFiles(droppedFiles, inspectionId, checklistItemId, 'high');
+  }, [currentFiles, maxFiles, queueFiles, inspectionId, checklistItemId]);
 
-  const handleDownloadFile = useCallback((file: SupabaseUploadedFile) => {
+  const handleDownloadFile = useCallback((file: QAUploadedFile) => {
     if (file.uploaded && file.url) {
       console.log('Opening file URL:', file.url);
       window.open(file.url, '_blank');
@@ -149,11 +143,11 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const isImage = (file: SupabaseUploadedFile) => {
+  const isImage = (file: QAUploadedFile) => {
     return file.type.startsWith('image/');
   };
 
-  const isPDF = (file: SupabaseUploadedFile) => {
+  const isPDF = (file: QAUploadedFile) => {
     return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   };
 
@@ -167,7 +161,7 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors relative ${
           isDragOver 
             ? 'border-primary bg-primary/5' 
-            : uploading || currentFiles.length >= maxFiles
+            : isUploading || currentFiles.length >= maxFiles
               ? 'border-muted-foreground/30 bg-muted/30' 
               : 'border-muted-foreground/50 hover:border-primary/50'
         }`}
@@ -190,23 +184,32 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
           multiple={multiple}
           onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={uploading || currentFiles.length >= maxFiles}
+          disabled={isUploading || currentFiles.length >= maxFiles}
           style={{ pointerEvents: isDragOver ? 'none' : 'auto' }}
         />
         <Button
           variant="outline"
           className="mt-4 pointer-events-none relative z-10"
-          disabled={uploading || currentFiles.length >= maxFiles}
+          disabled={isUploading || currentFiles.length >= maxFiles}
         >
-          {uploading ? 'Uploading...' : isDragOver ? 'Drop files here!' : 'Choose Files'}
+          {isUploading ? 'Uploading...' : isDragOver ? 'Drop files here!' : 'Choose Files'}
         </Button>
       </div>
 
-      {uploading && (
+      {isUploading && (
         <div className="p-3 rounded-lg border bg-blue-50 border-blue-200">
-          <div className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-            <span className="text-sm font-medium">Uploading files...</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+              <span className="text-sm font-medium">Uploading files...</span>
+            </div>
+            <div className="text-sm text-blue-600">{Math.round(totalProgress)}%</div>
+          </div>
+          <div className="mt-2 bg-blue-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${totalProgress}%` }}
+            />
           </div>
         </div>
       )}

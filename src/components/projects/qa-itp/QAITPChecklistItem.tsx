@@ -7,7 +7,7 @@ import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import SupabaseFileUpload from './SupabaseFileUpload';
 // Removed QAFieldAuditTrail for simplicity
 import { ChecklistItem } from './QAITPTemplates';
-import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
+import { QAUploadedFile } from '@/hooks/useQAUploadManager';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 
 interface QAITPChecklistItemProps {
@@ -25,7 +25,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
 }) => {
   const { recordChange } = useQAChangeHistory(inspectionId || '');
 
-  const handleFileChange = useCallback((files: SupabaseUploadedFile[]) => {
+  const handleFileChange = useCallback((files: QAUploadedFile[]) => {
     console.log('Files changed for item', item.id, ':', files);
     
     // Record audit trail for file changes
@@ -86,7 +86,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
       return [];
     }
     
-    return item.evidenceFiles.filter((file): file is SupabaseUploadedFile => {
+    return item.evidenceFiles.filter((file): file is QAUploadedFile => {
       return file && typeof file === 'object' && 'id' in file && 'url' in file;
     });
   }, [item.evidenceFiles]);

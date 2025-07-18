@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import QAITPChecklistItem from '../projects/qa-itp/QAITPChecklistItem';
 import SupabaseFileUpload from '../projects/qa-itp/SupabaseFileUpload';
 import { ChecklistItem } from '../projects/qa-itp/QAITPTemplates';
-import { SupabaseUploadedFile } from '@/hooks/useSupabaseFileUpload';
+import { QAUploadedFile } from '@/hooks/useQAUploadManager';
 
 interface TestScenario {
   id: string;
@@ -42,7 +42,7 @@ const QATestPlatform: React.FC = () => {
   });
 
   // Mock test data for file upload
-  const [testFiles, setTestFiles] = useState<SupabaseUploadedFile[]>([]);
+  const [testFiles, setTestFiles] = useState<QAUploadedFile[]>([]);
   const [uploadStatus, setUploadStatus] = useState({ uploading: false, hasFailures: false });
 
   const testScenarios: TestScenario[] = [
@@ -117,7 +117,7 @@ const QATestPlatform: React.FC = () => {
     });
   };
 
-  const handleFileChange = (files: SupabaseUploadedFile[]) => {
+  const handleFileChange = (files: QAUploadedFile[]) => {
     console.log('Test: File change detected', files);
     setTestFiles(files);
     setTestChecklistItem(prev => ({ ...prev, evidenceFiles: files }));
