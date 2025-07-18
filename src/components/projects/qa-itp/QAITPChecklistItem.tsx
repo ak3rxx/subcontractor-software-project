@@ -1,5 +1,5 @@
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,31 +23,49 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
   inspectionId
 }) => {
   const { recordChange } = useQAChangeHistory(inspectionId || '');
+  const lastRecordedFiles = useRef<string>('');
 
-  // Debounced file change handler to prevent duplicate recordings
+  // Memoized file change handler with proper deduplication
   const handleFileChange = useCallback((files: SimpleUploadedFile[]) => {
     const currentFiles = item.evidenceFiles || [];
     
-    // Only record if files actually changed
-    if (JSON.stringify(currentFiles) === JSON.stringify(files)) {
+    // Create a stable string representation for comparison
+    const newFilesSignature = JSON.stringify(files.map(f => ({ id: f.id, uploaded: f.uploaded, path: f.path })));
+    const currentFilesSignature = JSON.stringify(currentFiles.map(f => ({ id: f.id, uploaded: f.uploaded, path: f.path })));
+    
+    // Only proceed if files actually changed
+    if (newFilesSignature === currentFilesSignature) {
+      console.log('Files unchanged, skipping update for item:', item.id);
       return;
     }
 
-    console.log('Files changed for item', item.id, ':', files);
+    // Additional check to prevent duplicate audit records
+    if (lastRecordedFiles.current === newFilesSignature) {
+      console.log('Same files signature as last recorded, skipping audit for item:', item.id);
+      onChecklistChange(item.id, 'evidenceFiles', files);
+      return;
+    }
+
+    console.log('Files changed for item', item.id, 'from', currentFiles.length, 'to', files.length);
     
-    // Record audit trail for file changes (debounced)
-    if (inspectionId && files.length !== currentFiles.length) {
-      // Use setTimeout to debounce rapid changes
+    // Record audit trail for significant file changes
+    if (inspectionId && (files.length !== currentFiles.length)) {
+      const changeDescription = files.length > currentFiles.length 
+        ? `Added ${files.length - currentFiles.length} file(s)`
+        : `Removed ${currentFiles.length - files.length} file(s)`;
+      
       setTimeout(() => {
         recordChange(
           'evidenceFiles',
-          JSON.stringify(currentFiles),
-          JSON.stringify(files),
+          `${currentFiles.length} files`,
+          `${files.length} files (${changeDescription})`,
           'update',
           item.id,
           item.description
         );
-      }, 100);
+      }, 200); // Debounce to prevent rapid-fire recordings
+      
+      lastRecordedFiles.current = newFilesSignature;
     }
     
     onChecklistChange(item.id, 'evidenceFiles', files);
@@ -75,28 +93,38 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
     onChecklistChange(item.id, 'status', status);
   }, [item.id, item.status, item.description, onChecklistChange, recordChange, inspectionId]);
 
-  const handleCommentsChange = useCallback((comments: string) => {
-    if (item.comments === comments) {
-      return; // No change
-    }
+  // Debounced comments handler to prevent excessive audit trail entries
+  const handleCommentsChange = useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    return (comments: string) => {
+      if (item.comments === comments) {
+        return; // No change
+      }
 
-    console.log('Comments changed for item', item.id, ':', comments);
-    
-    // Record audit trail for comments changes (debounced)
-    if (inspectionId) {
-      setTimeout(() => {
-        recordChange(
-          'comments',
-          item.comments || '',
-          comments,
-          'update',
-          item.id,
-          item.description
-        );
-      }, 500); // Longer debounce for text input
-    }
-    
-    onChecklistChange(item.id, 'comments', comments);
+      console.log('Comments changed for item', item.id, ':', comments.length, 'chars');
+      
+      // Update immediately for UI responsiveness
+      onChecklistChange(item.id, 'comments', comments);
+      
+      // Record audit trail with debouncing to prevent spam
+      if (inspectionId && timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      if (inspectionId) {
+        timeoutId = setTimeout(() => {
+          recordChange(
+            'comments',
+            item.comments || '',
+            comments,
+            'update',
+            item.id,
+            item.description
+          );
+        }, 1000); // 1 second debounce for comments
+      }
+    };
   }, [item.id, item.comments, item.description, onChecklistChange, recordChange, inspectionId]);
 
   // Ensure evidenceFiles is always an array of SimpleUploadedFile objects

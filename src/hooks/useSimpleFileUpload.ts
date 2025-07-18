@@ -28,8 +28,9 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   
-  // Track uploads in progress to prevent duplicates
+  // Enhanced upload tracking with content-based deduplication
   const uploadsInProgress = useRef<Set<string>>(new Set());
+  const processedFiles = useRef<Map<string, SimpleUploadedFile>>(new Map());
 
   const generateFilePath = useCallback((file: File): string => {
     const fileExt = file.name.split('.').pop();
@@ -46,24 +47,38 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     }
   }, [inspectionId, checklistItemId]);
 
+  // Enhanced file identity function
+  const getFileIdentity = useCallback((file: File): string => {
+    // Create a more robust identity key based on content characteristics
+    return `${file.name}-${file.size}-${file.type}-${file.lastModified}`;
+  }, []);
+
   const uploadFiles = useCallback(async (newFiles: File[]): Promise<SimpleUploadedFile[]> => {
     if (newFiles.length === 0) return [];
     
+    console.log('Upload request for', newFiles.length, 'files');
     setIsUploading(true);
     const uploadedResults: SimpleUploadedFile[] = [];
 
     try {
       for (const file of newFiles) {
-        // Create unique upload key to prevent duplicates
-        const uploadKey = `${file.name}-${file.size}-${file.lastModified}`;
+        const fileIdentity = getFileIdentity(file);
         
-        // Skip if already uploading this exact file
-        if (uploadsInProgress.current.has(uploadKey)) {
+        // Check if this exact file is already processed
+        if (processedFiles.current.has(fileIdentity)) {
+          console.log('File already processed, skipping:', file.name);
+          const existingFile = processedFiles.current.get(fileIdentity)!;
+          uploadedResults.push(existingFile);
+          continue;
+        }
+        
+        // Check if upload is already in progress
+        if (uploadsInProgress.current.has(fileIdentity)) {
           console.log('Upload already in progress for:', file.name);
           continue;
         }
         
-        uploadsInProgress.current.add(uploadKey);
+        uploadsInProgress.current.add(fileIdentity);
         
         const fileId = `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const filePath = generateFilePath(file);
@@ -82,7 +97,12 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
         };
 
         // Add to files immediately with 0% progress
-        setFiles(prev => [...prev, initialFile]);
+        setFiles(prev => {
+          // Prevent duplicate entries in state
+          const exists = prev.some(f => f.id === fileId);
+          if (exists) return prev;
+          return [...prev, initialFile];
+        });
 
         try {
           // Update progress to show start
@@ -90,6 +110,8 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
             f.id === fileId ? { ...f, progress: 10 } : f
           ));
 
+          console.log('Starting upload for:', file.name);
+          
           // Upload to Supabase
           const { data, error } = await supabase.storage
             .from(bucket)
@@ -117,10 +139,15 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
             f.id === fileId ? completedFile : f
           ));
 
+          // Cache the processed file
+          processedFiles.current.set(fileIdentity, completedFile);
           uploadedResults.push(completedFile);
+
+          console.log('Upload completed for:', file.name);
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+          console.error('Upload failed for:', file.name, errorMessage);
           
           // Update file with error
           setFiles(prev => prev.map(f => 
@@ -134,7 +161,7 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
           });
         } finally {
           // Remove from uploads in progress
-          uploadsInProgress.current.delete(uploadKey);
+          uploadsInProgress.current.delete(fileIdentity);
         }
       }
 
@@ -150,11 +177,13 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     }
 
     return uploadedResults;
-  }, [bucket, generateFilePath, toast]);
+  }, [bucket, generateFilePath, toast, getFileIdentity]);
 
   const removeFile = useCallback(async (fileId: string) => {
     const fileToRemove = files.find(f => f.id === fileId);
     if (!fileToRemove) return;
+
+    console.log('Removing file:', fileToRemove.name);
 
     // Remove from storage if uploaded
     if (fileToRemove.uploaded && fileToRemove.path) {
@@ -165,18 +194,25 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
       }
     }
 
+    // Remove from processed cache
+    const fileIdentity = getFileIdentity(fileToRemove.file);
+    processedFiles.current.delete(fileIdentity);
+
     // Remove from state
     setFiles(prev => prev.filter(f => f.id !== fileId));
-  }, [files, bucket]);
+  }, [files, bucket, getFileIdentity]);
 
   const retryUpload = useCallback(async (fileId: string) => {
     const failedFile = files.find(f => f.id === fileId && !f.uploaded);
     if (!failedFile) return;
 
-    await uploadFiles([failedFile.file]);
+    console.log('Retrying upload for:', failedFile.name);
     
-    // Remove the failed version
+    // Remove the failed version first
     setFiles(prev => prev.filter(f => f.id !== fileId));
+    
+    // Retry the upload
+    await uploadFiles([failedFile.file]);
   }, [files, uploadFiles]);
 
   const clearFiles = useCallback(async () => {
@@ -194,6 +230,7 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
 
     setFiles([]);
     uploadsInProgress.current.clear();
+    processedFiles.current.clear();
   }, [files, bucket]);
 
   return {

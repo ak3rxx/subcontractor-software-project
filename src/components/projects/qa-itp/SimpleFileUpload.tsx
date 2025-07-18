@@ -1,4 +1,5 @@
-import React, { useCallback, useState, useEffect } from 'react';
+
+import React, { useCallback, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Upload, X, FileText, Image, Download, AlertCircle, CheckCircle, RotateCcw } from 'lucide-react';
@@ -42,14 +43,42 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
   });
   
   const [isDragOver, setIsDragOver] = useState(false);
+  const lastNotifiedFiles = useRef<SimpleUploadedFile[]>([]);
 
-  // Initialize with provided files
-  useEffect(() => {
-    onFilesChange?.(uploadedFiles);
-  }, [uploadedFiles, onFilesChange]);
+  // Only notify parent when files actually change - prevents infinite loop
+  const notifyFilesChange = useCallback((files: SimpleUploadedFile[]) => {
+    // Deep comparison to prevent unnecessary notifications
+    const filesChanged = files.length !== lastNotifiedFiles.current.length ||
+      files.some((file, index) => {
+        const lastFile = lastNotifiedFiles.current[index];
+        return !lastFile || 
+               file.id !== lastFile.id || 
+               file.uploaded !== lastFile.uploaded ||
+               file.progress !== lastFile.progress;
+      });
 
-  // Notify parent about upload status
-  useEffect(() => {
+    if (filesChanged) {
+      console.log('Files actually changed, notifying parent:', files.length);
+      lastNotifiedFiles.current = [...files];
+      onFilesChange?.(files);
+    }
+  }, [onFilesChange]);
+
+  // Custom upload handler that notifies parent only after successful upload
+  const handleUpload = useCallback(async (filesToUpload: File[]) => {
+    console.log('Starting upload for', filesToUpload.length, 'files');
+    const uploadedResults = await uploadFiles(filesToUpload);
+    
+    // Only notify if we have successful uploads
+    if (uploadedResults.length > 0) {
+      // Get the current complete file list after upload
+      const currentFiles = [...uploadedFiles, ...uploadedResults];
+      notifyFilesChange(currentFiles);
+    }
+  }, [uploadFiles, uploadedFiles, notifyFilesChange]);
+
+  // Notify parent about upload status changes
+  React.useEffect(() => {
     onUploadStatusChange?.(isUploading, hasFailures);
   }, [isUploading, hasFailures, onUploadStatusChange]);
 
@@ -62,9 +91,9 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
       return;
     }
 
-    await uploadFiles(selectedFiles);
+    await handleUpload(selectedFiles);
     event.target.value = '';
-  }, [uploadedFiles.length, maxFiles, uploadFiles]);
+  }, [uploadedFiles.length, maxFiles, handleUpload]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -91,14 +120,22 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
       return;
     }
 
-    await uploadFiles(droppedFiles);
-  }, [uploadedFiles.length, maxFiles, uploadFiles]);
+    await handleUpload(droppedFiles);
+  }, [uploadedFiles.length, maxFiles, handleUpload]);
 
   const handleDownloadFile = useCallback((file: SimpleUploadedFile) => {
     if (file.uploaded && file.url) {
       window.open(file.url, '_blank');
     }
   }, []);
+
+  const handleRemoveFile = useCallback(async (fileId: string) => {
+    console.log('Removing file:', fileId);
+    await removeFile(fileId);
+    // Notify parent after removal
+    const updatedFiles = uploadedFiles.filter(f => f.id !== fileId);
+    notifyFilesChange(updatedFiles);
+  }, [removeFile, uploadedFiles, notifyFilesChange]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -264,7 +301,7 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeFile(file.id)}
+                      onClick={() => handleRemoveFile(file.id)}
                       className="text-red-500 hover:text-red-700"
                     >
                       <X className="h-4 w-4" />
