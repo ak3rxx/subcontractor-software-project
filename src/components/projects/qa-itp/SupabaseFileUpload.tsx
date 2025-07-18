@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Upload, X, FileText, Image, Download, AlertCircle, CheckCircle, RotateCcw } from 'lucide-react';
+import { Upload, X, FileText, Image, Download, AlertCircle, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
 import { useQAUploadManager, QAUploadedFile } from '@/hooks/useQAUploadManager';
 
 interface SupabaseFileUploadProps {
@@ -36,7 +36,9 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
     removeFile, 
     retryUpload,
     uploadedFiles,
-    totalProgress
+    totalProgress,
+    activeUploads,
+    uploadQueue
   } = useQAUploadManager({
     maxConcurrentUploads: 3,
     enableAutoSave: false
@@ -200,14 +202,16 @@ const SupabaseFileUpload: React.FC<SupabaseFileUploadProps> = ({
         <div className="p-3 rounded-lg border bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-              <span className="text-sm font-medium">Uploading files...</span>
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+              <span className="text-sm font-medium">
+                Uploading files... ({activeUploads} active, {uploadQueue} queued)
+              </span>
             </div>
-            <div className="text-sm text-blue-600">{Math.round(totalProgress)}%</div>
+            <div className="text-sm text-blue-600 font-medium">{Math.round(totalProgress)}%</div>
           </div>
           <div className="mt-2 bg-blue-200 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out" 
               style={{ width: `${totalProgress}%` }}
             />
           </div>

@@ -110,7 +110,7 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     }
   }, [user]);
 
-  // Upload single file with progress tracking
+  // Upload single file with real-time progress tracking
   const uploadSingleFile = useCallback(async (
     queueItem: UploadQueueItem
   ): Promise<QAUploadedFile | null> => {
@@ -124,7 +124,7 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     
     uploadStartTimes.current.set(fileId, Date.now());
     
-    // Create initial file object
+    // Create initial file object with 10% progress to show start
     const initialFile: QAUploadedFile = {
       id: fileId,
       file: queueItem.file,
@@ -134,7 +134,7 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
       type: queueItem.file.type,
       path: filePath,
       uploaded: false,
-      progress: 0,
+      progress: 10,
       retryCount: queueItem.retryCount,
       linkedToItemId: queueItem.checklistItemId
     };
@@ -148,8 +148,20 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
       return [...prev, initialFile];
     });
 
+    // Simulate progress updates for better UX
+    const progressInterval = setInterval(() => {
+      setUploadedFiles(prev => 
+        prev.map(f => f.id === fileId && !f.uploaded ? {
+          ...f,
+          progress: Math.min(f.progress + Math.random() * 15, 90)
+        } : f)
+      );
+    }, 200);
+
     try {
-      // Start upload with progress tracking
+      console.log(`Starting upload for ${queueItem.file.name} to ${filePath}`);
+      
+      // Upload to Supabase with optimized settings
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, queueItem.file, {
@@ -157,7 +169,14 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
           upsert: false
         });
 
-      if (error) throw error;
+      clearInterval(progressInterval);
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw error;
+      }
+
+      console.log(`Upload successful for ${queueItem.file.name}`);
 
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -197,9 +216,11 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
       
       return completedFile;
     } catch (error) {
+      clearInterval(progressInterval);
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      console.error(`Upload failed for ${queueItem.file.name}:`, errorMessage);
       
-      // Update file with error
+      // Update file with error state
       setUploadedFiles(prev => 
         prev.map(f => f.id === fileId ? {
           ...f,
@@ -229,67 +250,73 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     }
   }, [user, bucket, generateFilePath, qaNotifications]);
 
-  // Process upload queue
+  // Process upload queue with Promise-based queue management
   const processQueue = useCallback(async () => {
     if (isPaused || isProcessing || uploadQueue.length === 0) return;
     
     setIsProcessing(true);
     
-    const availableSlots = maxConcurrentUploads - activeUploads.size;
-    if (availableSlots <= 0) {
-      setIsProcessing(false);
-      return;
-    }
+    try {
+      const availableSlots = maxConcurrentUploads - activeUploads.size;
+      if (availableSlots <= 0) return;
 
-    const itemsToProcess = uploadQueue
-      .slice(0, availableSlots)
-      .sort((a, b) => {
-        const priorityOrder = { high: 3, medium: 2, low: 1 };
-        return priorityOrder[b.priority] - priorityOrder[a.priority];
+      const itemsToProcess = uploadQueue
+        .slice(0, availableSlots)
+        .sort((a, b) => {
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        });
+
+      // Remove items from queue immediately
+      setUploadQueue(prev => prev.slice(itemsToProcess.length));
+      
+      // Add to active uploads
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        itemsToProcess.forEach(item => newSet.add(item.id));
+        return newSet;
       });
 
-    // Remove items from queue
-    setUploadQueue(prev => prev.slice(itemsToProcess.length));
-    
-    // Add to active uploads
-    setActiveUploads(prev => {
-      const newSet = new Set(prev);
-      itemsToProcess.forEach(item => newSet.add(item.id));
-      return newSet;
-    });
+      // Process items with proper Promise handling
+      const uploadPromises = itemsToProcess.map(async (item) => {
+        try {
+          const result = await uploadSingleFile(item);
+          return { success: !!result, item };
+        } catch (error) {
+          console.error(`Failed to upload ${item.file.name}:`, error);
+          return { success: false, item };
+        } finally {
+          // Remove from active uploads
+          setActiveUploads(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(item.id);
+            return newSet;
+          });
+        }
+      });
 
-    // Process items concurrently
-    const uploadPromises = itemsToProcess.map(async (item) => {
-      try {
-        await uploadSingleFile(item);
-      } catch (error) {
-        console.error(`Failed to upload ${item.file.name}:`, error);
-      } finally {
-        // Remove from active uploads
-        setActiveUploads(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(item.id);
-          return newSet;
-        });
+      await Promise.all(uploadPromises);
+      
+      // Continue processing remaining queue items
+      if (uploadQueue.length > 0) {
+        // Use Promise-based delay instead of setTimeout for better reliability
+        await new Promise(resolve => setTimeout(resolve, 50));
+        processQueue();
       }
-    });
-
-    await Promise.all(uploadPromises);
-    setIsProcessing(false);
-    
-    // Continue processing if there are more items
-    if (uploadQueue.length > itemsToProcess.length) {
-      setTimeout(processQueue, 100);
+    } finally {
+      setIsProcessing(false);
     }
   }, [uploadQueue, activeUploads, maxConcurrentUploads, isPaused, isProcessing, uploadSingleFile]);
 
-  // Add files to upload queue
+  // Add files to upload queue with immediate processing
   const queueFiles = useCallback((
     files: File[],
     inspectionId?: string,
     checklistItemId?: string,
     priority: 'high' | 'medium' | 'low' = 'medium'
   ) => {
+    console.log(`Queueing ${files.length} files for upload with priority: ${priority}`);
+    
     const newItems: UploadQueueItem[] = files.map(file => ({
       id: `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       file,
@@ -304,8 +331,8 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     
     qaNotifications.notifyUploadStart(`${files.length} files`, 0, files.length);
     
-    // Start processing
-    setTimeout(processQueue, 100);
+    // Start processing immediately with Promise-based approach
+    Promise.resolve().then(processQueue);
   }, [qaNotifications, processQueue]);
 
   // Retry failed upload

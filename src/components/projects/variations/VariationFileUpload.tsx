@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Upload, X, FileText, Download, Eye, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useSupabaseFileUpload } from '@/hooks/useSupabaseFileUpload';
+import { useQAUploadManager } from '@/hooks/useQAUploadManager';
 import { useVariationAttachments } from '@/hooks/useVariationAttachments';
 
 interface VariationFileUploadProps {
@@ -21,12 +21,12 @@ const VariationFileUpload: React.FC<VariationFileUploadProps> = ({
   
   const {
     uploadedFiles,
-    uploading,
-    hasUploadFailures,
-    uploadFile,
+    isUploading: uploading,
+    hasFailures: hasUploadFailures,
+    queueFiles,
     removeFile,
-    retryFailedUpload
-  } = useSupabaseFileUpload({
+    retryUpload
+  } = useQAUploadManager({
     bucket: 'variation-attachments',
     folder: variationId ? `${variationId}` : undefined
   });
@@ -89,7 +89,8 @@ const VariationFileUpload: React.FC<VariationFileUploadProps> = ({
         continue;
       }
 
-      await uploadFile(file);
+      // Queue the file for upload
+      queueFiles([file], undefined, undefined, 'high');
     }
 
     // Refresh attachments after upload
@@ -218,7 +219,7 @@ const VariationFileUpload: React.FC<VariationFileUploadProps> = ({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => retryFailedUpload(file.id)}
+                        onClick={() => retryUpload(file.id)}
                       >
                         Retry
                       </Button>
