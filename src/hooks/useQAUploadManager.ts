@@ -250,58 +250,60 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     }
   }, [user, bucket, generateFilePath, qaNotifications]);
 
-  // Process upload queue with Promise-based queue management
+  // Simplified queue processing with while-loop approach
   const processQueue = useCallback(async () => {
-    if (isPaused || isProcessing || uploadQueue.length === 0) return;
+    if (isPaused || isProcessing) return;
     
     setIsProcessing(true);
     
     try {
-      const availableSlots = maxConcurrentUploads - activeUploads.size;
-      if (availableSlots <= 0) return;
+      // Simple while-loop based processing
+      while (uploadQueue.length > 0 && !isPaused) {
+        const availableSlots = maxConcurrentUploads - activeUploads.size;
+        if (availableSlots <= 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          continue;
+        }
 
-      const itemsToProcess = uploadQueue
-        .slice(0, availableSlots)
-        .sort((a, b) => {
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        const itemsToProcess = uploadQueue
+          .slice(0, availableSlots)
+          .sort((a, b) => {
+            const priorityOrder = { high: 3, medium: 2, low: 1 };
+            return priorityOrder[b.priority] - priorityOrder[a.priority];
+          });
+
+        if (itemsToProcess.length === 0) break;
+
+        // Remove items from queue immediately
+        setUploadQueue(prev => prev.slice(itemsToProcess.length));
+        
+        // Add to active uploads
+        setActiveUploads(prev => {
+          const newSet = new Set(prev);
+          itemsToProcess.forEach(item => newSet.add(item.id));
+          return newSet;
         });
 
-      // Remove items from queue immediately
-      setUploadQueue(prev => prev.slice(itemsToProcess.length));
-      
-      // Add to active uploads
-      setActiveUploads(prev => {
-        const newSet = new Set(prev);
-        itemsToProcess.forEach(item => newSet.add(item.id));
-        return newSet;
-      });
+        // Process items concurrently with proper cleanup
+        const uploadPromises = itemsToProcess.map(async (item) => {
+          try {
+            await uploadSingleFile(item);
+          } catch (error) {
+            console.error(`Failed to upload ${item.file.name}:`, error);
+          } finally {
+            // Remove from active uploads
+            setActiveUploads(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(item.id);
+              return newSet;
+            });
+          }
+        });
 
-      // Process items with proper Promise handling
-      const uploadPromises = itemsToProcess.map(async (item) => {
-        try {
-          const result = await uploadSingleFile(item);
-          return { success: !!result, item };
-        } catch (error) {
-          console.error(`Failed to upload ${item.file.name}:`, error);
-          return { success: false, item };
-        } finally {
-          // Remove from active uploads
-          setActiveUploads(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(item.id);
-            return newSet;
-          });
-        }
-      });
-
-      await Promise.all(uploadPromises);
-      
-      // Continue processing remaining queue items
-      if (uploadQueue.length > 0) {
-        // Use Promise-based delay instead of setTimeout for better reliability
+        await Promise.all(uploadPromises);
+        
+        // Small delay to prevent overwhelming
         await new Promise(resolve => setTimeout(resolve, 50));
-        processQueue();
       }
     } finally {
       setIsProcessing(false);
@@ -331,8 +333,8 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     
     qaNotifications.notifyUploadStart(`${files.length} files`, 0, files.length);
     
-    // Start processing immediately with Promise-based approach
-    Promise.resolve().then(processQueue);
+    // Start processing immediately
+    processQueue();
   }, [qaNotifications, processQueue]);
 
   // Retry failed upload
@@ -351,7 +353,7 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
     };
 
     setUploadQueue(prev => [...prev, queueItem]);
-    setTimeout(processQueue, 100);
+    processQueue();
   }, [uploadedFiles, processQueue]);
 
   // Remove file and cleanup
@@ -376,7 +378,7 @@ export const useQAUploadManager = (options: UseQAUploadManagerOptions = {}) => {
   const pauseQueue = useCallback(() => setIsPaused(true), []);
   const resumeQueue = useCallback(() => {
     setIsPaused(false);
-    setTimeout(processQueue, 100);
+    processQueue();
   }, [processQueue]);
 
   // Clear all files

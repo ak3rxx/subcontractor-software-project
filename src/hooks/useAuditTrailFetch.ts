@@ -29,16 +29,16 @@ export const useAuditTrailFetch = () => {
     const now = Date.now();
     const timeSinceLastFetch = now - lastFetchTimestampRef.current;
 
-    // Enhanced duplicate request prevention
-    if (fetchInProgressRef.current) {
+    // Simplified duplicate request prevention
+    if (fetchInProgressRef.current && !forceRefresh) {
       console.log('Fetch already in progress, skipping...');
       return;
     }
 
-    // Skip if this is the same variation and we just fetched it recently (within 2 seconds)
+    // Skip if this is the same variation and we just fetched it recently (within 1 second)
     if (!forceRefresh && 
         lastFetchIdRef.current === variationId && 
-        timeSinceLastFetch < 2000) {
+        timeSinceLastFetch < 1000) {
       console.log('Recent fetch for same variation, skipping...', { timeSinceLastFetch });
       return;
     }
@@ -86,6 +86,7 @@ export const useAuditTrailFetch = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      // Ensure fetchInProgressRef is always cleared
       fetchInProgressRef.current = false;
     }
   }, []);

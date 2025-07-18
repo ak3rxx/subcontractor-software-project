@@ -69,12 +69,8 @@ export const useVariationAuditTrail = (variationId?: string, variation?: any) =>
         lastStatusRef.current = currentStatus;
         lastUpdatedAtRef.current = currentUpdatedAt;
         
-        // Use immediate refresh for status changes, debounced for other updates
-        if (currentStatus !== lastStatusRef.current) {
-          immediateRefresh();
-        } else {
-          debouncedRefresh(300, true);
-        }
+        // Use debounced refresh for all changes to prevent loops
+        debouncedRefresh(500, true);
       }
     }
   }, [variation, variationId, immediateRefresh, debouncedRefresh]);
