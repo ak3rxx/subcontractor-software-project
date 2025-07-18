@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,29 @@ interface QAInspectionModalEnhancedProps {
   onUpdate?: (updatedInspection: any) => void;
 }
 
+// Error boundary component for handling subscription errors
+const ErrorBoundary = ({ children, fallback }: { children: React.ReactNode, fallback: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Modal error caught:', error);
+      if (error.message?.includes('subscribe') || error.message?.includes('channel')) {
+        setHasError(true);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return <>{fallback}</>;
+  }
+
+  return <>{children}</>;
+};
+
 const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo(({
   isOpen,
   onClose,
@@ -46,7 +70,12 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   console.log('QA Modal: Rendering with inspection:', inspection?.id, 'isOpen:', isOpen);
   
   const { updateInspection, getChecklistItems } = useQAInspectionsSimple(inspection?.project_id);
-  const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
+  const [modalError, setModalError] = useState<string | null>(null);
+  
+  // Only hook QA Change History if inspection ID exists and modal is open
+  const shouldUseChangeHistory = Boolean(inspection?.id && isOpen);
+  const { changeHistory, recordChange } = useQAChangeHistory(shouldUseChangeHistory ? inspection.id : '');
+  
   const { toast } = useToast();
   const qaPermissions = useQAPermissions();
 
@@ -62,11 +91,23 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   const [hasChecklistChanges, setHasChecklistChanges] = useState(false);
   const [hasAttachmentChanges, setHasAttachmentChanges] = useState(false);
 
+  // Handle modal errors gracefully
+  useEffect(() => {
+    if (modalError) {
+      console.error('Modal error:', modalError);
+      toast({
+        title: "Modal Error",
+        description: "There was an issue loading the modal. Please try again.",
+        variant: "destructive"
+      });
+      setModalError(null);
+    }
+  }, [modalError, toast]);
+
   // Check if opening in edit mode and auto-enable editing if permitted
   useEffect(() => {
     if (inspection?._openInEditMode && qaPermissions.canEditInspections) {
       setIsEditing(true);
-      // Keep the current active tab instead of forcing details tab
       // Initialize edit data
       setEditData({
         project_name: inspection.project_name || '',
@@ -97,22 +138,26 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
       return;
     }
     
-    setEditData({
-      project_name: inspection.project_name || '',
-      task_area: inspection.task_area || '',
-      location_reference: inspection.location_reference || '',
-      inspection_type: inspection.inspection_type || '',
-      template_type: inspection.template_type || '',
-      inspector_name: inspection.inspector_name || '',
-      inspection_date: inspection.inspection_date || '',
-      overall_status: inspection.overall_status || '',
-      digital_signature: inspection.digital_signature || '',
-      is_fire_door: inspection.is_fire_door || false
-    });
-    setIsEditing(true);
-    setUnsavedChanges(false);
-    // Keep current tab active instead of auto-switching to details
-  }, [inspection?.id, qaPermissions, toast]); // Only re-create when inspection ID changes
+    try {
+      setEditData({
+        project_name: inspection.project_name || '',
+        task_area: inspection.task_area || '',
+        location_reference: inspection.location_reference || '',
+        inspection_type: inspection.inspection_type || '',
+        template_type: inspection.template_type || '',
+        inspector_name: inspection.inspector_name || '',
+        inspection_date: inspection.inspection_date || '',
+        overall_status: inspection.overall_status || '',
+        digital_signature: inspection.digital_signature || '',
+        is_fire_door: inspection.is_fire_door || false
+      });
+      setIsEditing(true);
+      setUnsavedChanges(false);
+    } catch (error) {
+      console.error('Error entering edit mode:', error);
+      setModalError('Failed to enter edit mode');
+    }
+  }, [inspection?.id, qaPermissions, toast]);
 
   const handleDataChange = useCallback((changes: any) => {
     setEditData(prev => ({ ...prev, ...changes }));
@@ -271,150 +316,163 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <div className="flex justify-between items-start">
-            <div className="space-y-2">
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                QA Inspection {inspection.inspection_number}
-              </DialogTitle>
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-muted-foreground">
-                  {inspection.task_area}
-                </h3>
-                {getStatusBadge}
-                {inspection.is_fire_door && (
-                  <Badge variant="destructive" className="text-xs">🔥 Fire Door</Badge>
-                )}
-                {hasAnyChanges && (
-                  <Badge variant="outline" className="text-xs text-orange-600">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Unsaved Changes
-                  </Badge>
+    <ErrorBoundary fallback={
+      <div className="p-4 text-center">
+        <p className="text-red-600">There was an error loading the inspection details.</p>
+        <Button onClick={onClose} variant="outline" className="mt-2">Close</Button>
+      </div>
+    }>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  QA Inspection {inspection.inspection_number}
+                </DialogTitle>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-muted-foreground">
+                    {inspection.task_area}
+                  </h3>
+                  {getStatusBadge}
+                  {inspection.is_fire_door && (
+                    <Badge variant="destructive" className="text-xs">🔥 Fire Door</Badge>
+                  )}
+                  {hasAnyChanges && (
+                    <Badge variant="outline" className="text-xs text-orange-600">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Unsaved Changes
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {!isEditing ? (
+                  <Button variant="outline" size="sm" onClick={handleEditClick}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleCancel}
+                      disabled={saving}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSave}
+                      disabled={saving || !hasAnyChanges}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              {!isEditing ? (
-                <Button variant="outline" size="sm" onClick={handleEditClick}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              ) : (
-                <>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCancel}
-                    disabled={saving}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handleSave}
-                    disabled={saving || !hasAnyChanges}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
 
-          {/* Quick Info Bar */}
-          <Card className="mt-4">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {inspectionInfo.map((info, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <info.icon className={`h-4 w-4 ${info.color}`} />
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">{info.label}</p>
-                      <p className="text-sm font-medium">{info.value || 'N/A'}</p>
+            {/* Quick Info Bar */}
+            <Card className="mt-4">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {inspectionInfo.map((info, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <info.icon className={`h-4 w-4 ${info.color}`} />
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">{info.label}</p>
+                        <p className="text-sm font-medium">{info.value || 'N/A'}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Cross-Module Integration */}
+            {!isEditing && (
+              <QACrossModuleIntegration inspection={inspection} />
+            )}
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+              <TabsList className="flex-shrink-0 grid w-full grid-cols-4">
+                <TabsTrigger value="details" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Details
+                </TabsTrigger>
+                <TabsTrigger value="checklist" className="flex items-center gap-2">
+                  <Clipboard className="h-4 w-4" />
+                  Checklist
+                </TabsTrigger>
+                <TabsTrigger value="attachments" className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Attachments
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Audit Trail
+                  {shouldUseChangeHistory && changeHistory.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 text-xs">
+                      {changeHistory.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="flex-1 overflow-hidden mt-4">
+                <TabsContent value="details" className="h-full">
+                  <QADetailsTab
+                    inspection={inspection}
+                    editData={editData}
+                    isEditing={isEditing}
+                    onDataChange={handleDataChange}
+                    recordChange={shouldUseChangeHistory ? recordChange : undefined}
+                  />
+                </TabsContent>
+
+                <TabsContent value="checklist" className="h-full">
+                  <QAChecklistEditableTab
+                    inspection={inspection}
+                    isEditing={isEditing}
+                    onUpdate={onUpdate}
+                    onChecklistChange={handleChecklistChange}
+                  />
+                </TabsContent>
+
+                <TabsContent value="attachments" className="h-full">
+                  <QAAttachmentsUploadTab
+                    inspection={inspection}
+                    isEditing={isEditing}
+                    onAttachmentChange={handleAttachmentChange}
+                  />
+                </TabsContent>
+
+                <TabsContent value="history" className="h-full">
+                  {shouldUseChangeHistory ? (
+                    <QAChangeHistory
+                      inspectionId={inspection.id}
+                      changeHistory={changeHistory}
+                    />
+                  ) : (
+                    <div className="p-4 text-center text-muted-foreground">
+                      Change history is not available when modal is closed.
+                    </div>
+                  )}
+                </TabsContent>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Cross-Module Integration */}
-          {!isEditing && (
-            <QACrossModuleIntegration inspection={inspection} />
-          )}
-        </DialogHeader>
-
-        <div className="flex-1 min-h-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <TabsList className="flex-shrink-0 grid w-full grid-cols-4">
-              <TabsTrigger value="details" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Details
-              </TabsTrigger>
-              <TabsTrigger value="checklist" className="flex items-center gap-2">
-                <Clipboard className="h-4 w-4" />
-                Checklist
-              </TabsTrigger>
-              <TabsTrigger value="attachments" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Attachments
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                Audit Trail
-                {changeHistory.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {changeHistory.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            
-            <div className="flex-1 overflow-hidden mt-4">
-              <TabsContent value="details" className="h-full">
-                <QADetailsTab
-                  inspection={inspection}
-                  editData={editData}
-                  isEditing={isEditing}
-                  onDataChange={handleDataChange}
-                  recordChange={recordChange}
-                />
-              </TabsContent>
-
-              <TabsContent value="checklist" className="h-full">
-                <QAChecklistEditableTab
-                  inspection={inspection}
-                  isEditing={isEditing}
-                  onUpdate={onUpdate}
-                  onChecklistChange={handleChecklistChange}
-                />
-              </TabsContent>
-
-              <TabsContent value="attachments" className="h-full">
-                <QAAttachmentsUploadTab
-                  inspection={inspection}
-                  isEditing={isEditing}
-                  onAttachmentChange={handleAttachmentChange}
-                />
-              </TabsContent>
-
-              <TabsContent value="history" className="h-full">
-                <QAChangeHistory
-                  inspectionId={inspection.id}
-                  changeHistory={changeHistory}
-                />
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
-      </DialogContent>
-    </Dialog>
+            </Tabs>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </ErrorBoundary>
   );
 });
 

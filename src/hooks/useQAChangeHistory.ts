@@ -27,6 +27,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
   const recordedChanges = useRef<Set<string>>(new Set());
   const lastRefresh = useRef<number>(0);
   const realtimeChannel = useRef<RealtimeChannel | null>(null);
+  const subscriptionActive = useRef<boolean>(false);
 
   // Enhanced unique key generation for better deduplication
   const generateChangeKey = useCallback((
@@ -140,8 +141,6 @@ export const useQAChangeHistory = (inspectionId: string) => {
 
       console.log('QA change recorded successfully');
       
-      // Real-time updates will handle the refresh, no need to call it manually
-      
     } catch (error) {
       console.error('Error recording QA change:', error);
       
@@ -156,21 +155,29 @@ export const useQAChangeHistory = (inspectionId: string) => {
     }
   }, [inspectionId, toast, generateChangeKey]);
 
-  // Set up real-time subscription
+  // Set up real-time subscription with proper management
   useEffect(() => {
     if (!inspectionId) return;
 
+    // Prevent duplicate subscriptions
+    if (subscriptionActive.current) {
+      console.log('Subscription already active for inspection:', inspectionId);
+      return;
+    }
+
     console.log('Setting up real-time subscription for QA change history:', inspectionId);
 
-    // Clean up existing subscription
+    // Clean up existing subscription first
     if (realtimeChannel.current) {
       console.log('Cleaning up existing real-time subscription');
       supabase.removeChannel(realtimeChannel.current);
+      realtimeChannel.current = null;
     }
 
-    // Create new subscription
+    // Create new subscription with unique channel name
+    const channelName = `qa_change_history:${inspectionId}:${Date.now()}`;
     realtimeChannel.current = supabase
-      .channel(`qa_change_history:${inspectionId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -189,6 +196,13 @@ export const useQAChangeHistory = (inspectionId: string) => {
         console.log('QA change history subscription status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to QA change history updates');
+          subscriptionActive.current = true;
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('QA change history subscription error');
+          subscriptionActive.current = false;
+        } else if (status === 'CLOSED') {
+          console.log('QA change history subscription closed');
+          subscriptionActive.current = false;
         }
       });
 
@@ -197,6 +211,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
         console.log('Cleaning up QA change history subscription');
         supabase.removeChannel(realtimeChannel.current);
         realtimeChannel.current = null;
+        subscriptionActive.current = false;
       }
     };
   }, [inspectionId, refreshChangeHistory]);

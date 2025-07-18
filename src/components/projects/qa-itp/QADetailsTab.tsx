@@ -1,3 +1,4 @@
+
 import React, { memo, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [autoCalculatedStatus, setAutoCalculatedStatus] = useState<string>('');
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
+  const [subscriptionActive, setSubscriptionActive] = useState<boolean>(false);
 
   // Fetch checklist items for auto status calculation
   useEffect(() => {
@@ -66,16 +68,24 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
   useEffect(() => {
     if (!inspection?.id) return;
 
+    // Prevent duplicate subscriptions
+    if (subscriptionActive) {
+      console.log('Checklist subscription already active for inspection:', inspection.id);
+      return;
+    }
+
     console.log('Setting up real-time subscription for checklist items:', inspection.id);
 
     // Clean up existing subscription
     if (realtimeChannel) {
       supabase.removeChannel(realtimeChannel);
+      setRealtimeChannel(null);
     }
 
-    // Create new subscription
+    // Create new subscription with unique channel name
+    const channelName = `qa_checklist_items:${inspection.id}:${Date.now()}`;
     const channel = supabase
-      .channel(`qa_checklist_items:${inspection.id}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -106,6 +116,13 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
         console.log('Checklist items subscription status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to checklist items updates');
+          setSubscriptionActive(true);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Checklist items subscription error');
+          setSubscriptionActive(false);
+        } else if (status === 'CLOSED') {
+          console.log('Checklist items subscription closed');
+          setSubscriptionActive(false);
         }
       });
 
@@ -115,9 +132,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
       if (channel) {
         console.log('Cleaning up checklist items subscription');
         supabase.removeChannel(channel);
+        setSubscriptionActive(false);
       }
     };
-  }, [inspection?.id, getChecklistItems]);
+  }, [inspection?.id, getChecklistItems, subscriptionActive, realtimeChannel]);
 
   const handleFieldChange = (field: string, value: any) => {
     console.log(`QA Details Tab: Field change ${field} = ${value}`);
