@@ -12,7 +12,7 @@ interface ChangeHistoryEntry {
   field_name: string;
   old_value: string | null;
   new_value: string | null;
-  change_type: 'create' | 'update' | 'delete';
+  change_type: string;
   item_id?: string;
   item_description?: string;
 }
