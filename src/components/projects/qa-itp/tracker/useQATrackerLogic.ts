@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -30,70 +30,89 @@ export const useQATrackerLogic = (projectId: string) => {
   const [tradeFilter, setTradeFilter] = useState('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Memoized computations for performance
-  const statusCounts = useMemo(() => {
-    return inspections.reduce((acc, inspection) => {
-      acc[inspection.overall_status] = (acc[inspection.overall_status] || 0) + 1;
-      acc.total = (acc.total || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  }, [inspections]);
-
-  const uniqueInspectors = useMemo(() => {
-    const inspectors = new Set(inspections.map(i => i.inspector_name).filter(Boolean));
-    return Array.from(inspectors).sort();
-  }, [inspections]);
-
-  const uniqueBuildings = useMemo(() => {
-    const buildings = new Set(
-      inspections.map(i => {
-        const match = i.location_reference?.match(/building\s*(\d+|[a-z]+)/i);
-        return match ? match[0] : null;
-      }).filter(Boolean)
-    );
-    return Array.from(buildings).sort();
-  }, [inspections]);
-
-  const uniqueLevels = useMemo(() => {
-    const levels = new Set(
-      inspections.map(i => {
-        const match = i.location_reference?.match(/level\s*(\d+|[a-z]+)/i);
-        return match ? match[0] : null;
-      }).filter(Boolean)
-    );
-    return Array.from(levels).sort();
-  }, [inspections]);
-
-  const uniqueTasks = useMemo(() => {
-    const tasks = new Set(inspections.map(i => i.task_area).filter(Boolean));
-    return Array.from(tasks).sort();
-  }, [inspections]);
-
-  const uniqueTrades = useMemo(() => {
-    const trades = new Set(inspections.map(i => i.trade).filter(Boolean));
-    return Array.from(trades).sort();
-  }, [inspections]);
-
-  // Optimized filter function with early returns and memoization
-  const filteredInspections = useMemo(() => {
-    if (!inspections.length) return [];
+  // PERFORMANCE OPTIMIZATION: Use deferred values for expensive computations
+  const deferredInspections = React.useDeferredValue(inspections);
+  
+  // Optimized memoized computations - single pass through data
+  const computedData = useMemo(() => {
+    const statusCounts = { total: 0, pass: 0, fail: 0, 'pending-reinspection': 0, 'incomplete-in-progress': 0, 'incomplete-draft': 0 };
+    const inspectors = new Set<string>();
+    const buildings = new Set<string>();
+    const levels = new Set<string>();
+    const tasks = new Set<string>();
+    const trades = new Set<string>();
     
-    return inspections.filter(inspection => {
-      // Text search with early return
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const searchMatch = [
-          inspection.task_area,
-          inspection.inspection_number,
-          inspection.inspector_name,
-          inspection.location_reference,
-          inspection.project_name
-        ].some(field => field?.toLowerCase().includes(searchLower));
-        
-        if (!searchMatch) return false;
+    // Single pass through inspections for all computations
+    deferredInspections.forEach(inspection => {
+      // Count statuses
+      statusCounts.total++;
+      if (statusCounts.hasOwnProperty(inspection.overall_status)) {
+        statusCounts[inspection.overall_status as keyof typeof statusCounts]++;
       }
+      
+      // Collect unique values
+      if (inspection.inspector_name) inspectors.add(inspection.inspector_name);
+      if (inspection.task_area) tasks.add(inspection.task_area);
+      if (inspection.trade) trades.add(inspection.trade);
+      
+      // Optimized location parsing - avoid multiple regex calls
+      if (inspection.location_reference) {
+        const location = inspection.location_reference.toLowerCase();
+        const buildingMatch = location.match(/building\s*([a-z0-9]+)/);
+        const levelMatch = location.match(/level\s*([a-z0-9]+)/);
+        
+        if (buildingMatch) buildings.add(`Building ${buildingMatch[1].toUpperCase()}`);
+        if (levelMatch) levels.add(`Level ${levelMatch[1]}`);
+      }
+    });
+    
+    return {
+      statusCounts,
+      uniqueInspectors: Array.from(inspectors).sort(),
+      uniqueBuildings: Array.from(buildings).sort(),
+      uniqueLevels: Array.from(levels).sort((a, b) => {
+        const aNum = parseInt(a.replace(/\D/g, ''));
+        const bNum = parseInt(b.replace(/\D/g, ''));
+        return aNum - bNum;
+      }),
+      uniqueTasks: Array.from(tasks).sort(),
+      uniqueTrades: Array.from(trades).sort()
+    };
+  }, [deferredInspections]);
 
-      // Quick status filters
+  const { statusCounts, uniqueInspectors, uniqueBuildings, uniqueLevels, uniqueTasks, uniqueTrades } = computedData;
+
+  // PERFORMANCE OPTIMIZATION: Deferred filtering with optimized search
+  const deferredSearchTerm = React.useDeferredValue(searchTerm);
+  
+  const filteredInspections = useMemo(() => {
+    if (!deferredInspections.length) return [];
+    
+    // Pre-compile search terms for better performance
+    const searchLower = deferredSearchTerm.toLowerCase();
+    const hasSearch = searchLower.length > 0;
+    
+    // Pre-calculate date boundaries if needed
+    let dateStart: Date | null = null;
+    if (dateRangeFilter !== 'all') {
+      const now = new Date();
+      switch (dateRangeFilter) {
+        case 'today':
+          dateStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          dateStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          dateStart = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+          break;
+      }
+    }
+    
+    return deferredInspections.filter(inspection => {
+      // OPTIMIZATION: Most restrictive filters first for early exit
+      
+      // Quick exact matches first (fastest)
       if (statusFilter !== 'all' && inspection.overall_status !== statusFilter) return false;
       if (inspectionTypeFilter !== 'all' && inspection.inspection_type !== inspectionTypeFilter) return false;
       if (templateTypeFilter !== 'all' && inspection.template_type !== templateTypeFilter) return false;
@@ -101,43 +120,49 @@ export const useQATrackerLogic = (projectId: string) => {
       if (taskFilter !== 'all' && inspection.task_area !== taskFilter) return false;
       if (tradeFilter !== 'all' && inspection.trade !== tradeFilter) return false;
 
-      // Building filter
-      if (buildingFilter !== 'all') {
-        const buildingMatch = inspection.location_reference?.match(/building\s*(\d+|[a-z]+)/i);
-        const extractedBuilding = buildingMatch ? buildingMatch[0] : null;
-        if (extractedBuilding !== buildingFilter) return false;
-      }
-
-      // Level filter
-      if (levelFilter !== 'all') {
-        const levelMatch = inspection.location_reference?.match(/level\s*(\d+|[a-z]+)/i);
-        const extractedLevel = levelMatch ? levelMatch[0] : null;
-        if (extractedLevel !== levelFilter) return false;
-      }
-
-      // Date range filter
-      if (dateRangeFilter !== 'all' && inspection.inspection_date) {
-        const inspectionDate = new Date(inspection.inspection_date);
-        const now = new Date();
+      // Optimized text search (avoid multiple toLowerCase calls)
+      if (hasSearch) {
+        const fields = [
+          inspection.task_area,
+          inspection.inspection_number,
+          inspection.inspector_name,
+          inspection.location_reference,
+          inspection.project_name
+        ];
         
-        switch (dateRangeFilter) {
-          case 'today':
-            if (inspectionDate.toDateString() !== now.toDateString()) return false;
-            break;
-          case 'week':
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            if (inspectionDate < weekAgo) return false;
-            break;
-          case 'month':
-            const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-            if (inspectionDate < monthAgo) return false;
-            break;
+        if (!fields.some(field => field && field.toLowerCase().includes(searchLower))) {
+          return false;
+        }
+      }
+
+      // Optimized location filters (avoid regex if possible)
+      if (buildingFilter !== 'all' || levelFilter !== 'all') {
+        const location = inspection.location_reference?.toLowerCase() || '';
+        
+        if (buildingFilter !== 'all') {
+          const targetBuilding = buildingFilter.toLowerCase();
+          if (!location.includes(targetBuilding.replace('building ', ''))) return false;
+        }
+        
+        if (levelFilter !== 'all') {
+          const targetLevel = levelFilter.toLowerCase();
+          if (!location.includes(targetLevel.replace('level ', ''))) return false;
+        }
+      }
+
+      // Date filter (most expensive, do last)
+      if (dateStart && inspection.inspection_date) {
+        const inspectionDate = new Date(inspection.inspection_date);
+        if (dateRangeFilter === 'today') {
+          if (inspectionDate.toDateString() !== dateStart.toDateString()) return false;
+        } else {
+          if (inspectionDate < dateStart) return false;
         }
       }
 
       return true;
     });
-  }, [inspections, searchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter, inspectorFilter, dateRangeFilter, buildingFilter, levelFilter, taskFilter, tradeFilter]);
+  }, [deferredInspections, deferredSearchTerm, statusFilter, inspectionTypeFilter, templateTypeFilter, inspectorFilter, dateRangeFilter, buildingFilter, levelFilter, taskFilter, tradeFilter]);
 
   // Memoized event handlers with stable references
   const handleSelectItem = useCallback((inspectionId: string, checked: boolean) => {

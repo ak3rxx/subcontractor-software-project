@@ -5,7 +5,7 @@ import QABulkExport from './QABulkExport';
 import QATrackerHeader from './tracker/QATrackerHeader';
 import QATrackerStats from './tracker/QATrackerStats';
 import QATrackerFilters from './tracker/QATrackerFilters';
-import QATrackerTable from './tracker/QATrackerTable';
+import QATrackerTableOptimized from './tracker/QATrackerTableOptimized';
 import QAMetricsDashboard from './analytics/QAMetricsDashboard';
 import QAReportGenerator from './analytics/QAReportGenerator';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
@@ -182,20 +182,16 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
             uniqueTrades={uniqueTrades}
           />
           
-          <QATrackerTable
-            filteredInspections={filteredInspections}
+          <QATrackerTableOptimized
+            inspections={filteredInspections}
             selectedItems={selectedItems}
             onSelectItem={handleSelectItem}
             onSelectAll={handleSelectAll}
-            onViewInspection={handleViewInspection}
-            onEditInspection={handleEditInspection}
-            onDeleteInspection={handleDeleteInspection}
-            getStatusColor={getStatusColor}
+            onView={handleViewInspection}
+            onEdit={handleEditInspection}
+            onDelete={handleDeleteInspection}
             getStatusIcon={getStatusIcon}
-            hasActiveFilters={hasActiveFilters}
-            onNewInspection={() => setShowCreateForm(true)}
-            onExportSelected={() => setShowBulkExport(true)}
-            onBulkDelete={handleBulkDelete}
+            getStatusColor={getStatusColor}
           />
         </TabsContent>
 

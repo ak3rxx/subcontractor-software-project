@@ -441,11 +441,14 @@ export const useQAInspectionsSimple = (projectId?: string) => {
       return;
     }
 
-    // Create new subscription
-    const channelName = `qa_inspections_${projectId}_${Date.now()}`;
-    console.log('QA: Creating new subscription:', channelName);
+    // PERFORMANCE OPTIMIZATION: Simplified subscription without timestamp
+    const channelName = `qa_inspections_${projectId}`;
+    console.log('QA: Creating optimized subscription:', channelName);
     
     subscribedProjectRef.current = projectId;
+    
+    // Debounce reference for real-time updates
+    let debounceTimer: NodeJS.Timeout | null = null;
     
     const channel = supabase
       .channel(channelName)
@@ -458,8 +461,13 @@ export const useQAInspectionsSimple = (projectId?: string) => {
         }, 
         (payload) => {
           console.log('QA: Real-time change detected:', payload.eventType);
-          // Simple debounced refetch
-          setTimeout(() => fetchInspections(projectId, user), 500);
+          
+          // OPTIMIZATION: Reduced debounce time and proper cleanup
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchInspections(projectId, user);
+            debounceTimer = null;
+          }, 100); // Reduced from 500ms to 100ms
         }
       )
       .subscribe();

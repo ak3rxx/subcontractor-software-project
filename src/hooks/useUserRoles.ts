@@ -27,29 +27,28 @@ export const useUserRoles = (userId: string | undefined) => {
       setError(null);
       
       try {
-        // Load organization roles with simplified query to avoid 406 errors
-        const { data: orgUsers, error: orgError } = await supabase
+        // PERFORMANCE OPTIMIZATION: Single query with join to prevent cascade
+        const { data: orgUsersWithNames, error: orgError } = await supabase
           .from('organization_users')
-          .select('role, organization_id')
+          .select(`
+            role, 
+            organization_id,
+            organizations!inner(name)
+          `)
           .eq('user_id', userId)
           .eq('status', 'active');
 
-        // Load organization names separately if needed
-        let organizationNames: { [key: string]: string } = {};
-        if (orgUsers && orgUsers.length > 0) {
-          const orgIds = orgUsers.map(ou => ou.organization_id);
-          const { data: orgs } = await supabase
-            .from('organizations')
-            .select('id, name')
-            .in('id', orgIds);
-          
-          if (orgs) {
-            organizationNames = orgs.reduce((acc, org) => ({
-              ...acc,
-              [org.id]: org.name
-            }), {});
-          }
-        }
+        // No need for separate organization query - data is already joined
+        const organizationNames: { [key: string]: string } = {};
+        const orgUsers = orgUsersWithNames?.map(ou => {
+          // Extract organization name from joined data
+          const orgName = (ou.organizations as any)?.name || 'Unknown';
+          organizationNames[ou.organization_id] = orgName;
+          return {
+            role: ou.role,
+            organization_id: ou.organization_id
+          };
+        }) || [];
 
         if (orgError) {
           setError(orgError.message);
