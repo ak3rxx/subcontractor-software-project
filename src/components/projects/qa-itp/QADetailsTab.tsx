@@ -1,4 +1,3 @@
-
 import React, { memo, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,9 @@ import { CalendarDays, MapPin, User, FileText, Flame } from 'lucide-react';
 import { calculateOverallStatus, getStatusDisplayName, getStatusBadgeStyle } from '@/utils/qaStatusCalculation';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import { supabase } from '@/integrations/supabase/client';
 import FieldAuditNote from './FieldAuditNote';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface QADetailsTabProps {
   inspection: any;
@@ -35,9 +36,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
   });
 
   const { getChecklistItems } = useQAInspectionsSimple(inspection?.project_id);
-  const { changeHistory } = useQAChangeHistory(inspection?.id);
+  const { changeHistory, recordChange: recordAuditChange } = useQAChangeHistory(inspection?.id);
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [autoCalculatedStatus, setAutoCalculatedStatus] = useState<string>('');
+  const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
 
   // Fetch checklist items for auto status calculation
   useEffect(() => {
@@ -60,13 +62,70 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
     fetchChecklistItems();
   }, [inspection?.id, getChecklistItems]);
 
+  // Set up real-time subscription for checklist items to update status badge
+  useEffect(() => {
+    if (!inspection?.id) return;
+
+    console.log('Setting up real-time subscription for checklist items:', inspection.id);
+
+    // Clean up existing subscription
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+    }
+
+    // Create new subscription
+    const channel = supabase
+      .channel(`qa_checklist_items:${inspection.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',  
+          table: 'qa_checklist_items',
+          filter: `inspection_id=eq.${inspection.id}`
+        },
+        async (payload) => {
+          console.log('Real-time checklist item change:', payload);
+          
+          // Refetch checklist items and recalculate status
+          try {
+            const items = await getChecklistItems(inspection.id);
+            setChecklistItems(items || []);
+            
+            // Auto-calculate status
+            const calculatedStatus = calculateOverallStatus(items || []);
+            setAutoCalculatedStatus(calculatedStatus);
+            
+            console.log('Status recalculated:', calculatedStatus);
+          } catch (error) {
+            console.error('Error refetching checklist items:', error);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Checklist items subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to checklist items updates');
+        }
+      });
+
+    setRealtimeChannel(channel);
+
+    return () => {
+      if (channel) {
+        console.log('Cleaning up checklist items subscription');
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [inspection?.id, getChecklistItems]);
+
   const handleFieldChange = (field: string, value: any) => {
     console.log(`QA Details Tab: Field change ${field} = ${value}`);
     
     // Record audit trail if in editing mode
-    if (isEditing && recordChange) {
+    if (isEditing && recordAuditChange) {
       const oldValue = editData[field] || inspection[field] || '';
-      recordChange(field, String(oldValue), String(value), 'update', inspection?.id, `Details: ${field}`);
+      recordAuditChange(field, String(oldValue), String(value), 'update', inspection?.id, `Details: ${field}`);
     }
     
     onDataChange({ [field]: value });
@@ -280,7 +339,7 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Status automatically calculated based on checklist completion
+                  Status automatically calculated based on checklist completion • Updates live
                 </p>
               </div>
               <FieldAuditNote 

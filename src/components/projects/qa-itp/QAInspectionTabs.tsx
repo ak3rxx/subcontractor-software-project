@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +30,8 @@ const QAInspectionTabs: React.FC<QAInspectionTabsProps> = ({
   onUpdate,
   onInspectionUpdate
 }) => {
-  const { changeHistory } = useQAChangeHistory(inspection?.id);
+  const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
+  
   return (
     <div className="flex-1 overflow-hidden">
       <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
@@ -55,6 +57,7 @@ const QAInspectionTabs: React.FC<QAInspectionTabsProps> = ({
               editData={editData}
               isEditing={isEditing}
               onDataChange={onDataChange}
+              recordChange={recordChange}
             />
           </TabsContent>
 
