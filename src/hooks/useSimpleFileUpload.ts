@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +27,9 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
   const [files, setFiles] = useState<SimpleUploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  
+  // Track uploads in progress to prevent duplicates
+  const uploadsInProgress = useRef<Set<string>>(new Set());
 
   const generateFilePath = useCallback((file: File): string => {
     const fileExt = file.name.split('.').pop();
@@ -50,6 +54,17 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
 
     try {
       for (const file of newFiles) {
+        // Create unique upload key to prevent duplicates
+        const uploadKey = `${file.name}-${file.size}-${file.lastModified}`;
+        
+        // Skip if already uploading this exact file
+        if (uploadsInProgress.current.has(uploadKey)) {
+          console.log('Upload already in progress for:', file.name);
+          continue;
+        }
+        
+        uploadsInProgress.current.add(uploadKey);
+        
         const fileId = `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const filePath = generateFilePath(file);
 
@@ -117,6 +132,9 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
             description: `Failed to upload ${file.name}: ${errorMessage}`,
             variant: "destructive"
           });
+        } finally {
+          // Remove from uploads in progress
+          uploadsInProgress.current.delete(uploadKey);
         }
       }
 
@@ -175,6 +193,7 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     }
 
     setFiles([]);
+    uploadsInProgress.current.clear();
   }, [files, bucket]);
 
   return {

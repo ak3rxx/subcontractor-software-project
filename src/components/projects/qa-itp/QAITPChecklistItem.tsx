@@ -1,11 +1,10 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import SimpleFileUpload from './SimpleFileUpload';
-// Removed QAFieldAuditTrail for simplicity
 import { ChecklistItem } from './QAITPTemplates';
 import { SimpleUploadedFile } from '@/hooks/useSimpleFileUpload';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
@@ -25,26 +24,40 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
 }) => {
   const { recordChange } = useQAChangeHistory(inspectionId || '');
 
+  // Debounced file change handler to prevent duplicate recordings
   const handleFileChange = useCallback((files: SimpleUploadedFile[]) => {
+    const currentFiles = item.evidenceFiles || [];
+    
+    // Only record if files actually changed
+    if (JSON.stringify(currentFiles) === JSON.stringify(files)) {
+      return;
+    }
+
     console.log('Files changed for item', item.id, ':', files);
     
-    // Record audit trail for file changes
-    if (inspectionId) {
-      const oldFiles = item.evidenceFiles || [];
-      recordChange(
-        'evidenceFiles',
-        JSON.stringify(oldFiles),
-        JSON.stringify(files),
-        'update',
-        item.id,
-        item.description
-      );
+    // Record audit trail for file changes (debounced)
+    if (inspectionId && files.length !== currentFiles.length) {
+      // Use setTimeout to debounce rapid changes
+      setTimeout(() => {
+        recordChange(
+          'evidenceFiles',
+          JSON.stringify(currentFiles),
+          JSON.stringify(files),
+          'update',
+          item.id,
+          item.description
+        );
+      }, 100);
     }
     
     onChecklistChange(item.id, 'evidenceFiles', files);
-  }, [item.id, onChecklistChange, recordChange, inspectionId, item.description, item.evidenceFiles]);
+  }, [item.id, item.evidenceFiles, item.description, onChecklistChange, recordChange, inspectionId]);
 
   const handleStatusChange = useCallback((status: string) => {
+    if (item.status === status) {
+      return; // No change
+    }
+
     console.log('Status changed for item', item.id, ':', status);
     
     // Record audit trail for status changes
@@ -60,28 +73,34 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
     }
     
     onChecklistChange(item.id, 'status', status);
-  }, [item.id, onChecklistChange, recordChange, inspectionId, item.status, item.description]);
+  }, [item.id, item.status, item.description, onChecklistChange, recordChange, inspectionId]);
 
   const handleCommentsChange = useCallback((comments: string) => {
+    if (item.comments === comments) {
+      return; // No change
+    }
+
     console.log('Comments changed for item', item.id, ':', comments);
     
-    // Record audit trail for comments changes
+    // Record audit trail for comments changes (debounced)
     if (inspectionId) {
-      recordChange(
-        'comments',
-        item.comments || '',
-        comments,
-        'update',
-        item.id,
-        item.description
-      );
+      setTimeout(() => {
+        recordChange(
+          'comments',
+          item.comments || '',
+          comments,
+          'update',
+          item.id,
+          item.description
+        );
+      }, 500); // Longer debounce for text input
     }
     
     onChecklistChange(item.id, 'comments', comments);
-  }, [item.id, onChecklistChange, recordChange, inspectionId, item.comments, item.description]);
+  }, [item.id, item.comments, item.description, onChecklistChange, recordChange, inspectionId]);
 
   // Ensure evidenceFiles is always an array of SimpleUploadedFile objects
-  const currentFiles = React.useMemo(() => {
+  const currentFiles = useMemo(() => {
     if (!item.evidenceFiles || !Array.isArray(item.evidenceFiles)) {
       return [];
     }
@@ -147,8 +166,6 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           inspectionId={inspectionId}
           checklistItemId={item.id}
         />
-
-        {/* Real-time audit trail removed for simplicity - available in main modal */}
       </div>
     </div>
   );

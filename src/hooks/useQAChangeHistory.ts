@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,14 +21,15 @@ export const useQAChangeHistory = (inspectionId: string) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   
-  // Track the last recorded changes to prevent duplicates
-  const lastRecordedChanges = useRef<Map<string, string>>(new Map());
+  // Improved deduplication tracking
+  const lastRecordedChanges = useRef<Map<string, { timestamp: number; content: string }>>(new Map());
+  const pendingRecords = useRef<Set<string>>(new Set());
   
-  // Use refs to prevent subscription loops - mirroring useQAInspectionsSimple pattern
+  // Use refs to prevent subscription loops
   const subscriptionRef = useRef<RealtimeChannel | null>(null);
   const subscribedInspectionRef = useRef<string | undefined>(undefined);
 
-  // Stable fetch function with debouncing - mirrors useQAInspectionsSimple pattern
+  // Stable fetch function with better error handling
   const fetchChangeHistory = useCallback(async (currentInspectionId?: string, currentUser?: any) => {
     const targetInspectionId = currentInspectionId || inspectionId;
     const targetUser = currentUser || user;
@@ -39,7 +39,6 @@ export const useQAChangeHistory = (inspectionId: string) => {
       return;
     }
 
-    console.log('QA History: Fetching change history for inspection:', targetInspectionId);
     try {
       const { data, error } = await supabase.rpc('get_qa_change_history', {
         p_inspection_id: targetInspectionId
@@ -51,7 +50,6 @@ export const useQAChangeHistory = (inspectionId: string) => {
         return;
       }
 
-      // Transform the data to match our interface
       const transformedData = (data || []).map((item: any) => ({
         ...item,
         timestamp: item.change_timestamp || item.timestamp,
@@ -59,7 +57,6 @@ export const useQAChangeHistory = (inspectionId: string) => {
       }));
       
       setChangeHistory(transformedData);
-      console.log('QA History: Fetched', transformedData.length, 'change entries');
     } catch (error) {
       console.error('Unexpected error:', error);
       setChangeHistory([]);
@@ -68,7 +65,8 @@ export const useQAChangeHistory = (inspectionId: string) => {
     }
   }, []); // No dependencies - stable function
 
-  const recordChange = async (
+  // Improved recordChange with better deduplication
+  const recordChange = useCallback(async (
     fieldName: string,
     oldValue: string | null,
     newValue: string | null,
@@ -77,70 +75,67 @@ export const useQAChangeHistory = (inspectionId: string) => {
     itemDescription?: string
   ) => {
     if (!user || !inspectionId) {
-      console.log('Cannot record change: missing user or inspection ID');
-      return;
-    }
-
-    // Create a unique key for this change
-    const changeKey = `${itemId || 'form'}-${fieldName}-${oldValue}-${newValue}`;
-    
-    // Check if this exact change was already recorded recently
-    const lastRecorded = lastRecordedChanges.current.get(changeKey);
-    const now = Date.now().toString();
-    
-    if (lastRecorded && (parseInt(now) - parseInt(lastRecorded)) < 1000) {
-      console.log('Skipping duplicate change record within 1 second');
       return;
     }
 
     // Don't record if old and new values are the same
     if (oldValue === newValue) {
-      console.log('Skipping change record: values are the same');
       return;
     }
 
-    // Format values for better readability
-    let formattedOldValue = oldValue;
-    let formattedNewValue = newValue;
+    // Create a content-based unique key for better deduplication
+    const contentKey = `${itemId || 'form'}-${fieldName}-${JSON.stringify(oldValue)}-${JSON.stringify(newValue)}`;
+    const now = Date.now();
     
-    // Handle status changes with timestamps
-    if (fieldName === 'status' && newValue) {
-      const timestamp = new Date().toLocaleString();
-      formattedNewValue = `${newValue} (${timestamp})`;
-    }
-    
-    // Handle file attachment changes
-    if (fieldName === 'evidenceFiles') {
-      try {
-        const oldFiles = oldValue ? JSON.parse(oldValue) : [];
-        const newFiles = newValue ? JSON.parse(newValue) : [];
-        
-        if (newFiles.length > oldFiles.length) {
-          const addedFiles = newFiles.slice(oldFiles.length);
-          formattedNewValue = `Added ${addedFiles.length} file(s): ${addedFiles.map((f: any) => f.name || 'Unknown').join(', ')}`;
-          formattedOldValue = oldFiles.length > 0 ? `${oldFiles.length} existing file(s)` : 'No files';
-        } else if (newFiles.length < oldFiles.length) {
-          const removedCount = oldFiles.length - newFiles.length;
-          formattedNewValue = `Removed ${removedCount} file(s)`;
-          formattedOldValue = `${oldFiles.length} file(s)`;
-        }
-      } catch {
-        // Fallback to original values if JSON parsing fails
-        formattedOldValue = oldValue ? 'Files attached' : 'No files';
-        formattedNewValue = newValue ? 'Files updated' : 'Files removed';
-      }
+    // Check if this exact change was recorded recently (within 5 seconds)
+    const lastRecord = lastRecordedChanges.current.get(contentKey);
+    if (lastRecord && (now - lastRecord.timestamp) < 5000) {
+      console.log('Skipping duplicate change record within 5 seconds');
+      return;
     }
 
+    // Check if this change is already being processed
+    if (pendingRecords.current.has(contentKey)) {
+      console.log('Change already being processed, skipping');
+      return;
+    }
+
+    // Mark as pending
+    pendingRecords.current.add(contentKey);
+
     try {
-      console.log('Recording change:', {
-        inspectionId,
-        fieldName,
-        oldValue: formattedOldValue,
-        newValue: formattedNewValue,
-        changeType,
-        itemId,
-        itemDescription
-      });
+      // Format values for better readability
+      let formattedOldValue = oldValue;
+      let formattedNewValue = newValue;
+      
+      // Handle status changes with timestamps
+      if (fieldName === 'status' && newValue) {
+        const timestamp = new Date().toLocaleString();
+        formattedNewValue = `${newValue} (${timestamp})`;
+      }
+      
+      // Handle file attachment changes more carefully
+      if (fieldName === 'evidenceFiles') {
+        try {
+          const oldFiles = oldValue ? JSON.parse(oldValue) : [];
+          const newFiles = newValue ? JSON.parse(newValue) : [];
+          
+          if (newFiles.length > oldFiles.length) {
+            const addedFiles = newFiles.slice(oldFiles.length);
+            const fileName = addedFiles[0]?.name || addedFiles[0]?.path?.split('/').pop() || 'Unknown file';
+            formattedNewValue = `Added file: ${fileName}`;
+            formattedOldValue = oldFiles.length > 0 ? `${oldFiles.length} existing file(s)` : null;
+          } else if (newFiles.length < oldFiles.length) {
+            const removedCount = oldFiles.length - newFiles.length;
+            formattedNewValue = `Removed ${removedCount} file(s)`;
+            formattedOldValue = `${oldFiles.length} file(s)`;
+          }
+        } catch {
+          // Fallback to simple description
+          formattedOldValue = oldValue ? 'Files attached' : null;
+          formattedNewValue = newValue ? 'Files updated' : 'Files removed';
+        }
+      }
 
       const { error } = await supabase.rpc('record_qa_change', {
         p_inspection_id: inspectionId,
@@ -156,38 +151,39 @@ export const useQAChangeHistory = (inspectionId: string) => {
       if (error) {
         console.error('Error recording change:', error);
       } else {
-        console.log('Change recorded successfully');
-        
         // Update the last recorded changes map
-        lastRecordedChanges.current.set(changeKey, now);
+        lastRecordedChanges.current.set(contentKey, {
+          timestamp: now,
+          content: `${formattedOldValue}->${formattedNewValue}`
+        });
         
-        // Clean up old entries (keep only last 100)
-        if (lastRecordedChanges.current.size > 100) {
+        // Clean up old entries (keep only last 50)
+        if (lastRecordedChanges.current.size > 50) {
           const entries = Array.from(lastRecordedChanges.current.entries());
-          const sorted = entries.sort((a, b) => parseInt(b[1]) - parseInt(a[1]));
-          lastRecordedChanges.current = new Map(sorted.slice(0, 50));
+          const sorted = entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+          lastRecordedChanges.current = new Map(sorted.slice(0, 25));
         }
         
-        // Refresh the change history after a short delay to allow database to update
+        // Debounced refetch - only after 1 second to allow batching
         setTimeout(() => {
           fetchChangeHistory(inspectionId, user);
-        }, 200);
+        }, 1000);
       }
     } catch (error) {
       console.error('Error recording change:', error);
+    } finally {
+      // Remove from pending
+      pendingRecords.current.delete(contentKey);
     }
-  };
+  }, []); // No dependencies to prevent recreation
 
-  // Fixed subscription management with deduplication - mirrors useQAInspectionsSimple
+  // Fixed subscription management
   useEffect(() => {
-    console.log('QA History: Effect triggered for inspection:', inspectionId, 'user:', user?.id);
-    
     // Always fetch initial data
     fetchChangeHistory(inspectionId, user);
 
     // Clean up existing subscription if inspection changed
     if (subscriptionRef.current && subscribedInspectionRef.current !== inspectionId) {
-      console.log('QA History: Cleaning up old subscription for inspection:', subscribedInspectionRef.current);
       subscriptionRef.current.unsubscribe();
       supabase.removeChannel(subscriptionRef.current);
       subscriptionRef.current = null;
@@ -201,8 +197,6 @@ export const useQAChangeHistory = (inspectionId: string) => {
 
     // Create new subscription
     const channelName = `qa_change_history_${inspectionId}_${Date.now()}`;
-    console.log('QA History: Creating new subscription:', channelName);
-    
     subscribedInspectionRef.current = inspectionId;
     
     const channel = supabase
@@ -216,8 +210,8 @@ export const useQAChangeHistory = (inspectionId: string) => {
         }, 
         (payload) => {
           console.log('QA History: Real-time change detected:', payload.eventType);
-          // Simple debounced refetch
-          setTimeout(() => fetchChangeHistory(inspectionId, user), 500);
+          // Debounced refetch to prevent excessive calls
+          setTimeout(() => fetchChangeHistory(inspectionId, user), 1500);
         }
       )
       .subscribe();
@@ -225,7 +219,6 @@ export const useQAChangeHistory = (inspectionId: string) => {
     subscriptionRef.current = channel;
 
     return () => {
-      console.log('QA History: Component cleanup for inspection:', inspectionId);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         supabase.removeChannel(subscriptionRef.current);

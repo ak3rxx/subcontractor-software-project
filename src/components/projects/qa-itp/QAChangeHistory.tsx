@@ -26,8 +26,7 @@ interface QAChangeHistoryProps {
 const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeHistory }) => {
   console.log('QA Change History: Rendering with', {
     inspectionId,
-    changeHistoryCount: changeHistory?.length || 0,
-    changeHistory: changeHistory?.slice(0, 3) // Show first 3 entries for debugging
+    changeHistoryCount: changeHistory?.length || 0
   });
 
   const getChangeTypeIcon = (type: string) => {
@@ -58,7 +57,7 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
 
   const getFieldIcon = (fieldName: string) => {
     if (fieldName === 'status') return <Check className="h-3 w-3" />;
-    if (fieldName === 'evidence_files' || fieldName === 'evidenceFiles') return <FileText className="h-3 w-3" />;
+    if (fieldName === 'evidenceFiles') return <FileText className="h-3 w-3" />;
     if (fieldName === 'attachments') return <FileText className="h-3 w-3" />;
     if (fieldName === 'comments') return <Edit className="h-3 w-3" />;
     return <AlertCircle className="h-3 w-3" />;
@@ -66,7 +65,6 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
 
   const formatFieldName = (fieldName: string) => {
     const fieldMap: { [key: string]: string } = {
-      'evidence_files': 'Evidence Files',
       'evidenceFiles': 'Evidence Files',
       'status': 'Status',
       'comments': 'Comments',
@@ -93,7 +91,20 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
     return isOld ? 'text-red-700' : 'text-green-700';
   };
 
-  if (!changeHistory || changeHistory.length === 0) {
+  // Filter out potential duplicates based on content and timing
+  const filteredHistory = React.useMemo(() => {
+    const seen = new Set<string>();
+    return changeHistory.filter(entry => {
+      const key = `${entry.field_name}-${entry.old_value}-${entry.new_value}-${entry.item_id}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [changeHistory]);
+
+  if (!filteredHistory || filteredHistory.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -118,12 +129,12 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          Change History ({changeHistory.length})
+          Change History ({filteredHistory.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="max-h-96 overflow-y-auto space-y-3">
-          {changeHistory.map((entry) => (
+          {filteredHistory.map((entry) => (
             <div key={entry.id} className="border rounded-lg p-3 space-y-2" data-history-item>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
