@@ -28,6 +28,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
   const lastRefresh = useRef<number>(0);
   const realtimeChannel = useRef<RealtimeChannel | null>(null);
   const subscriptionActive = useRef<boolean>(false);
+  const refreshTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Enhanced unique key generation for better deduplication
   const generateChangeKey = useCallback((
@@ -40,11 +41,13 @@ export const useQAChangeHistory = (inspectionId: string) => {
     return `${fieldName}-${itemId || 'global'}-${oldValue || 'null'}-${newValue || 'null'}-${timestamp}`;
   }, []);
 
-  const fetchChangeHistory = useCallback(async () => {
+  const fetchChangeHistory = useCallback(async (forceFresh = false) => {
     if (!inspectionId) return;
 
     setIsLoading(true);
     try {
+      console.log('Fetching QA change history for inspection:', inspectionId, forceFresh ? '(force fresh)' : '');
+      
       const { data, error } = await supabase.rpc('get_qa_change_history', {
         p_inspection_id: inspectionId
       });
@@ -52,8 +55,12 @@ export const useQAChangeHistory = (inspectionId: string) => {
       if (error) throw error;
 
       console.log('Fetched QA change history:', data?.length || 0, 'entries');
+      
+      // Always update state with fresh data
       setChangeHistory(data || []);
       lastRefresh.current = Date.now();
+      
+      console.log('Change history state updated with', data?.length || 0, 'entries');
     } catch (error) {
       console.error('Error fetching QA change history:', error);
       toast({
@@ -66,12 +73,23 @@ export const useQAChangeHistory = (inspectionId: string) => {
     }
   }, [inspectionId, toast]);
 
+  // Debounced refresh function for real-time updates
+  const debouncedRefresh = useCallback(() => {
+    if (refreshTimeout.current) {
+      clearTimeout(refreshTimeout.current);
+    }
+    
+    refreshTimeout.current = setTimeout(() => {
+      console.log('Debounced refresh triggered for real-time update');
+      fetchChangeHistory(true);
+    }, 500); // 500ms debounce
+  }, [fetchChangeHistory]);
+
   // Optimized refresh function for real-time updates
   const refreshChangeHistory = useCallback((isRealtimeUpdate = false) => {
-    // Skip debouncing for real-time updates
     if (isRealtimeUpdate) {
-      console.log('Real-time refresh triggered');
-      fetchChangeHistory();
+      console.log('Real-time refresh triggered - using debounced approach');
+      debouncedRefresh();
       return;
     }
 
@@ -83,8 +101,8 @@ export const useQAChangeHistory = (inspectionId: string) => {
     }
 
     console.log('Manual refresh after debounce');
-    fetchChangeHistory();
-  }, [fetchChangeHistory]);
+    fetchChangeHistory(true);
+  }, [fetchChangeHistory, debouncedRefresh]);
 
   const recordChange = useCallback(async (
     fieldName: string,
@@ -140,6 +158,12 @@ export const useQAChangeHistory = (inspectionId: string) => {
       if (error) throw error;
 
       console.log('QA change recorded successfully');
+
+      // Immediately refresh the change history after recording
+      setTimeout(() => {
+        console.log('Auto-refreshing change history after recording change');
+        fetchChangeHistory(true);
+      }, 100);
       
     } catch (error) {
       console.error('Error recording QA change:', error);
@@ -153,7 +177,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
         variant: "destructive"
       });
     }
-  }, [inspectionId, toast, generateChangeKey]);
+  }, [inspectionId, toast, generateChangeKey, fetchChangeHistory]);
 
   // Set up real-time subscription with proper management
   useEffect(() => {
@@ -187,7 +211,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
           filter: `inspection_id=eq.${inspectionId}`
         },
         (payload) => {
-          console.log('Real-time change history insert:', payload);
+          console.log('Real-time change history insert received:', payload);
           // Refresh the change history when new entries are added
           refreshChangeHistory(true);
         }
@@ -207,6 +231,9 @@ export const useQAChangeHistory = (inspectionId: string) => {
       });
 
     return () => {
+      if (refreshTimeout.current) {
+        clearTimeout(refreshTimeout.current);
+      }
       if (realtimeChannel.current) {
         console.log('Cleaning up QA change history subscription');
         supabase.removeChannel(realtimeChannel.current);
@@ -220,7 +247,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
   useEffect(() => {
     if (inspectionId) {
       console.log('Loading QA change history for inspection:', inspectionId);
-      fetchChangeHistory();
+      fetchChangeHistory(false);
     }
   }, [inspectionId, fetchChangeHistory]);
 

@@ -85,6 +85,17 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   const [saving, setSaving] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   
+  // Track change history count for badge updates
+  const [changeHistoryCount, setChangeHistoryCount] = useState(0);
+  
+  // Update change history count when changeHistory changes
+  useEffect(() => {
+    if (changeHistory && changeHistory.length !== changeHistoryCount) {
+      console.log('Change history count updated:', changeHistory.length, 'previous:', changeHistoryCount);
+      setChangeHistoryCount(changeHistory.length);
+    }
+  }, [changeHistory, changeHistoryCount]);
+  
   // Unified state for all tabs
   const [checklistChanges, setChecklistChanges] = useState<any[]>([]);
   const [attachmentChanges, setAttachmentChanges] = useState<string[]>([]);
@@ -419,9 +430,9 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
                 <TabsTrigger value="history" className="flex items-center gap-2">
                   <History className="h-4 w-4" />
                   Audit Trail
-                  {shouldUseChangeHistory && changeHistory.length > 0 && (
+                  {shouldUseChangeHistory && changeHistoryCount > 0 && (
                     <Badge variant="secondary" className="ml-1 text-xs">
-                      {changeHistory.length}
+                      {changeHistoryCount}
                     </Badge>
                   )}
                 </TabsTrigger>

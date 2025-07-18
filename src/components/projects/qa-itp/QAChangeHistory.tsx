@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User, Edit, Plus, FileText, Check, X, AlertCircle } from 'lucide-react';
+import { Clock, User, Edit, Plus, FileText, Check, X, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface ChangeHistoryEntry {
   id: string;
@@ -28,6 +28,25 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
     inspectionId,
     changeHistoryCount: changeHistory?.length || 0
   });
+
+  const [previousCount, setPreviousCount] = useState(0);
+  const [showNewIndicator, setShowNewIndicator] = useState(false);
+
+  // Show "new changes" indicator when entries are added
+  useEffect(() => {
+    if (changeHistory && changeHistory.length > previousCount && previousCount > 0) {
+      console.log('New changes detected:', changeHistory.length, 'vs', previousCount);
+      setShowNewIndicator(true);
+      
+      // Hide the indicator after 3 seconds
+      const timeout = setTimeout(() => {
+        setShowNewIndicator(false);
+      }, 3000);
+      
+      return () => clearTimeout(timeout);
+    }
+    setPreviousCount(changeHistory?.length || 0);
+  }, [changeHistory?.length, previousCount]);
 
   const getChangeTypeIcon = (type: string) => {
     switch (type) {
@@ -130,12 +149,24 @@ const QAChangeHistory: React.FC<QAChangeHistoryProps> = ({ inspectionId, changeH
         <CardTitle className="text-base flex items-center gap-2">
           <Clock className="h-5 w-5" />
           Change History ({filteredHistory.length})
+          {showNewIndicator && (
+            <Badge className="bg-green-100 text-green-800 animate-pulse">
+              <RefreshCw className="h-3 w-3 mr-1" />
+              New Changes
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="max-h-96 overflow-y-auto space-y-3">
-          {filteredHistory.map((entry) => (
-            <div key={entry.id} className="border rounded-lg p-3 space-y-2" data-history-item>
+          {filteredHistory.map((entry, index) => (
+            <div 
+              key={entry.id} 
+              className={`border rounded-lg p-3 space-y-2 ${
+                index === 0 && showNewIndicator ? 'bg-green-50 border-green-200' : ''
+              }`} 
+              data-history-item
+            >
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   {getChangeTypeIcon(entry.change_type)}
