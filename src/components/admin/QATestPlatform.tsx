@@ -11,9 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Play, FileText, Upload, History, Database, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QAITPChecklistItem from '../projects/qa-itp/QAITPChecklistItem';
-import SupabaseFileUpload from '../projects/qa-itp/SupabaseFileUpload';
+import SimpleFileUpload from '../projects/qa-itp/SimpleFileUpload';
 import { ChecklistItem } from '../projects/qa-itp/QAITPTemplates';
-import { QAUploadedFile } from '@/hooks/useQAUploadManager';
+import { SimpleUploadedFile } from '@/hooks/useSimpleFileUpload';
 
 interface TestScenario {
   id: string;
@@ -42,7 +42,7 @@ const QATestPlatform: React.FC = () => {
   });
 
   // Mock test data for file upload
-  const [testFiles, setTestFiles] = useState<QAUploadedFile[]>([]);
+  const [testFiles, setTestFiles] = useState<SimpleUploadedFile[]>([]);
   const [uploadStatus, setUploadStatus] = useState({ uploading: false, hasFailures: false });
 
   const testScenarios: TestScenario[] = [
@@ -117,7 +117,7 @@ const QATestPlatform: React.FC = () => {
     });
   };
 
-  const handleFileChange = (files: QAUploadedFile[]) => {
+  const handleFileChange = (files: SimpleUploadedFile[]) => {
     console.log('Test: File change detected', files);
     setTestFiles(files);
     setTestChecklistItem(prev => ({ ...prev, evidenceFiles: files }));
@@ -321,7 +321,7 @@ const QATestPlatform: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <SupabaseFileUpload
+              <SimpleFileUpload
                 files={testFiles}
                 onFilesChange={handleFileChange}
                 onUploadStatusChange={handleUploadStatusChange}

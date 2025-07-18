@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import SupabaseFileUpload from './SupabaseFileUpload';
+import SimpleFileUpload from './SimpleFileUpload';
 // Removed QAFieldAuditTrail for simplicity
 import { ChecklistItem } from './QAITPTemplates';
-import { QAUploadedFile } from '@/hooks/useQAUploadManager';
+import { SimpleUploadedFile } from '@/hooks/useSimpleFileUpload';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 
 interface QAITPChecklistItemProps {
@@ -25,7 +25,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
 }) => {
   const { recordChange } = useQAChangeHistory(inspectionId || '');
 
-  const handleFileChange = useCallback((files: QAUploadedFile[]) => {
+  const handleFileChange = useCallback((files: SimpleUploadedFile[]) => {
     console.log('Files changed for item', item.id, ':', files);
     
     // Record audit trail for file changes
@@ -80,13 +80,13 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
     onChecklistChange(item.id, 'comments', comments);
   }, [item.id, onChecklistChange, recordChange, inspectionId, item.comments, item.description]);
 
-  // Ensure evidenceFiles is always an array of SupabaseUploadedFile objects
+  // Ensure evidenceFiles is always an array of SimpleUploadedFile objects
   const currentFiles = React.useMemo(() => {
     if (!item.evidenceFiles || !Array.isArray(item.evidenceFiles)) {
       return [];
     }
     
-    return item.evidenceFiles.filter((file): file is QAUploadedFile => {
+    return item.evidenceFiles.filter((file): file is SimpleUploadedFile => {
       return file && typeof file === 'object' && 'id' in file && 'url' in file;
     });
   }, [item.evidenceFiles]);
@@ -137,7 +137,7 @@ const QAITPChecklistItem: React.FC<QAITPChecklistItemProps> = ({
           />
         </div>
 
-        <SupabaseFileUpload
+        <SimpleFileUpload
           files={currentFiles}
           onFilesChange={handleFileChange}
           onUploadStatusChange={onUploadStatusChange}

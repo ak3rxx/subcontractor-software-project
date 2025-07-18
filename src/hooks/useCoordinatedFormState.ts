@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useFormAutoSave } from './useFormAutoSave';
-import { useQAUploadManager, QAUploadedFile } from './useQAUploadManager';
+import { useSimpleFileUpload, SimpleUploadedFile } from './useSimpleFileUpload';
 import { useEnhancedQANotifications } from './useEnhancedQANotifications';
 
 interface CoordinatedFormOptions {
@@ -31,15 +31,13 @@ export const useCoordinatedFormState = <T extends Record<string, any>>(
   const submitAttemptRef = useRef(0);
   
   // Upload manager with coordinated state
-  const uploadManager = useQAUploadManager({
-    folder: `inspections/${projectId || 'temp'}`,
-    enableAutoSave: true,
-    autoSaveInterval
+  const uploadManager = useSimpleFileUpload({
+    inspectionId: projectId || 'temp'
   });
 
   // Auto-save with conflict resolution
   const autoSave = useFormAutoSave(
-    { ...formData, uploadedFiles: uploadManager.uploadedFiles },
+    { ...formData, uploadedFiles: uploadManager.files },
     {
       key: formKey,
       interval: autoSaveInterval,
@@ -143,7 +141,7 @@ export const useCoordinatedFormState = <T extends Record<string, any>>(
 
   // Atomic submission with rollback capability
   const submitForm = useCallback(async (
-    submitHandler: (data: T, files: QAUploadedFile[]) => Promise<boolean>,
+    submitHandler: (data: T, files: SimpleUploadedFile[]) => Promise<boolean>,
     requiredFields: string[] = [],
     isDraft = false
   ) => {
@@ -164,7 +162,7 @@ export const useCoordinatedFormState = <T extends Record<string, any>>(
 
     // Save current state for rollback
     const rollbackData = { ...formData };
-    const rollbackFiles = [...uploadManager.uploadedFiles];
+    const rollbackFiles = [...uploadManager.files];
 
     try {
       qaNotifications.notifyProcessStage(
@@ -229,7 +227,7 @@ export const useCoordinatedFormState = <T extends Record<string, any>>(
     setIsSubmitting(false);
     setFormLocked(false);
     autoSave.clearSavedData();
-    uploadManager.clearAllFiles();
+    uploadManager.clearFiles();
   }, [initialData, autoSave, uploadManager]);
 
   // Load saved data on mount

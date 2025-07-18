@@ -331,7 +331,7 @@ const QADiagnosticTool: React.FC = () => {
     const largeFiles = [
       'QAInspectionViewer.tsx (798 lines)',
       'QAITPForm.tsx (388 lines)',
-      'SupabaseFileUpload.tsx (313 lines)',
+      'SimpleFileUpload.tsx (200 lines)',
       'useSupabaseFileUpload.ts (204 lines)'
     ];
 

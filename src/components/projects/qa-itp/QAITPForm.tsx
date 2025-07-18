@@ -9,7 +9,7 @@ import QAITPChecklistItem from './QAITPChecklistItem';
 import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
 import { AlertCircle, Save, X } from 'lucide-react';
-import { QAUploadedFile } from '@/hooks/useQAUploadManager';
+import { SimpleUploadedFile } from '@/hooks/useSimpleFileUpload';
 import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 
 interface QAITPFormProps {
@@ -195,7 +195,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         let evidenceFileNames: string[] = [];
         if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
           evidenceFileNames = item.evidenceFiles
-            .filter((file): file is QAUploadedFile => 
+            .filter((file): file is SimpleUploadedFile => 
               file && 
               typeof file === 'object' && 
               'uploaded' in file && 
@@ -287,7 +287,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
         let evidenceFileNames: string[] = [];
         if (item.evidenceFiles && Array.isArray(item.evidenceFiles)) {
           evidenceFileNames = item.evidenceFiles
-            .filter((file): file is QAUploadedFile => 
+            .filter((file): file is SimpleUploadedFile => 
               file && 
               typeof file === 'object' && 
               'uploaded' in file && 

@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import BasicInformation from './BasicInformation';
 import CostBreakdown from './CostBreakdown';
 import TimeImpact from './TimeImpact';
-import VariationFileUpload from './VariationFileUpload';
+import SimpleFileUpload from '../qa-itp/SimpleFileUpload';
 import AdditionalInformation from './AdditionalInformation';
 
 interface CostBreakdownItem {
@@ -176,8 +176,11 @@ const QuotationVariationForm: React.FC<QuotationVariationFormProps> = ({
             onInputChange={handleInputChange}
           />
 
-          <VariationFileUpload
-            variationId={editingVariation?.id}
+          <SimpleFileUpload
+            accept="image/*,.pdf,.doc,.docx"
+            multiple={true}
+            maxFiles={10}
+            label="Upload Supporting Documents"
           />
 
           <AdditionalInformation

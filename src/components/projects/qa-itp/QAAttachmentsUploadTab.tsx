@@ -5,7 +5,7 @@ import { Upload, Download, FileText, Trash2 } from 'lucide-react';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
-import SupabaseFileUpload from './SupabaseFileUpload';
+import SimpleFileUpload from './SimpleFileUpload';
 import FileThumbnailViewer from './FileThumbnailViewer';
 import FieldAuditNote from './FieldAuditNote';
 
@@ -100,7 +100,7 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
           {/* File Upload Section */}
           {isEditing && (
             <div className="border-2 border-dashed border-muted rounded-lg p-4">
-              <SupabaseFileUpload
+              <SimpleFileUpload
                 onFilesChange={handleFilesUploaded}
                 accept="image/*,.pdf,.doc,.docx"
                 multiple={true}

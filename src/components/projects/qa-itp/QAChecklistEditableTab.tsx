@@ -9,7 +9,7 @@ import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle, AlertTriangle, Clock, Upload, Save, Trash2 } from 'lucide-react';
 import FileThumbnailViewer from './FileThumbnailViewer';
-import SupabaseFileUpload from './SupabaseFileUpload';
+import SimpleFileUpload from './SimpleFileUpload';
 import FieldAuditNote from './FieldAuditNote';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -344,23 +344,23 @@ const QAChecklistEditableTab: React.FC<QAChecklistEditableTabProps> = memo(({
                        
                         {isEditing && (
                           <div className="mt-2">
-                            <SupabaseFileUpload
-                              onFilesChange={(uploadedFiles) => {
-                                const successfulUploads = uploadedFiles
-                                  .filter(f => f.uploaded && f.path)
-                                  .map(f => f.path);
-                                if (successfulUploads.length > 0) {
-                                  successfulUploads.forEach(path => handleFileUpload(item.id, path));
-                                }
-                              }}
-                              accept="image/*,.pdf"
-                              multiple={true}
-                              maxFiles={5}
-                              className="w-full"
-                              label="Upload Evidence"
-                              inspectionId={inspection?.id}
-                              checklistItemId={item.id}
-                            />
+                             <SimpleFileUpload
+                               onFilesChange={(uploadedFiles) => {
+                                 const successfulUploads = uploadedFiles
+                                   .filter(f => f.uploaded && f.path)
+                                   .map(f => f.path);
+                                 if (successfulUploads.length > 0) {
+                                   successfulUploads.forEach(path => handleFileUpload(item.id, path));
+                                 }
+                               }}
+                               accept="image/*,.pdf"
+                               multiple={true}
+                               maxFiles={5}
+                               className="w-full"
+                               label="Upload Evidence"
+                               inspectionId={inspection?.id}
+                               checklistItemId={item.id}
+                             />
                           </div>
                         )}
                         
