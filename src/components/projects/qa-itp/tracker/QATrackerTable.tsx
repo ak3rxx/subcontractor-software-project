@@ -69,42 +69,36 @@ const InspectionRow = memo(({
     </td>
     <td className="py-3 px-4">
       <div className="flex items-center gap-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => onView(inspection)}>
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>View Details</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => onEdit(inspection)}>
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Edit Inspection</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => onDelete(inspection.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Delete Inspection</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={() => onView(inspection)}>
+              <Eye className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>View Details</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={() => onEdit(inspection)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Edit Inspection</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={() => onDelete(inspection.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete Inspection</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </td>
   </tr>
@@ -170,11 +164,11 @@ const QATrackerTable: React.FC<QATrackerTableProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 w-12">
-                    <TooltipProvider>
+            <TooltipProvider>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 w-12">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
@@ -189,10 +183,8 @@ const QATrackerTable: React.FC<QATrackerTableProps> = ({
                           <p>Select/deselect all visible inspection records</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
@@ -204,10 +196,8 @@ const QATrackerTable: React.FC<QATrackerTableProps> = ({
                           <p>Unique identifier for each QA inspection</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
@@ -219,25 +209,21 @@ const QATrackerTable: React.FC<QATrackerTableProps> = ({
                           <p>Description of the work area being inspected</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
                             <Eye className="h-4 w-4 text-muted-foreground" />
-                            <span>Inspection Status</span>
+                            <span>Status</span>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Current status: Pass, Fail, Pending, or In Progress</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
@@ -249,40 +235,34 @@ const QATrackerTable: React.FC<QATrackerTableProps> = ({
                           <p>Person who conducted the inspection</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>Inspection Date</span>
+                            <span>Date</span>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>When the inspection was performed</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
                             <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>Location Reference</span>
+                            <span>Location</span>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Specific location within the project site</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                  <th className="text-left py-3 px-4">
-                    <TooltipProvider>
+                    </th>
+                    <th className="text-left py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 cursor-help">
@@ -294,26 +274,26 @@ const QATrackerTable: React.FC<QATrackerTableProps> = ({
                           <p>View, edit, or delete inspection records</p>
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInspections.map((inspection) => (
-                  <InspectionRow
-                    key={inspection.id}
-                    inspection={inspection}
-                    isSelected={selectedItems.has(inspection.id)}
-                    onSelect={onSelectItem}
-                    onView={onViewInspection}
-                    onEdit={onEditInspection}
-                    onDelete={onDeleteInspection}
-                    getStatusColor={getStatusColor}
-                    getStatusIcon={getStatusIcon}
-                  />
-                ))}
-              </tbody>
-            </table>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInspections.map((inspection) => (
+                    <InspectionRow
+                      key={inspection.id}
+                      inspection={inspection}
+                      isSelected={selectedItems.has(inspection.id)}
+                      onSelect={onSelectItem}
+                      onView={onViewInspection}
+                      onEdit={onEditInspection}
+                      onDelete={onDeleteInspection}
+                      getStatusColor={getStatusColor}
+                      getStatusIcon={getStatusIcon}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </TooltipProvider>
           </div>
         )}
       </CardContent>
