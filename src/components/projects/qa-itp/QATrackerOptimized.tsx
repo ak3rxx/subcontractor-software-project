@@ -214,10 +214,15 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
       {selectedInspection && (
         <QAInspectionModal
           isOpen={!!selectedInspection}
-          onClose={() => setSelectedInspection(null)}
+          onClose={() => {
+            console.log('QA Modal Debug: Closing modal');
+            setSelectedInspection(null);
+          }}
           inspection={selectedInspection}
           onUpdate={(updated) => {
+            console.log('QA Modal Debug: Inspection updated:', updated.id);
             setSelectedInspection(updated);
+            refetch(); // Refresh the list to show updates
           }}
         />
       )}

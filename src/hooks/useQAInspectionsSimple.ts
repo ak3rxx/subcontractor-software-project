@@ -420,31 +420,39 @@ export const useQAInspectionsSimple = (projectId?: string) => {
     }
   }, []);
 
-  // Fixed subscription management with deduplication
+  // Fixed subscription management - CRITICAL BUG FIX
   useEffect(() => {
     console.log('QA: Effect triggered for project:', projectId, 'user:', user?.id);
     
-    // Always fetch initial data
+    // Always fetch initial data first
     fetchInspections(projectId, user);
 
-    // Clean up existing subscription if project changed
-    if (subscriptionRef.current && subscribedProjectRef.current !== projectId) {
-      console.log('QA: Cleaning up old subscription for project:', subscribedProjectRef.current);
+    // Don't create subscription if no user or project
+    if (!user || !projectId) {
+      console.log('QA: Skipping subscription - no user or project');
+      return;
+    }
+
+    // Check if we already have a subscription for this project
+    if (subscriptionRef.current && subscribedProjectRef.current === projectId) {
+      console.log('QA: Subscription already exists for project:', projectId);
+      return;
+    }
+
+    // Clean up any existing subscription BEFORE creating new one
+    if (subscriptionRef.current) {
+      console.log('QA: Cleaning up existing subscription for project:', subscribedProjectRef.current);
       subscriptionRef.current.unsubscribe();
       supabase.removeChannel(subscriptionRef.current);
       subscriptionRef.current = null;
       subscribedProjectRef.current = undefined;
     }
 
-    // Only subscribe if we have a valid user and project ID and no existing subscription for this project
-    if (!user || !projectId || subscribedProjectRef.current === projectId) {
-      return;
-    }
-
-    // PERFORMANCE OPTIMIZATION: Simplified subscription without timestamp
-    const channelName = `qa_inspections_${projectId}`;
-    console.log('QA: Creating optimized subscription:', channelName);
+    // Create new subscription with unique channel name
+    const channelName = `qa_inspections_${projectId}_${Date.now()}`;
+    console.log('QA: Creating new subscription:', channelName);
     
+    // Set the project reference BEFORE creating subscription
     subscribedProjectRef.current = projectId;
     
     // Debounce reference for real-time updates
@@ -460,23 +468,40 @@ export const useQAInspectionsSimple = (projectId?: string) => {
           filter: `project_id=eq.${projectId}`
         }, 
         (payload) => {
-          console.log('QA: Real-time change detected:', payload.eventType);
+          console.log('QA: Real-time change detected:', payload.eventType, 'for project:', projectId);
           
-          // OPTIMIZATION: Reduced debounce time and proper cleanup
-          if (debounceTimer) clearTimeout(debounceTimer);
+          // Clear existing timer
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          
+          // Debounce the fetch to prevent excessive calls
           debounceTimer = setTimeout(() => {
+            console.log('QA: Executing debounced fetch for project:', projectId);
             fetchInspections(projectId, user);
             debounceTimer = null;
-          }, 100); // Reduced from 500ms to 100ms
+          }, 200); // Slightly increased debounce for stability
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('QA: Subscription status:', status, 'for project:', projectId);
+      });
 
     subscriptionRef.current = channel;
 
+    // Cleanup function
     return () => {
       console.log('QA: Component cleanup for project:', projectId);
-      if (subscriptionRef.current) {
+      
+      // Clear any pending debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      
+      // Only cleanup if this is our subscription
+      if (subscriptionRef.current && subscribedProjectRef.current === projectId) {
+        console.log('QA: Unsubscribing from project:', projectId);
         subscriptionRef.current.unsubscribe();
         supabase.removeChannel(subscriptionRef.current);
         subscriptionRef.current = null;

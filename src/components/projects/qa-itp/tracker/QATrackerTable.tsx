@@ -71,7 +71,16 @@ const InspectionRow = memo(({
       <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={() => onView(inspection)}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('QA Action Debug: View button clicked for inspection:', inspection.id);
+                onView(inspection);
+              }}
+            >
               <Eye className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -81,7 +90,16 @@ const InspectionRow = memo(({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={() => onEdit(inspection)}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('QA Action Debug: Edit button clicked for inspection:', inspection.id);
+                onEdit(inspection);
+              }}
+            >
               <Edit className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -91,7 +109,16 @@ const InspectionRow = memo(({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={() => onDelete(inspection.id)}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('QA Action Debug: Delete button clicked for inspection:', inspection.id);
+                onDelete(inspection.id);
+              }}
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>

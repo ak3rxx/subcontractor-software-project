@@ -243,12 +243,17 @@ export const useQATrackerLogic = (projectId: string) => {
   }, []);
 
   const handleViewInspection = useCallback((inspection: any) => {
+    console.log('QA Button Debug: View inspection clicked for:', inspection.id);
     setSelectedInspection(inspection);
+    console.log('QA Button Debug: Selected inspection set to:', inspection.id);
   }, []);
 
   const handleEditInspection = useCallback((inspection: any) => {
+    console.log('QA Button Debug: Edit inspection clicked for:', inspection.id);
+    
     // Check permissions first
     if (!qaPermissions.canEditInspections) {
+      console.log('QA Button Debug: Permission denied for edit');
       toast({
         title: "Permission Denied",
         description: qaPermissions.denialReason,
@@ -258,7 +263,9 @@ export const useQATrackerLogic = (projectId: string) => {
     }
     
     // Open modal in edit mode - will auto-open details tab
-    setSelectedInspection({ ...inspection, _openInEditMode: true });
+    const inspectionWithEditMode = { ...inspection, _openInEditMode: true };
+    setSelectedInspection(inspectionWithEditMode);
+    console.log('QA Button Debug: Selected inspection set to edit mode:', inspection.id);
   }, [qaPermissions, toast]);
 
   const handleDeleteInspection = useCallback(async (inspectionId: string) => {
