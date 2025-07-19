@@ -88,13 +88,14 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   // Track change history count for badge updates
   const [changeHistoryCount, setChangeHistoryCount] = useState(0);
   
-  // Update change history count when changeHistory changes
+  // Update change history count when changeHistory changes - more reliable
   useEffect(() => {
-    if (changeHistory && changeHistory.length !== changeHistoryCount) {
-      console.log('Change history count updated:', changeHistory.length, 'previous:', changeHistoryCount);
-      setChangeHistoryCount(changeHistory.length);
+    const newCount = changeHistory?.length || 0;
+    if (newCount !== changeHistoryCount) {
+      console.log('Change history count updated:', newCount, 'previous:', changeHistoryCount);
+      setChangeHistoryCount(newCount);
     }
-  }, [changeHistory, changeHistoryCount]);
+  }, [changeHistory?.length]);
   
   // Unified state for all tabs
   const [checklistChanges, setChecklistChanges] = useState<any[]>([]);

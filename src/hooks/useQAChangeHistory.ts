@@ -179,7 +179,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
     }
   }, [inspectionId, toast, generateChangeKey, fetchChangeHistory]);
 
-  // Set up real-time subscription with proper management
+  // Set up real-time subscription with stable handler
   useEffect(() => {
     if (!inspectionId) return;
 
@@ -198,6 +198,27 @@ export const useQAChangeHistory = (inspectionId: string) => {
       realtimeChannel.current = null;
     }
 
+    // Create stable handler function to avoid dependency issues
+    const handleRealtimeInsert = (payload: any) => {
+      console.log('Real-time change history insert received:', payload);
+      // Use a stable approach - direct fetch instead of unstable callback
+      setTimeout(async () => {
+        console.log('Real-time triggered: Fetching fresh change history');
+        try {
+          const { data, error } = await supabase.rpc('get_qa_change_history', {
+            p_inspection_id: inspectionId
+          });
+          if (error) throw error;
+          
+          console.log('Real-time fetch completed:', data?.length || 0, 'entries');
+          setChangeHistory(data || []);
+          lastRefresh.current = Date.now();
+        } catch (error) {
+          console.error('Real-time refresh failed:', error);
+        }
+      }, 100);
+    };
+
     // Create new subscription with unique channel name
     const channelName = `qa_change_history:${inspectionId}:${Date.now()}`;
     realtimeChannel.current = supabase
@@ -210,11 +231,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
           table: 'qa_change_history',
           filter: `inspection_id=eq.${inspectionId}`
         },
-        (payload) => {
-          console.log('Real-time change history insert received:', payload);
-          // Refresh the change history when new entries are added
-          refreshChangeHistory(true);
-        }
+        handleRealtimeInsert
       )
       .subscribe((status) => {
         console.log('QA change history subscription status:', status);
@@ -241,7 +258,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
         subscriptionActive.current = false;
       }
     };
-  }, [inspectionId, refreshChangeHistory]);
+  }, [inspectionId]); // Remove refreshChangeHistory dependency!
 
   // Initial load
   useEffect(() => {
