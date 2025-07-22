@@ -1,3 +1,4 @@
+
 import React, { memo, useState } from 'react';
 import QAITPForm from './QAITPForm';
 import QAInspectionModal from './QAInspectionModal';
@@ -8,9 +9,10 @@ import QATrackerFilters from './tracker/QATrackerFilters';
 import QATrackerTable from './tracker/QATrackerTable';
 import QAMetricsDashboard from './analytics/QAMetricsDashboard';
 import QAReportGenerator from './analytics/QAReportGenerator';
+import QAActionTaskList from './QAActionTaskList';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, FileText, List } from 'lucide-react';
+import { BarChart3, FileText, List, CheckSquare } from 'lucide-react';
 
 interface QATrackerProps {
   projectId: string;
@@ -130,15 +132,19 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     <div className="space-y-6">
       <QATrackerHeader onNewInspection={() => setShowCreateForm(true)} />
       
-      <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="list" className="flex items-center gap-2">
-            <List className="h-4 w-4" />
-            <span className="hidden sm:inline">QA List</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Analytics</span>
+            <span className="hidden sm:inline">Dashboard</span>
+          </TabsTrigger>
+          <TabsTrigger value="qa-list" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">QA&ITP List</span>
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="flex items-center gap-2">
+            <CheckSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Action&Task List</span>
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -146,7 +152,11 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list" className="space-y-6 mt-6">
+        <TabsContent value="dashboard" className="space-y-6 mt-6">
+          <QAMetricsDashboard projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="qa-list" className="space-y-6 mt-6">
           <QATrackerStats statusCounts={statusCounts} />
           
           <QATrackerFilters
@@ -199,8 +209,8 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-6">
-          <QAMetricsDashboard projectId={projectId} />
+        <TabsContent value="actions" className="mt-6">
+          <QAActionTaskList projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="reports" className="mt-6">

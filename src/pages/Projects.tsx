@@ -661,73 +661,34 @@ const Projects = memo(() => {
                       <div>
                         <CardTitle>Quality Assurance / Inspection Test Plan</CardTitle>
                         <p className="text-muted-foreground">
-                          Create and track inspection hold points, collect evidence, and generate sign-off records
+                          Comprehensive QA management with dashboard, inspections, tasks, and reporting
                         </p>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <Tabs value={qaActiveTab} onValueChange={setQaActiveTab} className="w-full">
-                      <div className="flex justify-between items-center mb-4">
-                        <TabsList className="grid w-full max-w-md grid-cols-3">
-                          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" />
-                            Dashboard
-                          </TabsTrigger>
-                          <TabsTrigger value="qa-list" className="flex items-center gap-2">
-                            <List className="h-4 w-4" />
-                            QA/ITP List
-                          </TabsTrigger>
-                          <TabsTrigger value="actions" className="flex items-center gap-2">
-                            <CheckSquare className="h-4 w-4" />
-                            Action/Task List
-                          </TabsTrigger>
-                        </TabsList>
-                      </div>
-
-                      <TabsContent value="dashboard">
-                        <div className="text-center py-8">
-                          <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">QA Dashboard</h3>
-                          <p className="text-gray-600">Dashboard view coming soon...</p>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="qa-list">
-                        <Suspense fallback={<ModuleLoader />}>
-                           {activeQAForm ? (
-                           <QAITPForm 
-                              onClose={() => {
-                                setActiveQAForm(false);
-                                setQaActiveTab('qa-list');
-                                // Update URL to match the tab we're staying in
-                                navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
-                              }} 
-                              projectId={selectedProject.id}
-                            />
-                          ) : (
-                            <QATrackerOptimized 
-                              onNewInspection={() => setActiveQAForm(true)} 
-                              projectId={selectedProject.id}
-                              onNavigateToTracker={() => {
-                                setActiveQAForm(false); // Reset form state
-                                setQaActiveTab('qa-list');
-                                // Update URL to ensure navigation sticks and URL state matches component state
-                                navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
-                              }}
-                            />
-                          )}
-                        </Suspense>
-                      </TabsContent>
-
-                      <TabsContent value="actions">
-                        <div className="text-center py-8">
-                          <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Action/Task List</h3>
-                          <p className="text-gray-600">Action and task management coming soon...</p>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
+                    <Suspense fallback={<ModuleLoader />}>
+                      {activeQAForm ? (
+                        <QAITPForm 
+                          onClose={() => {
+                            setActiveQAForm(false);
+                            // Update URL to match the tab we're staying in
+                            navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
+                          }} 
+                          projectId={selectedProject.id}
+                        />
+                      ) : (
+                        <QATrackerOptimized 
+                          onNewInspection={() => setActiveQAForm(true)} 
+                          projectId={selectedProject.id}
+                          onNavigateToTracker={() => {
+                            setActiveQAForm(false); // Reset form state
+                            // Update URL to ensure navigation sticks and URL state matches component state
+                            navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
+                          }}
+                        />
+                      )}
+                    </Suspense>
                   </CardContent>
                 </Card>
               </TabsContent>
