@@ -19,38 +19,36 @@ interface QACompletionTrackerProps {
   };
 }
 
-// Enhanced utility functions to sanitize chart data
-const isValidNumber = (value: any): boolean => {
-  return typeof value === 'number' && isFinite(value) && !isNaN(value) && value >= 0;
+// Ultra-safe data validation to prevent ALL chart errors
+const safeNumber = (value: any): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const num = Number(value);
+  if (!isFinite(num) || isNaN(num)) return 0;
+  return Math.max(0, Math.min(1000, num)); // Reasonable bounds
 };
 
-const sanitizeNumber = (value: any, fallback: number = 0): number => {
-  if (isValidNumber(value)) return Math.max(0, Math.min(1000000, value)); // Reasonable bounds
-  return fallback;
-};
-
-const sanitizeChartData = (data: any[]): any[] => {
+const validateChartData = (data: any[]): any[] => {
   if (!Array.isArray(data)) return [];
   
   return data
     .filter(item => item && typeof item === 'object')
     .map(item => {
-      const sanitized: any = {};
+      const validated: any = {};
       Object.entries(item).forEach(([key, value]) => {
         if (typeof value === 'number') {
-          sanitized[key] = sanitizeNumber(value);
+          validated[key] = safeNumber(value);
         } else if (typeof value === 'string') {
-          sanitized[key] = String(value).substring(0, 100); // Limit string length
+          validated[key] = String(value).slice(0, 50);
         } else {
-          sanitized[key] = value;
+          validated[key] = value;
         }
       });
-      return sanitized;
+      return validated;
     })
     .filter(item => {
       // Ensure at least one valid numeric value exists
       return Object.values(item).some(value => 
-        typeof value === 'number' && isValidNumber(value)
+        typeof value === 'number' && safeNumber(value) >= 0
       );
     });
 };
@@ -59,78 +57,83 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
   completionRates,
   qualityTrends
 }) => {
-  // Enhanced error boundary wrapper
-  const renderWithErrorBoundary = (content: () => React.ReactNode, fallback: React.ReactNode) => {
+  // Error boundary wrapper with logging
+  const renderSafely = (content: () => React.ReactNode, fallback: React.ReactNode, context: string) => {
     try {
       return content();
     } catch (error) {
-      console.error('QACompletionTracker render error:', error);
+      console.error(`QACompletionTracker ${context} error:`, error);
       return fallback;
     }
   };
 
-  // Transform and sanitize template data for charts
-  const templateData = sanitizeChartData(
+  // Ultra-safe data transformation
+  const templateData = validateChartData(
     Object.entries(completionRates?.byTemplate || {})
-      .filter(([template, rate]) => template && isValidNumber(rate))
+      .filter(([template, rate]) => template && safeNumber(rate) >= 0)
       .map(([template, rate]) => ({
-        template: String(template).replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        completion: sanitizeNumber(rate),
+        template: String(template).replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).slice(0, 30),
+        completion: safeNumber(rate),
         target: 85
       }))
   );
 
-  // Transform and sanitize trade data for charts
-  const tradeData = sanitizeChartData(
+  const tradeData = validateChartData(
     Object.entries(completionRates?.byTrade || {})
-      .filter(([trade, rate]) => trade && isValidNumber(rate))
+      .filter(([trade, rate]) => trade && safeNumber(rate) >= 0)
       .map(([trade, rate]) => ({
-        trade: String(trade).charAt(0).toUpperCase() + String(trade).slice(1),
-        completion: sanitizeNumber(rate),
+        trade: String(trade).charAt(0).toUpperCase() + String(trade).slice(1, 30),
+        completion: safeNumber(rate),
         target: 85
       }))
   );
 
-  // Sanitize monthly trends data with enhanced validation
-  const sanitizedMonthlyTrends = sanitizeChartData(
+  const monthlyTrends = validateChartData(
     (qualityTrends?.monthlyTrends || [])
       .filter(trend => trend && trend.month)
       .map(trend => ({
-        month: String(trend.month),
-        passed: sanitizeNumber(trend.passed),
-        failed: sanitizeNumber(trend.failed),
-        incomplete: sanitizeNumber(trend.incomplete)
+        month: String(trend.month).slice(0, 20),
+        passed: safeNumber(trend.passed),
+        failed: safeNumber(trend.failed),
+        incomplete: safeNumber(trend.incomplete)
       }))
   );
 
-  // Sanitize inspector performance data with enhanced validation
-  const sanitizedInspectorPerformance = (qualityTrends?.inspectorPerformance || [])
-    .filter(perf => perf && perf.inspector && isValidNumber(perf.passRate) && isValidNumber(perf.avgTime))
+  const inspectorPerformance = (qualityTrends?.inspectorPerformance || [])
+    .filter(perf => perf && perf.inspector && safeNumber(perf.passRate) >= 0 && safeNumber(perf.avgTime) >= 0)
     .map(perf => ({
-      inspector: String(perf.inspector).substring(0, 30), // Limit length
-      passRate: sanitizeNumber(perf.passRate),
-      avgTime: sanitizeNumber(perf.avgTime)
+      inspector: String(perf.inspector).slice(0, 30),
+      passRate: Math.min(100, Math.max(0, safeNumber(perf.passRate))),
+      avgTime: safeNumber(perf.avgTime)
     }))
-    .filter(perf => perf.passRate >= 0 && perf.passRate <= 100) // Valid percentage range
-    .slice(0, 10); // Limit results
+    .slice(0, 10);
 
-  // Calculate completion status with safety
+  // Safe completion status calculation
   const getCompletionStatus = (rate: number) => {
-    const safeRate = sanitizeNumber(rate);
+    const safeRate = safeNumber(rate);
     if (safeRate >= 90) return { status: 'excellent', color: 'bg-emerald-500', text: 'Excellent' };
     if (safeRate >= 75) return { status: 'good', color: 'bg-blue-500', text: 'Good' };
     if (safeRate >= 60) return { status: 'fair', color: 'bg-yellow-500', text: 'Fair' };
     return { status: 'poor', color: 'bg-red-500', text: 'Needs Improvement' };
   };
 
-  const overallRate = sanitizeNumber(completionRates?.overall);
+  const overallRate = safeNumber(completionRates?.overall || 0);
   const overallStatus = getCompletionStatus(overallRate);
 
-  // Error fallback component
+  // Safe error fallback component
   const ErrorFallback = ({ message }: { message: string }) => (
     <div className="h-[300px] flex items-center justify-center text-muted-foreground border rounded-lg bg-gray-50">
       <div className="text-center">
         <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+        <p className="text-sm">{message}</p>
+      </div>
+    </div>
+  );
+
+  const EmptyState = ({ message }: { message: string }) => (
+    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+      <div className="text-center">
+        <TrendingUp className="h-8 w-8 mx-auto mb-2 text-gray-300" />
         <p className="text-sm">{message}</p>
       </div>
     </div>
@@ -167,10 +170,10 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="h-[80px]">
-              {renderWithErrorBoundary(
-                () => sanitizedMonthlyTrends.length > 0 ? (
+              {renderSafely(
+                () => monthlyTrends.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={sanitizedMonthlyTrends}>
+                    <AreaChart data={monthlyTrends}>
                       <Area
                         type="monotone"
                         dataKey="passed"
@@ -190,13 +193,10 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                    No trend data available
-                  </div>
+                  <EmptyState message="No trend data available" />
                 ),
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  Chart unavailable
-                </div>
+                <EmptyState message="Chart unavailable" />,
+                'monthly trend chart'
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
@@ -211,21 +211,21 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {sanitizedInspectorPerformance.length > 0 ? (
+            {inspectorPerformance.length > 0 ? (
               <>
                 <div className="text-2xl font-bold">
-                  {sanitizedInspectorPerformance[0].inspector}
+                  {inspectorPerformance[0].inspector}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {Math.round(sanitizedInspectorPerformance[0].passRate)}% pass rate
+                  {Math.round(inspectorPerformance[0].passRate)}% pass rate
                 </div>
                 <Progress 
-                  value={sanitizedInspectorPerformance[0].passRate} 
+                  value={inspectorPerformance[0].passRate} 
                   className="mt-2" 
                 />
               </>
             ) : (
-              <div className="text-sm text-muted-foreground">No data available</div>
+              <EmptyState message="No inspector data" />
             )}
           </CardContent>
         </Card>
@@ -240,7 +240,7 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {renderWithErrorBoundary(
+          {renderSafely(
             () => templateData.length > 0 ? (
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -260,7 +260,7 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
                       label={{ value: 'Completion %', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip 
-                      formatter={(value: number) => [`${value}%`, 'Completion Rate']}
+                      formatter={(value: number) => [`${safeNumber(value)}%`, 'Completion Rate']}
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--background))',
@@ -274,11 +274,10 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                No template data available
-              </div>
+              <EmptyState message="No template data available" />
             ),
-            <ErrorFallback message="Template chart unavailable" />
+            <ErrorFallback message="Template chart unavailable" />,
+            'template chart'
           )}
         </CardContent>
       </Card>
@@ -292,7 +291,7 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {renderWithErrorBoundary(
+          {renderSafely(
             () => tradeData.length > 0 ? (
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -310,7 +309,7 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
                       width={80}
                     />
                     <Tooltip 
-                      formatter={(value: number) => [`${value}%`, 'Completion Rate']}
+                      formatter={(value: number) => [`${safeNumber(value)}%`, 'Completion Rate']}
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--background))',
@@ -324,11 +323,10 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                No trade data available
-              </div>
+              <EmptyState message="No trade data available" />
             ),
-            <ErrorFallback message="Trade chart unavailable" />
+            <ErrorFallback message="Trade chart unavailable" />,
+            'trade chart'
           )}
         </CardContent>
       </Card>
@@ -342,11 +340,11 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {renderWithErrorBoundary(
-            () => sanitizedMonthlyTrends.length > 0 ? (
+          {renderSafely(
+            () => monthlyTrends.length > 0 ? (
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sanitizedMonthlyTrends}>
+                  <LineChart data={monthlyTrends}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
@@ -383,11 +381,10 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                No monthly trend data available
-              </div>
+              <EmptyState message="No monthly trend data available" />
             ),
-            <ErrorFallback message="Monthly trends chart unavailable" />
+            <ErrorFallback message="Monthly trends chart unavailable" />,
+            'monthly trends chart'
           )}
         </CardContent>
       </Card>
