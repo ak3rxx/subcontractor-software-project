@@ -45,8 +45,6 @@ const Projects = memo(() => {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [qaActiveTab, setQaActiveTab] = useState('dashboard');
-  const [activeQAForm, setActiveQAForm] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -171,10 +169,6 @@ const Projects = memo(() => {
       navigate(`/projects?id=${newProject.id}&tab=dashboard`);
     }
   }, [createProject, navigate]);
-
-  const handleNewInspection = useCallback(() => {
-    setActiveQAForm(true);
-  }, []);
 
   const handleBackToProjects = useCallback(() => {
     setSelectedProject(null);
@@ -668,26 +662,17 @@ const Projects = memo(() => {
                   </CardHeader>
                   <CardContent>
                     <Suspense fallback={<ModuleLoader />}>
-                      {activeQAForm ? (
-                        <QAITPForm 
-                          onClose={() => {
-                            setActiveQAForm(false);
-                            // Update URL to match the tab we're staying in
-                            navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
-                          }} 
-                          projectId={selectedProject.id}
-                        />
-                      ) : (
-                        <QATrackerOptimized 
-                          onNewInspection={() => setActiveQAForm(true)} 
-                          projectId={selectedProject.id}
-                          onNavigateToTracker={() => {
-                            setActiveQAForm(false); // Reset form state
-                            // Update URL to ensure navigation sticks and URL state matches component state
-                            navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
-                          }}
-                        />
-                      )}
+                      <QATrackerOptimized 
+                        projectId={selectedProject.id}
+                        onNewInspection={() => {
+                          // Just trigger refresh - QATrackerOptimized handles the rest
+                          handleQARefresh();
+                        }}
+                        onNavigateToTracker={() => {
+                          // Update URL to ensure navigation sticks
+                          navigate(`/projects?id=${selectedProject.id}&tab=qa-itp`);
+                        }}
+                      />
                     </Suspense>
                   </CardContent>
                 </Card>

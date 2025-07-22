@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart } from 'recharts';
-import { TrendingUp, Target, Calendar, Award } from 'lucide-react';
+import { TrendingUp, Target, Calendar, Award, AlertTriangle } from 'lucide-react';
 
 interface QACompletionTrackerProps {
   completionRates: {
@@ -19,69 +19,102 @@ interface QACompletionTrackerProps {
   };
 }
 
-// Utility functions to sanitize chart data
+// Enhanced utility functions to sanitize chart data
 const isValidNumber = (value: any): boolean => {
-  return typeof value === 'number' && isFinite(value) && !isNaN(value);
+  return typeof value === 'number' && isFinite(value) && !isNaN(value) && value >= 0;
+};
+
+const sanitizeNumber = (value: any, fallback: number = 0): number => {
+  if (isValidNumber(value)) return Math.max(0, Math.min(1000000, value)); // Reasonable bounds
+  return fallback;
 };
 
 const sanitizeChartData = (data: any[]): any[] => {
-  return data.filter(item => {
-    // Check all numeric values in the item
-    return Object.values(item).every(value => {
-      if (typeof value === 'number') {
-        return isValidNumber(value);
-      }
-      return true; // Non-numeric values are okay
+  if (!Array.isArray(data)) return [];
+  
+  return data
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const sanitized: any = {};
+      Object.entries(item).forEach(([key, value]) => {
+        if (typeof value === 'number') {
+          sanitized[key] = sanitizeNumber(value);
+        } else if (typeof value === 'string') {
+          sanitized[key] = String(value).substring(0, 100); // Limit string length
+        } else {
+          sanitized[key] = value;
+        }
+      });
+      return sanitized;
+    })
+    .filter(item => {
+      // Ensure at least one valid numeric value exists
+      return Object.values(item).some(value => 
+        typeof value === 'number' && isValidNumber(value)
+      );
     });
-  });
-};
-
-const sanitizeNumber = (value: number, fallback: number = 0): number => {
-  return isValidNumber(value) ? value : fallback;
 };
 
 const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
   completionRates,
   qualityTrends
 }) => {
-  // Transform template data for charts with sanitization
+  // Enhanced error boundary wrapper
+  const renderWithErrorBoundary = (content: () => React.ReactNode, fallback: React.ReactNode) => {
+    try {
+      return content();
+    } catch (error) {
+      console.error('QACompletionTracker render error:', error);
+      return fallback;
+    }
+  };
+
+  // Transform and sanitize template data for charts
   const templateData = sanitizeChartData(
-    Object.entries(completionRates.byTemplate).map(([template, rate]) => ({
-      template: template.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      completion: sanitizeNumber(rate),
-      target: 85
-    }))
+    Object.entries(completionRates?.byTemplate || {})
+      .filter(([template, rate]) => template && isValidNumber(rate))
+      .map(([template, rate]) => ({
+        template: String(template).replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        completion: sanitizeNumber(rate),
+        target: 85
+      }))
   );
 
-  // Transform trade data for charts with sanitization
+  // Transform and sanitize trade data for charts
   const tradeData = sanitizeChartData(
-    Object.entries(completionRates.byTrade).map(([trade, rate]) => ({
-      trade: trade.charAt(0).toUpperCase() + trade.slice(1),
-      completion: sanitizeNumber(rate),
-      target: 85
-    }))
+    Object.entries(completionRates?.byTrade || {})
+      .filter(([trade, rate]) => trade && isValidNumber(rate))
+      .map(([trade, rate]) => ({
+        trade: String(trade).charAt(0).toUpperCase() + String(trade).slice(1),
+        completion: sanitizeNumber(rate),
+        target: 85
+      }))
   );
 
-  // Sanitize monthly trends data
+  // Sanitize monthly trends data with enhanced validation
   const sanitizedMonthlyTrends = sanitizeChartData(
-    qualityTrends.monthlyTrends.map(trend => ({
-      ...trend,
-      passed: sanitizeNumber(trend.passed),
-      failed: sanitizeNumber(trend.failed),
-      incomplete: sanitizeNumber(trend.incomplete)
-    }))
+    (qualityTrends?.monthlyTrends || [])
+      .filter(trend => trend && trend.month)
+      .map(trend => ({
+        month: String(trend.month),
+        passed: sanitizeNumber(trend.passed),
+        failed: sanitizeNumber(trend.failed),
+        incomplete: sanitizeNumber(trend.incomplete)
+      }))
   );
 
-  // Sanitize inspector performance data
-  const sanitizedInspectorPerformance = qualityTrends.inspectorPerformance
-    .filter(perf => isValidNumber(perf.passRate) && isValidNumber(perf.avgTime))
+  // Sanitize inspector performance data with enhanced validation
+  const sanitizedInspectorPerformance = (qualityTrends?.inspectorPerformance || [])
+    .filter(perf => perf && perf.inspector && isValidNumber(perf.passRate) && isValidNumber(perf.avgTime))
     .map(perf => ({
-      ...perf,
+      inspector: String(perf.inspector).substring(0, 30), // Limit length
       passRate: sanitizeNumber(perf.passRate),
       avgTime: sanitizeNumber(perf.avgTime)
-    }));
+    }))
+    .filter(perf => perf.passRate >= 0 && perf.passRate <= 100) // Valid percentage range
+    .slice(0, 10); // Limit results
 
-  // Calculate completion status
+  // Calculate completion status with safety
   const getCompletionStatus = (rate: number) => {
     const safeRate = sanitizeNumber(rate);
     if (safeRate >= 90) return { status: 'excellent', color: 'bg-emerald-500', text: 'Excellent' };
@@ -90,8 +123,18 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
     return { status: 'poor', color: 'bg-red-500', text: 'Needs Improvement' };
   };
 
-  const overallRate = sanitizeNumber(completionRates.overall);
+  const overallRate = sanitizeNumber(completionRates?.overall);
   const overallStatus = getCompletionStatus(overallRate);
+
+  // Error fallback component
+  const ErrorFallback = ({ message }: { message: string }) => (
+    <div className="h-[300px] flex items-center justify-center text-muted-foreground border rounded-lg bg-gray-50">
+      <div className="text-center">
+        <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+        <p className="text-sm">{message}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -124,30 +167,35 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="h-[80px]">
-              {sanitizedMonthlyTrends.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={sanitizedMonthlyTrends}>
-                    <Area
-                      type="monotone"
-                      dataKey="passed"
-                      stackId="1"
-                      stroke="#10b981"
-                      fill="#10b981"
-                      fillOpacity={0.6}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="failed"
-                      stackId="1"
-                      stroke="#ef4444"
-                      fill="#ef4444"
-                      fillOpacity={0.6}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
+              {renderWithErrorBoundary(
+                () => sanitizedMonthlyTrends.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={sanitizedMonthlyTrends}>
+                      <Area
+                        type="monotone"
+                        dataKey="passed"
+                        stackId="1"
+                        stroke="#10b981"
+                        fill="#10b981"
+                        fillOpacity={0.6}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="failed"
+                        stackId="1"
+                        stroke="#ef4444"
+                        fill="#ef4444"
+                        fillOpacity={0.6}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No trend data available
+                  </div>
+                ),
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  No trend data available
+                  Chart unavailable
                 </div>
               )}
             </div>
@@ -192,42 +240,45 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {templateData.length > 0 ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={templateData}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    dataKey="template" 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis 
-                    domain={[0, 100]}
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Completion %', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value}%`, 'Completion Rate']}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Bar dataKey="completion" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No template data available
-            </div>
+          {renderWithErrorBoundary(
+            () => templateData.length > 0 ? (
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={templateData}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis 
+                      dataKey="template" 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                      label={{ value: 'Completion %', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value}%`, 'Completion Rate']}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Bar dataKey="completion" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No template data available
+              </div>
+            ),
+            <ErrorFallback message="Template chart unavailable" />
           )}
         </CardContent>
       </Card>
@@ -241,40 +292,43 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {tradeData.length > 0 ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tradeData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    type="number" 
-                    domain={[0, 100]}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    type="category" 
-                    dataKey="trade" 
-                    tick={{ fontSize: 12 }}
-                    width={80}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value}%`, 'Completion Rate']}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Bar dataKey="completion" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No trade data available
-            </div>
+          {renderWithErrorBoundary(
+            () => tradeData.length > 0 ? (
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={tradeData} layout="horizontal">
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis 
+                      type="number" 
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      type="category" 
+                      dataKey="trade" 
+                      tick={{ fontSize: 12 }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value}%`, 'Completion Rate']}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Bar dataKey="completion" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No trade data available
+              </div>
+            ),
+            <ErrorFallback message="Trade chart unavailable" />
           )}
         </CardContent>
       </Card>
@@ -288,49 +342,52 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {sanitizedMonthlyTrends.length > 0 ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={sanitizedMonthlyTrends}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="passed" 
-                    stroke="hsl(var(--chart-1))" 
-                    strokeWidth={2}
-                    name="Passed"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="failed" 
-                    stroke="hsl(var(--chart-2))" 
-                    strokeWidth={2}
-                    name="Failed"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="incomplete" 
-                    stroke="hsl(var(--chart-3))" 
-                    strokeWidth={2}
-                    name="Incomplete"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No monthly trend data available
-            </div>
+          {renderWithErrorBoundary(
+            () => sanitizedMonthlyTrends.length > 0 ? (
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={sanitizedMonthlyTrends}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="passed" 
+                      stroke="hsl(var(--chart-1))" 
+                      strokeWidth={2}
+                      name="Passed"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="failed" 
+                      stroke="hsl(var(--chart-2))" 
+                      strokeWidth={2}
+                      name="Failed"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="incomplete" 
+                      stroke="hsl(var(--chart-3))" 
+                      strokeWidth={2}
+                      name="Incomplete"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No monthly trend data available
+              </div>
+            ),
+            <ErrorFallback message="Monthly trends chart unavailable" />
           )}
         </CardContent>
       </Card>
