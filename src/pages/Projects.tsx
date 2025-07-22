@@ -48,6 +48,27 @@ const TabErrorBoundary = ({ children, fallback }: { children: React.ReactNode; f
   }
 };
 
+// Safe error fallback component
+const TabErrorFallback = ({ tabName }: { tabName: string }) => (
+  <Card>
+    <CardContent className="py-8">
+      <div className="text-center">
+        <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-yellow-500" />
+        <h3 className="text-lg font-semibold mb-2">{tabName} Temporarily Unavailable</h3>
+        <p className="text-muted-foreground mb-4">
+          This section is experiencing technical difficulties. Please try refreshing the page.
+        </p>
+        <Button
+          variant="outline"
+          onClick={() => window.location.reload()}
+        >
+          Refresh Page
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+);
+
 const Projects = memo(() => {
   const { projects, loading, error, createProject, refetch: refetchProjects } = useProjects();
   const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -155,17 +176,19 @@ const Projects = memo(() => {
     }
   };
 
-  // Safe number calculations with fallbacks
+  // Safe number calculations with comprehensive null checks
   const safeNumber = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
     const num = Number(value);
-    return isFinite(num) && !isNaN(num) ? Math.max(0, num) : 0;
+    return (Number.isFinite(num) && !Number.isNaN(num)) ? Math.max(0, num) : 0;
   };
 
   const safePercent = (numerator: any, denominator: any): number => {
     const num = safeNumber(numerator);
     const den = safeNumber(denominator);
     if (den === 0) return 0;
-    return Math.round((num / den) * 100);
+    const result = (num / den) * 100;
+    return Math.min(100, Math.max(0, Math.round(result)));
   };
 
   if (loading) {
@@ -301,9 +324,9 @@ const Projects = memo(() => {
                 )}
               </TabsList>
 
-              {/* Tab Content with Error Boundaries */}
+              {/* Tab Content with Enhanced Error Boundaries */}
               <TabsContent value="dashboard" className="mt-6 space-y-6">
-                <TabErrorBoundary fallback={<div>Dashboard temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="Dashboard" />}>
                   {/* Simplified Dashboard Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <Card className="hover:shadow-md transition-shadow">
@@ -538,9 +561,9 @@ const Projects = memo(() => {
                 </TabErrorBoundary>
               </TabsContent>
 
-              {/* Other Tabs with Error Boundaries */}
+              {/* Other Tabs with Enhanced Error Boundaries */}
               <TabsContent value="programme" className="mt-6">
-                <TabErrorBoundary fallback={<div>Programme module temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="Programme" />}>
                   <Suspense fallback={<ModuleLoader />}>
                     <ProgrammeTracker 
                       projectName={selectedProject.name} 
@@ -552,7 +575,7 @@ const Projects = memo(() => {
               </TabsContent>
 
               <TabsContent value="tasks" className="mt-6">
-                <TabErrorBoundary fallback={<div>Tasks module temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="Tasks" />}>
                   <Suspense fallback={<ModuleLoader />}>
                     <TaskManager 
                       projectName={selectedProject.name}
@@ -563,7 +586,7 @@ const Projects = memo(() => {
               </TabsContent>
 
               <TabsContent value="rfis" className="mt-6">
-                <TabErrorBoundary fallback={<div>RFIs module temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="RFIs" />}>
                   <Suspense fallback={<ModuleLoader />}>
                     <RFIManager 
                       projectName={selectedProject.name}
@@ -574,7 +597,7 @@ const Projects = memo(() => {
               </TabsContent>
 
               <TabsContent value="variations" className="mt-6">
-                <TabErrorBoundary fallback={<div>Variations module temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="Variations" />}>
                   <Suspense fallback={<ModuleLoader />}>
                     <VariationManager
                       projectName={selectedProject.name}
@@ -584,8 +607,8 @@ const Projects = memo(() => {
                 </TabErrorBoundary>
               </TabsContent>
 
-              <TabsContent value="qa-itp" className="mt-6 space-y-6">
-                <TabErrorBoundary fallback={<div>QA/ITP module temporarily unavailable</div>}>
+              <TabsContent value="qa-itp" className="mt-6">
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="QA/ITP" />}>
                   <Card>
                     <CardHeader>
                       <div className="flex justify-between items-start">
@@ -613,7 +636,7 @@ const Projects = memo(() => {
               </TabsContent>
 
               <TabsContent value="documents" className="mt-6">
-                <TabErrorBoundary fallback={<div>Documents module temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="Documents" />}>
                   <Suspense fallback={<ModuleLoader />}>
                     <DocumentManager 
                       projectName={selectedProject.name}
@@ -623,7 +646,7 @@ const Projects = memo(() => {
               </TabsContent>
 
               <TabsContent value="notes" className="mt-6">
-                <TabErrorBoundary fallback={<div>Notes module temporarily unavailable</div>}>
+                <TabErrorBoundary fallback={<TabErrorFallback tabName="Notes" />}>
                   <Suspense fallback={<ModuleLoader />}>
                     <TeamNotes 
                       projectName={selectedProject.name}
@@ -634,7 +657,7 @@ const Projects = memo(() => {
 
               {canAccess('finance') && (
                 <TabsContent value="finance" className="mt-6">
-                  <TabErrorBoundary fallback={<div>Finance module temporarily unavailable</div>}>
+                  <TabErrorBoundary fallback={<TabErrorFallback tabName="Finance" />}>
                     <Suspense fallback={<ModuleLoader />}>
                       <FinanceManager 
                         projectName={selectedProject.name}

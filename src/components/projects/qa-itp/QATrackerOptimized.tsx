@@ -11,8 +11,9 @@ import QAMetricsDashboard from './analytics/QAMetricsDashboard';
 import QAReportGenerator from './analytics/QAReportGenerator';
 import QAActionTaskList from './QAActionTaskList';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, FileText, List, CheckSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart3, FileText, List, CheckSquare, ArrowLeft } from 'lucide-react';
 
 interface QATrackerProps {
   projectId: string;
@@ -20,12 +21,16 @@ interface QATrackerProps {
   onNavigateToTracker?: () => void;
 }
 
+type QAView = 'dashboard' | 'qa-list' | 'actions' | 'reports';
+
 const QATrackerOptimized: React.FC<QATrackerProps> = ({ 
   projectId,
   onNewInspection,
   onNavigateToTracker
 }) => {
+  const [currentView, setCurrentView] = useState<QAView>('dashboard');
   const [showReportGenerator, setShowReportGenerator] = useState(false);
+  
   const {
     // Data
     loading,
@@ -88,6 +93,7 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     refetch
   } = useQATrackerLogic(projectId);
 
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -97,14 +103,15 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     );
   }
 
+  // Form states
   if (showCreateForm) {
     return (
       <QAITPForm
         projectId={projectId}
         onClose={() => {
           setShowCreateForm(false);
-          refetch(); // Refresh data to show new inspection
-          onNavigateToTracker?.(); // Navigate back to QA tracker tab
+          refetch();
+          onNavigateToTracker?.();
         }}
       />
     );
@@ -128,98 +135,165 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     );
   }
 
+  // Navigation buttons
+  const NavigationButtons = () => (
+    <div className="flex gap-2 mb-6">
+      <Button
+        variant={currentView === 'dashboard' ? 'default' : 'outline'}
+        onClick={() => setCurrentView('dashboard')}
+        className="flex items-center gap-2"
+      >
+        <BarChart3 className="h-4 w-4" />
+        Dashboard
+      </Button>
+      <Button
+        variant={currentView === 'qa-list' ? 'default' : 'outline'}
+        onClick={() => setCurrentView('qa-list')}
+        className="flex items-center gap-2"
+      >
+        <List className="h-4 w-4" />
+        QA&ITP List
+      </Button>
+      <Button
+        variant={currentView === 'actions' ? 'default' : 'outline'}
+        onClick={() => setCurrentView('actions')}
+        className="flex items-center gap-2"
+      >
+        <CheckSquare className="h-4 w-4" />
+        Action&Task List
+      </Button>
+      <Button
+        variant={currentView === 'reports' ? 'default' : 'outline'}
+        onClick={() => setCurrentView('reports')}
+        className="flex items-center gap-2"
+      >
+        <FileText className="h-4 w-4" />
+        Reports
+      </Button>
+    </div>
+  );
+
+  // Render current view
+  const renderCurrentView = () => {
+    try {
+      switch (currentView) {
+        case 'dashboard':
+          return <QAMetricsDashboard projectId={projectId} />;
+        
+        case 'qa-list':
+          return (
+            <div className="space-y-6">
+              <QATrackerStats statusCounts={statusCounts} />
+              
+              <QATrackerFilters
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                inspectionTypeFilter={inspectionTypeFilter}
+                setInspectionTypeFilter={setInspectionTypeFilter}
+                templateTypeFilter={templateTypeFilter}
+                setTemplateTypeFilter={setTemplateTypeFilter}
+                inspectorFilter={inspectorFilter}
+                setInspectorFilter={setInspectorFilter}
+                dateRangeFilter={dateRangeFilter}
+                setDateRangeFilter={setDateRangeFilter}
+                buildingFilter={buildingFilter}
+                setBuildingFilter={setBuildingFilter}
+                levelFilter={levelFilter}
+                setLevelFilter={setLevelFilter}
+                taskFilter={taskFilter}
+                setTaskFilter={setTaskFilter}
+                tradeFilter={tradeFilter}
+                setTradeFilter={setTradeFilter}
+                showAdvancedFilters={showAdvancedFilters}
+                setShowAdvancedFilters={setShowAdvancedFilters}
+                hasActiveFilters={hasActiveFilters}
+                clearFilters={clearFilters}
+                statusCounts={statusCounts}
+                uniqueInspectors={uniqueInspectors}
+                uniqueBuildings={uniqueBuildings}
+                uniqueLevels={uniqueLevels}
+                uniqueTasks={uniqueTasks}
+                uniqueTrades={uniqueTrades}
+              />
+              
+              <QATrackerTable
+                filteredInspections={filteredInspections}
+                selectedItems={selectedItems}
+                onSelectItem={handleSelectItem}
+                onSelectAll={handleSelectAll}
+                onViewInspection={handleViewInspection}
+                onEditInspection={handleEditInspection}
+                onDeleteInspection={handleDeleteInspection}
+                getStatusColor={getStatusColor}
+                getStatusIcon={getStatusIcon}
+                hasActiveFilters={hasActiveFilters}
+                onNewInspection={() => setShowCreateForm(true)}
+                onExportSelected={() => setShowBulkExport(true)}
+                onBulkDelete={handleBulkDelete}
+              />
+            </div>
+          );
+        
+        case 'actions':
+          return <QAActionTaskList projectId={projectId} />;
+        
+        case 'reports':
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle>QA Reports</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Button
+                    onClick={() => setShowReportGenerator(true)}
+                    className="w-full"
+                  >
+                    Generate QA Report
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Generate comprehensive QA reports with inspection summaries, trends, and recommendations.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        
+        default:
+          return <QAMetricsDashboard projectId={projectId} />;
+      }
+    } catch (error) {
+      console.error('QATrackerOptimized: View rendering error:', error);
+      return (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <p className="text-muted-foreground">
+                This section is temporarily unavailable. Please try refreshing the page.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="mt-4"
+              >
+                Refresh Page
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
       <QATrackerHeader onNewInspection={() => setShowCreateForm(true)} />
       
-      <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Dashboard</span>
-          </TabsTrigger>
-          <TabsTrigger value="qa-list" className="flex items-center gap-2">
-            <List className="h-4 w-4" />
-            <span className="hidden sm:inline">QA&ITP List</span>
-          </TabsTrigger>
-          <TabsTrigger value="actions" className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">Action&Task List</span>
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Reports</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dashboard" className="space-y-6 mt-6">
-          <QAMetricsDashboard projectId={projectId} />
-        </TabsContent>
-
-        <TabsContent value="qa-list" className="space-y-6 mt-6">
-          <QATrackerStats statusCounts={statusCounts} />
-          
-          <QATrackerFilters
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            inspectionTypeFilter={inspectionTypeFilter}
-            setInspectionTypeFilter={setInspectionTypeFilter}
-            templateTypeFilter={templateTypeFilter}
-            setTemplateTypeFilter={setTemplateTypeFilter}
-            inspectorFilter={inspectorFilter}
-            setInspectorFilter={setInspectorFilter}
-            dateRangeFilter={dateRangeFilter}
-            setDateRangeFilter={setDateRangeFilter}
-            buildingFilter={buildingFilter}
-            setBuildingFilter={setBuildingFilter}
-            levelFilter={levelFilter}
-            setLevelFilter={setLevelFilter}
-            taskFilter={taskFilter}
-            setTaskFilter={setTaskFilter}
-            tradeFilter={tradeFilter}
-            setTradeFilter={setTradeFilter}
-            showAdvancedFilters={showAdvancedFilters}
-            setShowAdvancedFilters={setShowAdvancedFilters}
-            hasActiveFilters={hasActiveFilters}
-            clearFilters={clearFilters}
-            statusCounts={statusCounts}
-            uniqueInspectors={uniqueInspectors}
-            uniqueBuildings={uniqueBuildings}
-            uniqueLevels={uniqueLevels}
-            uniqueTasks={uniqueTasks}
-            uniqueTrades={uniqueTrades}
-          />
-          
-          <QATrackerTable
-            filteredInspections={filteredInspections}
-            selectedItems={selectedItems}
-            onSelectItem={handleSelectItem}
-            onSelectAll={handleSelectAll}
-            onViewInspection={handleViewInspection}
-            onEditInspection={handleEditInspection}
-            onDeleteInspection={handleDeleteInspection}
-            getStatusColor={getStatusColor}
-            getStatusIcon={getStatusIcon}
-            hasActiveFilters={hasActiveFilters}
-            onNewInspection={() => setShowCreateForm(true)}
-            onExportSelected={() => setShowBulkExport(true)}
-            onBulkDelete={handleBulkDelete}
-          />
-        </TabsContent>
-
-        <TabsContent value="actions" className="mt-6">
-          <QAActionTaskList projectId={projectId} />
-        </TabsContent>
-
-        <TabsContent value="reports" className="mt-6">
-          <QAReportGenerator 
-            projectId={projectId}
-            onClose={() => setShowReportGenerator(false)}
-          />
-        </TabsContent>
-      </Tabs>
+      <NavigationButtons />
+      
+      {renderCurrentView()}
 
       {selectedInspection && (
         <QAInspectionModal
@@ -232,7 +306,7 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
           onUpdate={(updated) => {
             console.log('QA Modal Debug: Inspection updated:', updated.id);
             setSelectedInspection(updated);
-            refetch(); // Refresh the list to show updates
+            refetch();
           }}
         />
       )}
