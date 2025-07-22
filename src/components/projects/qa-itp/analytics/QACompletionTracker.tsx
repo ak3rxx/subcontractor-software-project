@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -18,33 +19,79 @@ interface QACompletionTrackerProps {
   };
 }
 
+// Utility functions to sanitize chart data
+const isValidNumber = (value: any): boolean => {
+  return typeof value === 'number' && isFinite(value) && !isNaN(value);
+};
+
+const sanitizeChartData = (data: any[]): any[] => {
+  return data.filter(item => {
+    // Check all numeric values in the item
+    return Object.values(item).every(value => {
+      if (typeof value === 'number') {
+        return isValidNumber(value);
+      }
+      return true; // Non-numeric values are okay
+    });
+  });
+};
+
+const sanitizeNumber = (value: number, fallback: number = 0): number => {
+  return isValidNumber(value) ? value : fallback;
+};
+
 const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
   completionRates,
   qualityTrends
 }) => {
-  // Transform template data for charts
-  const templateData = Object.entries(completionRates.byTemplate).map(([template, rate]) => ({
-    template: template.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    completion: rate,
-    target: 85 // Target completion rate
-  }));
+  // Transform template data for charts with sanitization
+  const templateData = sanitizeChartData(
+    Object.entries(completionRates.byTemplate).map(([template, rate]) => ({
+      template: template.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      completion: sanitizeNumber(rate),
+      target: 85
+    }))
+  );
 
-  // Transform trade data for charts  
-  const tradeData = Object.entries(completionRates.byTrade).map(([trade, rate]) => ({
-    trade: trade.charAt(0).toUpperCase() + trade.slice(1),
-    completion: rate,
-    target: 85
-  }));
+  // Transform trade data for charts with sanitization
+  const tradeData = sanitizeChartData(
+    Object.entries(completionRates.byTrade).map(([trade, rate]) => ({
+      trade: trade.charAt(0).toUpperCase() + trade.slice(1),
+      completion: sanitizeNumber(rate),
+      target: 85
+    }))
+  );
+
+  // Sanitize monthly trends data
+  const sanitizedMonthlyTrends = sanitizeChartData(
+    qualityTrends.monthlyTrends.map(trend => ({
+      ...trend,
+      passed: sanitizeNumber(trend.passed),
+      failed: sanitizeNumber(trend.failed),
+      incomplete: sanitizeNumber(trend.incomplete)
+    }))
+  );
+
+  // Sanitize inspector performance data
+  const sanitizedInspectorPerformance = qualityTrends.inspectorPerformance
+    .filter(perf => isValidNumber(perf.passRate) && isValidNumber(perf.avgTime))
+    .map(perf => ({
+      ...perf,
+      passRate: sanitizeNumber(perf.passRate),
+      avgTime: sanitizeNumber(perf.avgTime)
+    }));
 
   // Calculate completion status
   const getCompletionStatus = (rate: number) => {
-    if (rate >= 90) return { status: 'excellent', color: 'bg-emerald-500', text: 'Excellent' };
-    if (rate >= 75) return { status: 'good', color: 'bg-blue-500', text: 'Good' };
-    if (rate >= 60) return { status: 'fair', color: 'bg-yellow-500', text: 'Fair' };
+    const safeRate = sanitizeNumber(rate);
+    if (safeRate >= 90) return { status: 'excellent', color: 'bg-emerald-500', text: 'Excellent' };
+    if (safeRate >= 75) return { status: 'good', color: 'bg-blue-500', text: 'Good' };
+    if (safeRate >= 60) return { status: 'fair', color: 'bg-yellow-500', text: 'Fair' };
     return { status: 'poor', color: 'bg-red-500', text: 'Needs Improvement' };
   };
 
-  const overallStatus = getCompletionStatus(completionRates.overall);
+  const overallRate = sanitizeNumber(completionRates.overall);
+  const overallStatus = getCompletionStatus(overallRate);
 
   return (
     <div className="space-y-6">
@@ -56,9 +103,9 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Math.round(completionRates.overall)}%</div>
+            <div className="text-2xl font-bold">{Math.round(overallRate)}%</div>
             <div className="flex items-center gap-2 mt-2">
-              <Progress value={completionRates.overall} className="flex-1" />
+              <Progress value={overallRate} className="flex-1" />
               <Badge variant={overallStatus.status === 'excellent' ? 'default' : 
                             overallStatus.status === 'good' ? 'secondary' : 'destructive'}>
                 {overallStatus.text}
@@ -77,26 +124,32 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="h-[80px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={qualityTrends.monthlyTrends}>
-                  <Area
-                    type="monotone"
-                    dataKey="passed"
-                    stackId="1"
-                    stroke="#10b981"
-                    fill="#10b981"
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="failed"
-                    stackId="1"
-                    stroke="#ef4444"
-                    fill="#ef4444"
-                    fillOpacity={0.6}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {sanitizedMonthlyTrends.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={sanitizedMonthlyTrends}>
+                    <Area
+                      type="monotone"
+                      dataKey="passed"
+                      stackId="1"
+                      stroke="#10b981"
+                      fill="#10b981"
+                      fillOpacity={0.6}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="failed"
+                      stackId="1"
+                      stroke="#ef4444"
+                      fill="#ef4444"
+                      fillOpacity={0.6}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                  No trend data available
+                </div>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               Pass/fail ratio over time
@@ -110,16 +163,16 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {qualityTrends.inspectorPerformance.length > 0 ? (
+            {sanitizedInspectorPerformance.length > 0 ? (
               <>
                 <div className="text-2xl font-bold">
-                  {qualityTrends.inspectorPerformance[0].inspector}
+                  {sanitizedInspectorPerformance[0].inspector}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {Math.round(qualityTrends.inspectorPerformance[0].passRate)}% pass rate
+                  {Math.round(sanitizedInspectorPerformance[0].passRate)}% pass rate
                 </div>
                 <Progress 
-                  value={qualityTrends.inspectorPerformance[0].passRate} 
+                  value={sanitizedInspectorPerformance[0].passRate} 
                   className="mt-2" 
                 />
               </>
@@ -235,10 +288,10 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {qualityTrends.monthlyTrends.length > 0 ? (
+          {sanitizedMonthlyTrends.length > 0 ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={qualityTrends.monthlyTrends}>
+                <LineChart data={sanitizedMonthlyTrends}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} />

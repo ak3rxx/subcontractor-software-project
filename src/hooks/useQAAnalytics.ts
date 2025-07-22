@@ -40,8 +40,24 @@ interface UseQAAnalyticsOptions {
   refreshInterval?: number;
 }
 
+// Utility functions for safe math operations
+const safeDiv = (numerator: number, denominator: number, fallback: number = 0): number => {
+  if (typeof numerator !== 'number' || typeof denominator !== 'number') return fallback;
+  if (denominator === 0 || !isFinite(denominator) || !isFinite(numerator)) return fallback;
+  const result = numerator / denominator;
+  return isFinite(result) ? result : fallback;
+};
+
+const safePercent = (numerator: number, denominator: number): number => {
+  return Math.round(safeDiv(numerator, denominator, 0) * 100);
+};
+
+const isValidNumber = (value: any): boolean => {
+  return typeof value === 'number' && isFinite(value) && !isNaN(value);
+};
+
 export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
-  const { projectId, timeframe = '30d', refreshInterval = 300000 } = options; // 5 min default
+  const { projectId, timeframe = '30d', refreshInterval = 300000 } = options;
   const { toast } = useToast();
   
   const [data, setData] = useState<QAAnalyticsData>({
@@ -149,41 +165,53 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
   };
 
   const processQAAnalytics = (inspections: any[]): Partial<QAAnalyticsData> => {
+    console.log('Processing QA analytics with inspections:', inspections.length);
+    
     if (!inspections.length) {
       return {
         inspections: [],
         completionRates: { overall: 0, byTemplate: {}, byTrade: {}, byTimeframe: {} },
         errorPatterns: { mostCommonErrors: [], errorTrends: [], templateErrors: {} },
-        performanceMetrics: { averageCompletionTime: 0, inspectionsPerDay: 0, passFailRatio: 0, reinspectionRate: 0 },
+        performanceMetrics: { averageCompletionTime: 0, inspectionsPerDay: 0, passFailRatio: 1, reinspectionRate: 0 },
         qualityTrends: { monthlyTrends: [], inspectorPerformance: [] },
         predictiveInsights: { riskScore: 0, qualityPrediction: 'stable', recommendedActions: [] }
       };
     }
 
-    // Calculate completion rates
+    // Calculate completion rates with safe math
     const completedInspections = inspections.filter(i => i.overall_status === 'passed' || i.overall_status === 'failed');
-    const overall = (completedInspections.length / inspections.length) * 100;
+    const overall = safePercent(completedInspections.length, inspections.length);
 
     const byTemplate: Record<string, number> = {};
     const byTrade: Record<string, number> = {};
     
+    // Count totals first
+    const templateCounts: Record<string, { completed: number; total: number }> = {};
+    const tradeCounts: Record<string, { completed: number; total: number }> = {};
+    
     inspections.forEach(inspection => {
-      const template = inspection.template_type;
-      const trade = inspection.trade;
+      const template = inspection.template_type || 'unknown';
+      const trade = inspection.trade || 'unknown';
+      const isCompleted = inspection.overall_status === 'passed' || inspection.overall_status === 'failed';
       
-      if (template) {
-        if (!byTemplate[template]) byTemplate[template] = 0;
-        if (inspection.overall_status === 'passed' || inspection.overall_status === 'failed') {
-          byTemplate[template]++;
-        }
-      }
+      // Template counts
+      if (!templateCounts[template]) templateCounts[template] = { completed: 0, total: 0 };
+      templateCounts[template].total++;
+      if (isCompleted) templateCounts[template].completed++;
       
-      if (trade) {
-        if (!byTrade[trade]) byTrade[trade] = 0;
-        if (inspection.overall_status === 'passed' || inspection.overall_status === 'failed') {
-          byTrade[trade]++;
-        }
-      }
+      // Trade counts
+      if (!tradeCounts[trade]) tradeCounts[trade] = { completed: 0, total: 0 };
+      tradeCounts[trade].total++;
+      if (isCompleted) tradeCounts[trade].completed++;
+    });
+
+    // Calculate percentages safely
+    Object.entries(templateCounts).forEach(([template, counts]) => {
+      byTemplate[template] = safePercent(counts.completed, counts.total);
+    });
+
+    Object.entries(tradeCounts).forEach(([trade, counts]) => {
+      byTrade[trade] = safePercent(counts.completed, counts.total);
     });
 
     // Calculate error patterns
@@ -214,13 +242,13 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Calculate performance metrics
+    // Calculate performance metrics with safe math
     const passedCount = inspections.filter(i => i.overall_status === 'passed').length;
     const failedCount = inspections.filter(i => i.overall_status === 'failed').length;
-    const passFailRatio = failedCount > 0 ? passedCount / failedCount : passedCount;
+    const passFailRatio = safeDiv(passedCount, Math.max(1, failedCount), passedCount || 1);
     
     const daysDiff = Math.max(1, Math.ceil((new Date().getTime() - new Date(inspections[inspections.length - 1]?.created_at || new Date()).getTime()) / (1000 * 60 * 60 * 24)));
-    const inspectionsPerDay = inspections.length / daysDiff;
+    const inspectionsPerDay = safeDiv(inspections.length, daysDiff, 0);
 
     // Calculate quality trends
     const monthlyMap = new Map<string, { passed: number; failed: number; incomplete: number }>();
@@ -241,12 +269,11 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
       .map(([month, stats]) => ({ month, ...stats }))
       .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
-    // Inspector performance
+    // Inspector performance with safe calculations
     const inspectorMap = new Map<string, { total: number; passed: number; times: number[] }>();
     
     inspections.forEach(inspection => {
-      const inspector = inspection.inspector_name;
-      if (!inspector) return;
+      const inspector = inspection.inspector_name || 'Unknown';
       
       if (!inspectorMap.has(inspector)) {
         inspectorMap.set(inspector, { total: 0, passed: 0, times: [] });
@@ -257,7 +284,6 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
       if (inspection.overall_status === 'passed') stats.passed++;
       
       // Estimate completion time (simplified)
-      const createdTime = new Date(inspection.created_at).getTime();
       const estimatedTime = 2; // hours (placeholder)
       stats.times.push(estimatedTime);
     });
@@ -265,23 +291,29 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
     const inspectorPerformance = Array.from(inspectorMap.entries())
       .map(([inspector, stats]) => ({
         inspector,
-        passRate: (stats.passed / stats.total) * 100,
-        avgTime: stats.times.reduce((sum, time) => sum + time, 0) / stats.times.length
+        passRate: safePercent(stats.passed, stats.total),
+        avgTime: safeDiv(stats.times.reduce((sum, time) => sum + time, 0), stats.times.length, 2)
       }))
+      .filter(perf => isValidNumber(perf.passRate) && isValidNumber(perf.avgTime))
       .sort((a, b) => b.passRate - a.passRate);
 
-    // Predictive insights
+    // Predictive insights with safe calculations
     const recentTrend = monthlyTrends.slice(-3);
-    const trendDirection = recentTrend.length >= 2 ? 
-      (recentTrend[recentTrend.length - 1].passed / Math.max(1, recentTrend[recentTrend.length - 1].passed + recentTrend[recentTrend.length - 1].failed)) -
-      (recentTrend[0].passed / Math.max(1, recentTrend[0].passed + recentTrend[0].failed))
-      : 0;
+    let trendDirection = 0;
+    
+    if (recentTrend.length >= 2) {
+      const recent = recentTrend[recentTrend.length - 1];
+      const earlier = recentTrend[0];
+      const recentRate = safeDiv(recent.passed, recent.passed + recent.failed, 0);
+      const earlierRate = safeDiv(earlier.passed, earlier.passed + earlier.failed, 0);
+      trendDirection = recentRate - earlierRate;
+    }
 
     const qualityPrediction: 'improving' | 'declining' | 'stable' = 
       trendDirection > 0.05 ? 'improving' : trendDirection < -0.05 ? 'declining' : 'stable';
 
     const riskScore = Math.max(0, Math.min(100, 
-      (failedCount / Math.max(1, completedInspections.length)) * 100 +
+      safePercent(failedCount, Math.max(1, completedInspections.length)) +
       (mostCommonErrors.length > 5 ? 20 : 0) +
       (passFailRatio < 2 ? 30 : 0)
     ));
@@ -292,22 +324,28 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
     if (mostCommonErrors.length > 5) recommendedActions.push('Address recurring error patterns');
     if (overall < 80) recommendedActions.push('Improve completion processes');
 
+    console.log('Processed analytics data:', {
+      overall,
+      inspectorPerformance: inspectorPerformance.length,
+      monthlyTrends: monthlyTrends.length,
+      passFailRatio
+    });
+
     return {
       inspections,
       completionRates: { overall, byTemplate, byTrade, byTimeframe: {} },
       errorPatterns: { mostCommonErrors, errorTrends: [], templateErrors },
       performanceMetrics: { 
-        averageCompletionTime: 2, // placeholder
-        inspectionsPerDay, 
-        passFailRatio, 
-        reinspectionRate: 0 // placeholder
+        averageCompletionTime: 2,
+        inspectionsPerDay: Math.round(inspectionsPerDay * 100) / 100, 
+        passFailRatio: Math.round(passFailRatio * 100) / 100, 
+        reinspectionRate: 0
       },
       qualityTrends: { monthlyTrends, inspectorPerformance },
       predictiveInsights: { riskScore, qualityPrediction, recommendedActions }
     };
   };
 
-  // Set up real-time subscriptions
   useEffect(() => {
     fetchQAAnalytics();
 
@@ -322,7 +360,6 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
       })
       .subscribe();
 
-    // Set up refresh interval
     const interval = setInterval(fetchQAAnalytics, refreshInterval);
 
     return () => {
@@ -331,7 +368,6 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
     };
   }, [projectId, timeframe, refreshInterval]);
 
-  // Memoized computed values
   const summary = useMemo(() => ({
     totalInspections: data.inspections.length,
     completionRate: Math.round(data.completionRates.overall),
@@ -344,7 +380,6 @@ export const useQAAnalytics = (options: UseQAAnalyticsOptions = {}) => {
     summary,
     refetch: fetchQAAnalytics,
     setTimeframe: (newTimeframe: '7d' | '30d' | '90d' | '1y') => {
-      // This would trigger a re-fetch with new timeframe
       fetchQAAnalytics();
     }
   };
