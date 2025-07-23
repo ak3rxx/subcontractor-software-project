@@ -10,6 +10,7 @@ import QATrackerTable from './tracker/QATrackerTable';
 import QAMetricsDashboard from './analytics/QAMetricsDashboard';
 import QAReportGenerator from './analytics/QAReportGenerator';
 import QAActionTaskList from './QAActionTaskList';
+import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +33,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
   const [showReportGenerator, setShowReportGenerator] = useState(false);
   
   const {
-    // Data
     loading,
     filteredInspections,
     statusCounts,
@@ -41,8 +41,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     uniqueLevels,
     uniqueTasks,
     uniqueTrades,
-
-    // UI State
     showCreateForm,
     setShowCreateForm,
     selectedInspection,
@@ -50,8 +48,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     selectedItems,
     showBulkExport,
     setShowBulkExport,
-
-    // Filter State
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -75,8 +71,6 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     showAdvancedFilters,
     setShowAdvancedFilters,
     hasActiveFilters,
-
-    // Event Handlers
     handleSelectItem,
     handleSelectAll,
     handleBulkDelete,
@@ -84,16 +78,12 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     handleEditInspection,
     handleDeleteInspection,
     clearFilters,
-
-    // Utility Functions
     getStatusIcon,
     getStatusColor,
-
-    // Other
     refetch
   } = useQATrackerLogic(projectId);
 
-  // Loading state
+  // Safe loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -103,39 +93,45 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     );
   }
 
-  // Form states
+  // Safe form states
   if (showCreateForm) {
     return (
-      <QAITPForm
-        projectId={projectId}
-        onClose={() => {
-          setShowCreateForm(false);
-          refetch();
-          onNavigateToTracker?.();
-        }}
-      />
+      <NavigationErrorBoundary>
+        <QAITPForm
+          projectId={projectId}
+          onClose={() => {
+            setShowCreateForm(false);
+            refetch();
+            onNavigateToTracker?.();
+          }}
+        />
+      </NavigationErrorBoundary>
     );
   }
 
   if (showBulkExport) {
     return (
-      <QABulkExport
-        selectedInspectionIds={Array.from(selectedItems)}
-        onClose={() => setShowBulkExport(false)}
-      />
+      <NavigationErrorBoundary>
+        <QABulkExport
+          selectedInspectionIds={Array.from(selectedItems)}
+          onClose={() => setShowBulkExport(false)}
+        />
+      </NavigationErrorBoundary>
     );
   }
 
   if (showReportGenerator) {
     return (
-      <QAReportGenerator
-        projectId={projectId}
-        onClose={() => setShowReportGenerator(false)}
-      />
+      <NavigationErrorBoundary>
+        <QAReportGenerator
+          projectId={projectId}
+          onClose={() => setShowReportGenerator(false)}
+        />
+      </NavigationErrorBoundary>
     );
   }
 
-  // Navigation buttons
+  // Safe navigation buttons
   const NavigationButtons = () => (
     <div className="flex gap-2 mb-6">
       <Button
@@ -160,7 +156,7 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
         className="flex items-center gap-2"
       >
         <CheckSquare className="h-4 w-4" />
-        Action&Task List
+        Actions
       </Button>
       <Button
         variant={currentView === 'reports' ? 'default' : 'outline'}
@@ -173,15 +169,19 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     </div>
   );
 
-  // Render current view
+  // Safe view rendering with error boundaries
   const renderCurrentView = () => {
-    try {
-      switch (currentView) {
-        case 'dashboard':
-          return <QAMetricsDashboard projectId={projectId} />;
-        
-        case 'qa-list':
-          return (
+    switch (currentView) {
+      case 'dashboard':
+        return (
+          <NavigationErrorBoundary>
+            <QAMetricsDashboard projectId={projectId} />
+          </NavigationErrorBoundary>
+        );
+      
+      case 'qa-list':
+        return (
+          <NavigationErrorBoundary>
             <div className="space-y-6">
               <QATrackerStats statusCounts={statusCounts} />
               
@@ -234,13 +234,19 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
                 onBulkDelete={handleBulkDelete}
               />
             </div>
-          );
-        
-        case 'actions':
-          return <QAActionTaskList projectId={projectId} />;
-        
-        case 'reports':
-          return (
+          </NavigationErrorBoundary>
+        );
+      
+      case 'actions':
+        return (
+          <NavigationErrorBoundary>
+            <QAActionTaskList projectId={projectId} />
+          </NavigationErrorBoundary>
+        );
+      
+      case 'reports':
+        return (
+          <NavigationErrorBoundary>
             <Card>
               <CardHeader>
                 <CardTitle>QA Reports</CardTitle>
@@ -259,58 +265,44 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
                 </div>
               </CardContent>
             </Card>
-          );
-        
-        default:
-          return <QAMetricsDashboard projectId={projectId} />;
-      }
-    } catch (error) {
-      console.error('QATrackerOptimized: View rendering error:', error);
-      return (
-        <Card>
-          <CardContent className="py-8">
-            <div className="text-center">
-              <p className="text-muted-foreground">
-                This section is temporarily unavailable. Please try refreshing the page.
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-                className="mt-4"
-              >
-                Refresh Page
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
+          </NavigationErrorBoundary>
+        );
+      
+      default:
+        return (
+          <NavigationErrorBoundary>
+            <QAMetricsDashboard projectId={projectId} />
+          </NavigationErrorBoundary>
+        );
     }
   };
 
   return (
-    <div className="space-y-6">
-      <QATrackerHeader onNewInspection={() => setShowCreateForm(true)} />
-      
-      <NavigationButtons />
-      
-      {renderCurrentView()}
+    <NavigationErrorBoundary>
+      <div className="space-y-6">
+        <QATrackerHeader onNewInspection={() => setShowCreateForm(true)} />
+        
+        <NavigationButtons />
+        
+        {renderCurrentView()}
 
-      {selectedInspection && (
-        <QAInspectionModal
-          isOpen={!!selectedInspection}
-          onClose={() => {
-            console.log('QA Modal Debug: Closing modal');
-            setSelectedInspection(null);
-          }}
-          inspection={selectedInspection}
-          onUpdate={(updated) => {
-            console.log('QA Modal Debug: Inspection updated:', updated.id);
-            setSelectedInspection(updated);
-            refetch();
-          }}
-        />
-      )}
-    </div>
+        {selectedInspection && (
+          <QAInspectionModal
+            isOpen={!!selectedInspection}
+            onClose={() => {
+              console.log('QA Modal: Closing modal safely');
+              setSelectedInspection(null);
+            }}
+            inspection={selectedInspection}
+            onUpdate={(updated) => {
+              console.log('QA Modal: Inspection updated safely:', updated.id);
+              setSelectedInspection(updated);
+              refetch();
+            }}
+          />
+        )}
+      </div>
+    </NavigationErrorBoundary>
   );
 };
 

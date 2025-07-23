@@ -17,24 +17,42 @@ const SafeChartWrapper: React.FC<SafeChartWrapperProps> = ({
   minDataPoints = 1,
   fallbackMessage = "No data available"
 }) => {
-  // Validate data before rendering
+  // Comprehensive data validation
   const isValidData = () => {
-    if (!Array.isArray(data) || data.length < minDataPoints) {
+    try {
+      if (!Array.isArray(data) || data.length < minDataPoints) {
+        console.log(`SafeChartWrapper: Invalid data array for ${title}:`, data);
+        return false;
+      }
+      
+      // Check each data point for valid numeric values
+      const hasValidData = data.every(item => {
+        if (!item || typeof item !== 'object') {
+          console.log(`SafeChartWrapper: Invalid data item for ${title}:`, item);
+          return false;
+        }
+        
+        // Check if at least one numeric value exists and is valid
+        const hasValidNumbers = Object.values(item).some(value => {
+          if (typeof value === 'number') {
+            const isValid = Number.isFinite(value) && !Number.isNaN(value);
+            if (!isValid) {
+              console.log(`SafeChartWrapper: Invalid number in ${title}:`, value);
+            }
+            return isValid;
+          }
+          return false;
+        });
+        
+        return hasValidNumbers;
+      });
+      
+      console.log(`SafeChartWrapper: Data validation for ${title}:`, hasValidData);
+      return hasValidData;
+    } catch (error) {
+      console.error(`SafeChartWrapper: Validation error for ${title}:`, error);
       return false;
     }
-    
-    // Check if data contains valid numeric values
-    return data.every(item => {
-      if (!item || typeof item !== 'object') return false;
-      
-      // Check if at least one numeric value exists and is valid
-      return Object.values(item).some(value => {
-        if (typeof value === 'number') {
-          return Number.isFinite(value) && !Number.isNaN(value);
-        }
-        return false;
-      });
-    });
   };
 
   const EmptyState = () => (
@@ -43,7 +61,7 @@ const SafeChartWrapper: React.FC<SafeChartWrapperProps> = ({
         <TrendingUp className="h-8 w-8 mx-auto mb-2 text-gray-300" />
         <p className="text-sm">{fallbackMessage}</p>
         <p className="text-xs text-gray-400 mt-1">
-          Data will appear here once inspections are created
+          Charts will appear here once data is available
         </p>
       </div>
     </div>
@@ -61,7 +79,7 @@ const SafeChartWrapper: React.FC<SafeChartWrapperProps> = ({
     </div>
   );
 
-  // Render safe chart or fallback
+  // Safe rendering with comprehensive error handling
   try {
     if (!isValidData()) {
       return <EmptyState />;
@@ -69,11 +87,13 @@ const SafeChartWrapper: React.FC<SafeChartWrapperProps> = ({
 
     return (
       <div className="chart-container">
-        {children}
+        <div className="chart-error-boundary">
+          {children}
+        </div>
       </div>
     );
   } catch (error) {
-    console.error(`SafeChartWrapper: Error in ${title}:`, error);
+    console.error(`SafeChartWrapper: Render error in ${title}:`, error);
     return <ErrorState />;
   }
 };

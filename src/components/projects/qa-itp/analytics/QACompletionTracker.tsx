@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart } from 'recharts';
 import { TrendingUp, Target, Calendar, Award } from 'lucide-react';
 import SafeChartWrapper from './SafeChartWrapper';
+import ChartErrorBoundary from './ChartErrorBoundary';
 
 interface QACompletionTrackerProps {
   completionRates: {
@@ -18,68 +19,134 @@ interface QACompletionTrackerProps {
     monthlyTrends: Array<{ month: string; passed: number; failed: number; incomplete: number }>;
     inspectorPerformance: Array<{ inspector: string; passRate: number; avgTime: number }>;
   };
+  isDataReady?: boolean;
 }
 
 const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
   completionRates,
-  qualityTrends
+  qualityTrends,
+  isDataReady = false
 }) => {
-  // Safe data transformation with validation
+  // Safe data transformation with strict validation
   const transformTemplateData = () => {
     try {
-      return Object.entries(completionRates?.byTemplate || {})
-        .filter(([template, rate]) => template && typeof rate === 'number' && !isNaN(rate))
+      if (!completionRates?.byTemplate || !isDataReady) return [];
+      
+      return Object.entries(completionRates.byTemplate)
+        .filter(([template, rate]) => {
+          const isValid = template && 
+                         typeof rate === 'number' && 
+                         Number.isFinite(rate) && 
+                         !Number.isNaN(rate);
+          if (!isValid) {
+            console.warn('QACompletionTracker: Filtered invalid template data:', template, rate);
+          }
+          return isValid;
+        })
         .map(([template, rate]) => ({
           template: String(template).replace(/[-_]/g, ' ').slice(0, 30),
           completion: Math.max(0, Math.min(100, Math.round(rate))),
           target: 85
         }))
-        .slice(0, 10); // Limit to prevent UI overflow
+        .slice(0, 10);
     } catch (error) {
-      console.error('QACompletionTracker: Template data transformation error:', error);
+      console.error('QACompletionTracker: Template transformation error:', error);
       return [];
     }
   };
 
   const transformTradeData = () => {
     try {
-      return Object.entries(completionRates?.byTrade || {})
-        .filter(([trade, rate]) => trade && typeof rate === 'number' && !isNaN(rate))
+      if (!completionRates?.byTrade || !isDataReady) return [];
+      
+      return Object.entries(completionRates.byTrade)
+        .filter(([trade, rate]) => {
+          const isValid = trade && 
+                         typeof rate === 'number' && 
+                         Number.isFinite(rate) && 
+                         !Number.isNaN(rate);
+          if (!isValid) {
+            console.warn('QACompletionTracker: Filtered invalid trade data:', trade, rate);
+          }
+          return isValid;
+        })
         .map(([trade, rate]) => ({
           trade: String(trade).charAt(0).toUpperCase() + String(trade).slice(1, 30),
           completion: Math.max(0, Math.min(100, Math.round(rate))),
           target: 85
         }))
-        .slice(0, 10); // Limit to prevent UI overflow
+        .slice(0, 10);
     } catch (error) {
-      console.error('QACompletionTracker: Trade data transformation error:', error);
+      console.error('QACompletionTracker: Trade transformation error:', error);
       return [];
     }
   };
 
   const transformMonthlyTrends = () => {
     try {
-      return (qualityTrends?.monthlyTrends || [])
-        .filter(trend => trend && trend.month)
+      if (!qualityTrends?.monthlyTrends || !isDataReady) return [];
+      
+      return qualityTrends.monthlyTrends
+        .filter(trend => {
+          const isValid = trend && 
+                         trend.month && 
+                         Number.isFinite(trend.passed) && 
+                         Number.isFinite(trend.failed) && 
+                         Number.isFinite(trend.incomplete);
+          if (!isValid) {
+            console.warn('QACompletionTracker: Filtered invalid monthly trend:', trend);
+          }
+          return isValid;
+        })
         .map(trend => ({
           month: String(trend.month).slice(0, 20),
           passed: Math.max(0, Math.round(trend.passed || 0)),
           failed: Math.max(0, Math.round(trend.failed || 0)),
           incomplete: Math.max(0, Math.round(trend.incomplete || 0))
         }))
-        .slice(-12); // Last 12 months
+        .slice(-12);
     } catch (error) {
       console.error('QACompletionTracker: Monthly trends transformation error:', error);
       return [];
     }
   };
 
+  // Wait for data to be ready before processing
+  if (!isDataReady) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardContent className="py-8">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const templateData = transformTemplateData();
   const tradeData = transformTradeData();
   const monthlyTrends = transformMonthlyTrends();
 
   const inspectorPerformance = (qualityTrends?.inspectorPerformance || [])
-    .filter(perf => perf && perf.inspector && typeof perf.passRate === 'number' && !isNaN(perf.passRate))
+    .filter(perf => {
+      const isValid = perf && 
+                     perf.inspector && 
+                     typeof perf.passRate === 'number' && 
+                     Number.isFinite(perf.passRate) && 
+                     !Number.isNaN(perf.passRate);
+      if (!isValid) {
+        console.warn('QACompletionTracker: Filtered invalid inspector performance:', perf);
+      }
+      return isValid;
+    })
     .map(perf => ({
       inspector: String(perf.inspector).slice(0, 30),
       passRate: Math.max(0, Math.min(100, Math.round(perf.passRate))),
@@ -87,7 +154,6 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
     }))
     .slice(0, 10);
 
-  // Safe completion status calculation
   const getCompletionStatus = (rate: number) => {
     const safeRate = Math.max(0, Math.min(100, Math.round(rate || 0)));
     if (safeRate >= 90) return { status: 'excellent', color: 'bg-emerald-500', text: 'Excellent' };
@@ -130,32 +196,34 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="h-[80px]">
-              <SafeChartWrapper
-                data={monthlyTrends}
-                title="Monthly Trend"
-                fallbackMessage="No trend data available"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={monthlyTrends}>
-                    <Area
-                      type="monotone"
-                      dataKey="passed"
-                      stackId="1"
-                      stroke="#10b981"
-                      fill="#10b981"
-                      fillOpacity={0.6}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="failed"
-                      stackId="1"
-                      stroke="#ef4444"
-                      fill="#ef4444"
-                      fillOpacity={0.6}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </SafeChartWrapper>
+              <ChartErrorBoundary title="Monthly Trend">
+                <SafeChartWrapper
+                  data={monthlyTrends}
+                  title="Monthly Trend"
+                  fallbackMessage="No trend data available"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={monthlyTrends}>
+                      <Area
+                        type="monotone"
+                        dataKey="passed"
+                        stackId="1"
+                        stroke="#10b981"
+                        fill="#10b981"
+                        fillOpacity={0.6}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="failed"
+                        stackId="1"
+                        stroke="#ef4444"
+                        fill="#ef4444"
+                        fillOpacity={0.6}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </SafeChartWrapper>
+              </ChartErrorBoundary>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               Pass/fail ratio over time
@@ -201,43 +269,45 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SafeChartWrapper
-            data={templateData}
-            title="Template Performance"
-            fallbackMessage="No template data available"
-          >
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={templateData}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    dataKey="template" 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis 
-                    domain={[0, 100]}
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Completion %', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value}%`, 'Completion Rate']}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Bar dataKey="completion" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </SafeChartWrapper>
+          <ChartErrorBoundary title="Template Performance">
+            <SafeChartWrapper
+              data={templateData}
+              title="Template Performance"
+              fallbackMessage="No template data available"
+            >
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={templateData}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis 
+                      dataKey="template" 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                      label={{ value: 'Completion %', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value}%`, 'Completion Rate']}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Bar dataKey="completion" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </SafeChartWrapper>
+          </ChartErrorBoundary>
         </CardContent>
       </Card>
 
@@ -250,41 +320,43 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SafeChartWrapper
-            data={tradeData}
-            title="Trade Performance"
-            fallbackMessage="No trade data available"
-          >
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tradeData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    type="number" 
-                    domain={[0, 100]}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    type="category" 
-                    dataKey="trade" 
-                    tick={{ fontSize: 12 }}
-                    width={80}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value}%`, 'Completion Rate']}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Bar dataKey="completion" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </SafeChartWrapper>
+          <ChartErrorBoundary title="Trade Performance">
+            <SafeChartWrapper
+              data={tradeData}
+              title="Trade Performance"
+              fallbackMessage="No trade data available"
+            >
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={tradeData} layout="horizontal">
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis 
+                      type="number" 
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      type="category" 
+                      dataKey="trade" 
+                      tick={{ fontSize: 12 }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value}%`, 'Completion Rate']}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Bar dataKey="completion" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="target" fill="hsl(var(--muted))" opacity={0.3} radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </SafeChartWrapper>
+          </ChartErrorBoundary>
         </CardContent>
       </Card>
 
@@ -297,50 +369,52 @@ const QACompletionTracker: React.FC<QACompletionTrackerProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SafeChartWrapper
-            data={monthlyTrends}
-            title="Monthly Trends"
-            fallbackMessage="No monthly trend data available"
-          >
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrends}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="passed" 
-                    stroke="hsl(var(--chart-1))" 
-                    strokeWidth={2}
-                    name="Passed"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="failed" 
-                    stroke="hsl(var(--chart-2))" 
-                    strokeWidth={2}
-                    name="Failed"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="incomplete" 
-                    stroke="hsl(var(--chart-3))" 
-                    strokeWidth={2}
-                    name="Incomplete"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </SafeChartWrapper>
+          <ChartErrorBoundary title="Monthly Trends">
+            <SafeChartWrapper
+              data={monthlyTrends}
+              title="Monthly Trends"
+              fallbackMessage="No monthly trend data available"
+            >
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyTrends}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="passed" 
+                      stroke="hsl(var(--chart-1))" 
+                      strokeWidth={2}
+                      name="Passed"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="failed" 
+                      stroke="hsl(var(--chart-2))" 
+                      strokeWidth={2}
+                      name="Failed"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="incomplete" 
+                      stroke="hsl(var(--chart-3))" 
+                      strokeWidth={2}
+                      name="Incomplete"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </SafeChartWrapper>
+          </ChartErrorBoundary>
         </CardContent>
       </Card>
     </div>
