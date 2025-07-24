@@ -5,7 +5,7 @@ import { Upload, Download, FileText, Trash2 } from 'lucide-react';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
-import SimpleFileUpload from './SimpleFileUpload';
+import MobileOptimizedFileUpload from './MobileOptimizedFileUpload';
 import FileThumbnailViewer from './FileThumbnailViewer';
 import FieldAuditNote from './FieldAuditNote';
 
@@ -97,25 +97,22 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 flex-1 flex flex-col overflow-hidden">
-          {/* File Upload Section */}
+          {/* File Upload Section - Mobile Optimized */}
           {isEditing && (
-            <div className="border-2 border-dashed border-muted rounded-lg p-4">
-              <SimpleFileUpload
-                onFilesChange={handleFilesUploaded}
-                accept="image/*,.pdf,.doc,.docx"
-                multiple={true}
-                maxFiles={10}
-                className="w-full"
-                label="Upload Additional Files"
-                inspectionId={inspection?.id}
-              />
-            </div>
+            <MobileOptimizedFileUpload
+              onFilesChange={handleFilesUploaded}
+              accept="image/*,.pdf,.doc,.docx"
+              multiple={true}
+              maxFiles={10}
+              className="w-full"
+              inspectionId={inspection?.id}
+            />
           )}
 
-          {/* Files Display with Scroll */}
+          {/* Files Display with Enhanced Scroll */}
           {allFiles.length > 0 ? (
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
+            <div className="flex-1 overflow-y-auto max-h-96 overscroll-contain">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-2">
               {allFiles.map((filePath, index) => {
                 const fileName = filePath.split('/').pop() || `File ${index + 1}`;
                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
@@ -127,10 +124,10 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
                 return (
                   <Card 
                     key={index} 
-                    className="relative group overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                    className="relative group overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]"
                     onClick={() => handleFileClick(filePath)}
                   >
-                    <div className="aspect-square">
+                    <div className="aspect-square bg-muted/30">
                       {isImage ? (
                         <img
                           src={fileUrl}

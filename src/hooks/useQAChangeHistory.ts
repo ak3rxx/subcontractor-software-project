@@ -73,16 +73,16 @@ export const useQAChangeHistory = (inspectionId: string) => {
     }
   }, [inspectionId, toast]);
 
-  // Debounced refresh function for real-time updates
+  // Enhanced real-time refresh with faster response
   const debouncedRefresh = useCallback(() => {
     if (refreshTimeout.current) {
       clearTimeout(refreshTimeout.current);
     }
     
     refreshTimeout.current = setTimeout(() => {
-      console.log('Debounced refresh triggered for real-time update');
+      console.log('Real-time refresh triggered');
       fetchChangeHistory(true);
-    }, 500); // 500ms debounce
+    }, 150); // Reduced to 150ms for faster real-time feel
   }, [fetchChangeHistory]);
 
   // Optimized refresh function for real-time updates
@@ -198,12 +198,34 @@ export const useQAChangeHistory = (inspectionId: string) => {
       realtimeChannel.current = null;
     }
 
-    // Create stable handler function to avoid dependency issues
+    // Enhanced real-time handler with immediate updates
     const handleRealtimeInsert = (payload: any) => {
       console.log('Real-time change history insert received:', payload);
-      // Use a stable approach - direct fetch instead of unstable callback
+      
+      // Immediate optimistic update for better UX
+      if (payload.new && payload.new.inspection_id === inspectionId) {
+        setChangeHistory(prev => {
+          const newEntry = {
+            id: payload.new.id,
+            timestamp: payload.new.created_at || payload.new.timestamp,
+            change_timestamp: payload.new.created_at || payload.new.timestamp,
+            user_id: payload.new.user_id,
+            user_name: payload.new.user_name || 'Unknown User',
+            field_name: payload.new.field_name,
+            old_value: payload.new.old_value,
+            new_value: payload.new.new_value,
+            change_type: payload.new.change_type,
+            item_id: payload.new.item_id,
+            item_description: payload.new.item_description
+          };
+          
+          // Add new entry at the beginning (most recent first)
+          return [newEntry, ...prev];
+        });
+      }
+      
+      // Follow up with full refresh for data consistency
       setTimeout(async () => {
-        console.log('Real-time triggered: Fetching fresh change history');
         try {
           const { data, error } = await supabase.rpc('get_qa_change_history', {
             p_inspection_id: inspectionId
@@ -216,7 +238,7 @@ export const useQAChangeHistory = (inspectionId: string) => {
         } catch (error) {
           console.error('Real-time refresh failed:', error);
         }
-      }, 100);
+      }, 50); // Very fast follow-up
     };
 
     // Create new subscription with unique channel name

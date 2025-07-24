@@ -26,11 +26,15 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
   const { bucket = 'qainspectionfiles', inspectionId, checklistItemId } = options;
   const [files, setFiles] = useState<SimpleUploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<File[]>([]);
   const { toast } = useToast();
   
-  // Enhanced upload tracking with content-based deduplication
+  // Enhanced upload tracking with mobile optimization
   const uploadsInProgress = useRef<Set<string>>(new Set());
   const processedFiles = useRef<Map<string, SimpleUploadedFile>>(new Map());
+  const isMobile = useRef(typeof window !== 'undefined' && /Mobile|Android|iPhone|iPad/.test(navigator.userAgent));
+  const maxConcurrentUploads = useRef(isMobile.current ? 2 : 4);
+  const uploadPromises = useRef<Map<string, Promise<any>>>(new Map());
 
   const generateFilePath = useCallback((file: File): string => {
     const fileExt = file.name.split('.').pop();
@@ -53,76 +57,115 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     return `${file.name}-${file.size}-${file.type}-${file.lastModified}`;
   }, []);
 
-  const uploadFiles = useCallback(async (newFiles: File[]): Promise<SimpleUploadedFile[]> => {
-    if (newFiles.length === 0) return [];
+  // Mobile-optimized compression function
+  const compressImageIfNeeded = useCallback(async (file: File): Promise<File> => {
+    if (!file.type.startsWith('image/') || file.size < 1024 * 1024) return file; // Skip compression for non-images or files < 1MB
     
-    console.log('Upload request for', newFiles.length, 'files');
-    setIsUploading(true);
-    const uploadedResults: SimpleUploadedFile[] = [];
-
-    try {
-      for (const file of newFiles) {
-        const fileIdentity = getFileIdentity(file);
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        const maxDimension = isMobile.current ? 1920 : 2560;
+        const ratio = Math.min(maxDimension / img.width, maxDimension / img.height);
         
-        // Check if this exact file is already processed
-        if (processedFiles.current.has(fileIdentity)) {
-          console.log('File already processed, skipping:', file.name);
-          const existingFile = processedFiles.current.get(fileIdentity)!;
-          uploadedResults.push(existingFile);
-          continue;
+        if (ratio >= 1) {
+          resolve(file); // No compression needed
+          return;
         }
         
-        // Check if upload is already in progress
-        if (uploadsInProgress.current.has(fileIdentity)) {
-          console.log('Upload already in progress for:', file.name);
-          continue;
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, { type: file.type });
+            console.log(`Compressed ${file.name} from ${file.size} to ${compressedFile.size} bytes`);
+            resolve(compressedFile);
+          } else {
+            resolve(file);
+          }
+        }, file.type, 0.8);
+      };
+      
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  }, []);
+
+  // Batch processing for mobile optimization
+  const processBatch = useCallback(async (batch: File[]): Promise<SimpleUploadedFile[]> => {
+    const batchResults: SimpleUploadedFile[] = [];
+    
+    for (const file of batch) {
+      const fileIdentity = getFileIdentity(file);
+      
+      // Check if already processed
+      if (processedFiles.current.has(fileIdentity)) {
+        const existingFile = processedFiles.current.get(fileIdentity)!;
+        batchResults.push(existingFile);
+        continue;
+      }
+      
+      // Check if already in progress
+      if (uploadsInProgress.current.has(fileIdentity)) {
+        const existingPromise = uploadPromises.current.get(fileIdentity);
+        if (existingPromise) {
+          try {
+            const result = await existingPromise;
+            if (result) batchResults.push(result);
+          } catch (error) {
+            console.error('Error waiting for existing upload:', error);
+          }
         }
-        
-        uploadsInProgress.current.add(fileIdentity);
-        
-        const fileId = `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const filePath = generateFilePath(file);
-
-        // Create initial file object
-        const initialFile: SimpleUploadedFile = {
-          id: fileId,
-          file,
-          url: '',
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          path: filePath,
-          uploaded: false,
-          progress: 0
-        };
-
-        // Add to files immediately with 0% progress
-        setFiles(prev => {
-          // Prevent duplicate entries in state
-          const exists = prev.some(f => f.id === fileId);
-          if (exists) return prev;
-          return [...prev, initialFile];
-        });
-
+        continue;
+      }
+      
+      uploadsInProgress.current.add(fileIdentity);
+      
+      const fileId = `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const uploadPromise = (async () => {
         try {
-          // Update progress to show start
+          // Compress image if needed
+          const processedFile = await compressImageIfNeeded(file);
+          const filePath = generateFilePath(processedFile);
+
+          const initialFile: SimpleUploadedFile = {
+            id: fileId,
+            file: processedFile,
+            url: '',
+            name: processedFile.name,
+            size: processedFile.size,
+            type: processedFile.type,
+            path: filePath,
+            uploaded: false,
+            progress: 0
+          };
+
+          // Add to files with immediate UI feedback
+          setFiles(prev => {
+            const exists = prev.some(f => f.id === fileId);
+            if (exists) return prev;
+            return [...prev, initialFile];
+          });
+
+          // Start upload with progress tracking
           setFiles(prev => prev.map(f => 
-            f.id === fileId ? { ...f, progress: 10 } : f
+            f.id === fileId ? { ...f, progress: 20 } : f
           ));
 
-          console.log('Starting upload for:', file.name);
-          
-          // Upload to Supabase
           const { data, error } = await supabase.storage
             .from(bucket)
-            .upload(filePath, file, {
+            .upload(filePath, processedFile, {
               cacheControl: '3600',
               upsert: false
             });
 
           if (error) throw error;
 
-          // Get public URL
           const { data: urlData } = supabase.storage
             .from(bucket)
             .getPublicUrl(filePath);
@@ -134,50 +177,87 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
             progress: 100
           };
 
-          // Update file as completed
           setFiles(prev => prev.map(f => 
             f.id === fileId ? completedFile : f
           ));
 
-          // Cache the processed file
           processedFiles.current.set(fileIdentity, completedFile);
-          uploadedResults.push(completedFile);
-
-          console.log('Upload completed for:', file.name);
+          return completedFile;
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-          console.error('Upload failed for:', file.name, errorMessage);
-          
-          // Update file with error
           setFiles(prev => prev.map(f => 
             f.id === fileId ? { ...f, error: errorMessage, progress: 0 } : f
           ));
-
-          toast({
-            title: "Upload failed",
-            description: `Failed to upload ${file.name}: ${errorMessage}`,
-            variant: "destructive"
-          });
+          throw error;
         } finally {
-          // Remove from uploads in progress
           uploadsInProgress.current.delete(fileIdentity);
+          uploadPromises.current.delete(fileIdentity);
+        }
+      })();
+      
+      uploadPromises.current.set(fileIdentity, uploadPromise);
+      
+      try {
+        const result = await uploadPromise;
+        if (result) batchResults.push(result);
+      } catch (error) {
+        console.error(`Upload failed for ${file.name}:`, error);
+      }
+    }
+    
+    return batchResults;
+  }, [bucket, generateFilePath, getFileIdentity, compressImageIfNeeded]);
+
+  const uploadFiles = useCallback(async (newFiles: File[]): Promise<SimpleUploadedFile[]> => {
+    if (newFiles.length === 0) return [];
+    
+    console.log('Upload request for', newFiles.length, 'files (mobile optimized)');
+    setIsUploading(true);
+    
+    try {
+      // Mobile optimization: process files in smaller batches
+      const batchSize = isMobile.current ? 2 : Math.min(newFiles.length, maxConcurrentUploads.current);
+      const batches: File[][] = [];
+      
+      for (let i = 0; i < newFiles.length; i += batchSize) {
+        batches.push(newFiles.slice(i, i + batchSize));
+      }
+      
+      const allResults: SimpleUploadedFile[] = [];
+      
+      for (const batch of batches) {
+        console.log(`Processing batch of ${batch.length} files`);
+        const batchResults = await processBatch(batch);
+        allResults.push(...batchResults);
+        
+        // Small delay between batches for mobile performance
+        if (isMobile.current && batches.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
 
-      if (uploadedResults.length > 0) {
+      if (allResults.length > 0) {
         toast({
           title: "Upload complete",
-          description: `Successfully uploaded ${uploadedResults.length} file(s)`
+          description: `Successfully uploaded ${allResults.length} file(s)`
         });
       }
 
+      return allResults;
+
+    } catch (error) {
+      console.error('Batch upload error:', error);
+      toast({
+        title: "Upload failed", 
+        description: "Some files failed to upload. Please try again.",
+        variant: "destructive"
+      });
+      return [];
     } finally {
       setIsUploading(false);
     }
-
-    return uploadedResults;
-  }, [bucket, generateFilePath, toast, getFileIdentity]);
+  }, [processBatch, toast]);
 
   const removeFile = useCallback(async (fileId: string) => {
     const fileToRemove = files.find(f => f.id === fileId);
@@ -231,6 +311,7 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     setFiles([]);
     uploadsInProgress.current.clear();
     processedFiles.current.clear();
+    uploadPromises.current.clear();
   }, [files, bucket]);
 
   return {
@@ -242,6 +323,8 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     clearFiles,
     hasFailures: files.some(f => !f.uploaded && f.error),
     completedFiles: files.filter(f => f.uploaded),
-    failedFiles: files.filter(f => !f.uploaded && f.error)
+    failedFiles: files.filter(f => !f.uploaded && f.error),
+    uploadQueue: uploadQueue.length,
+    isMobile: isMobile.current
   };
 };
