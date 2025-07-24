@@ -5,21 +5,21 @@ export const useAuditTrailRefresh = (fetchFunction: (forceRefresh: boolean, show
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isRefreshingRef = useRef(false);
 
-  // Enhanced debounced refresh function with better state management
-  const debouncedRefresh = useCallback((delay = 1000, showRefreshingState = false) => {
-    // Prevent multiple concurrent refreshes
-    if (isRefreshingRef.current) {
-      console.log('Refresh already in progress, skipping debounced refresh');
-      return;
-    }
-
+  // Enhanced debounced refresh with immediate execution for real-time updates
+  const debouncedRefresh = useCallback((delay = 300, showRefreshingState = true) => {
+    // Clear any existing timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
     
+    // For audit trail updates, use shorter delay for more responsive updates
+    const actualDelay = delay < 500 ? 200 : delay;
+    
     debounceTimerRef.current = setTimeout(async () => {
       if (isRefreshingRef.current) {
-        console.log('Refresh started elsewhere, skipping debounced execution');
+        console.log('Refresh started elsewhere, queuing another refresh');
+        // Queue another refresh after current one completes
+        setTimeout(() => debouncedRefresh(actualDelay, showRefreshingState), 100);
         return;
       }
 
@@ -32,7 +32,7 @@ export const useAuditTrailRefresh = (fetchFunction: (forceRefresh: boolean, show
       } finally {
         isRefreshingRef.current = false;
       }
-    }, delay);
+    }, actualDelay);
   }, [fetchFunction]);
 
   // Immediate refresh function with concurrency protection

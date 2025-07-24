@@ -65,14 +65,31 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
   }, [onFilesChange]);
 
   // Custom upload handler that notifies parent only after successful upload
+  // Mobile-optimized upload handler with batch processing
   const handleUpload = useCallback(async (filesToUpload: File[]) => {
     console.log('Starting upload for', filesToUpload.length, 'files');
-    const uploadedResults = await uploadFiles(filesToUpload);
+    
+    // For mobile: process files in smaller batches to prevent memory issues
+    const batchSize = window.innerWidth < 768 ? 2 : 5;
+    const batches = [];
+    for (let i = 0; i < filesToUpload.length; i += batchSize) {
+      batches.push(filesToUpload.slice(i, i + batchSize));
+    }
+    
+    const allUploadedResults = [];
+    for (const batch of batches) {
+      const uploadedResults = await uploadFiles(batch);
+      allUploadedResults.push(...uploadedResults);
+      
+      // Small delay between batches on mobile for better performance
+      if (window.innerWidth < 768 && batch !== batches[batches.length - 1]) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     
     // Only notify if we have successful uploads
-    if (uploadedResults.length > 0) {
-      // Get the current complete file list after upload
-      const currentFiles = [...uploadedFiles, ...uploadedResults];
+    if (allUploadedResults.length > 0) {
+      const currentFiles = [...uploadedFiles, ...allUploadedResults];
       notifyFilesChange(currentFiles);
     }
   }, [uploadFiles, uploadedFiles, notifyFilesChange]);

@@ -86,8 +86,8 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
   };
 
   return (
-    <div className="space-y-4 overflow-y-auto h-full">
-      <Card>
+    <div className="space-y-4 h-full flex flex-col">
+      <Card className="flex-1 flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Inspection Attachments</span>
@@ -96,7 +96,7 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1 flex flex-col overflow-hidden">
           {/* File Upload Section */}
           {isEditing && (
             <div className="border-2 border-dashed border-muted rounded-lg p-4">
@@ -112,9 +112,10 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
             </div>
           )}
 
-          {/* Files Display */}
+          {/* Files Display with Scroll */}
           {allFiles.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
               {allFiles.map((filePath, index) => {
                 const fileName = filePath.split('/').pop() || `File ${index + 1}`;
                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
@@ -172,6 +173,7 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
                   </Card>
                 );
               })}
+              </div>
             </div>
           ) : (
             <div className="text-center py-8">
