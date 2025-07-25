@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useToast } from '@/hooks/use-toast';
 import { useProjects } from '@/hooks/useProjects';
+import { useFormTimeout } from '@/hooks/useFormTimeout';
 import { ChecklistItem, templates } from './QAITPTemplates';
 import QAITPChecklistItem from './QAITPChecklistItem';
 import QAITPProjectInfo from './QAITPProjectInfo';
 import QAITPSignOff from './QAITPSignOff';
-import { AlertCircle, Save, X } from 'lucide-react';
+import { AlertCircle, Save, X, Clock, AlertTriangle } from 'lucide-react';
 import { SimpleUploadedFile } from '@/hooks/useSimpleFileUpload';
 import { calculateOverallStatus } from '@/utils/qaStatusCalculation';
 
@@ -26,6 +28,27 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
   const { projects } = useProjects();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(45000);
+  const [autoSaveAttempted, setAutoSaveAttempted] = useState(false);
+
+  // Enhanced timeout management
+  const { 
+    startTimeout, 
+    stopTimeout, 
+    getRemainingTime, 
+    getTimeoutWarning 
+  } = useFormTimeout({
+    timeoutMs: 45000, // 45 seconds
+    onTimeout: () => {
+      if (!autoSaveAttempted) {
+        setAutoSaveAttempted(true);
+        console.log('Form timeout reached, attempting auto-save...');
+        saveDraft();
+      }
+    },
+    onProgress: (remaining) => setRemainingTime(remaining),
+    enableAutoSave: false // We'll handle manual saves
+  });
 
   const [formData, setFormData] = useState({
     projectId: projectId || '',
@@ -245,6 +268,10 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
 
     setIsSubmitting(true);
     setError(null);
+    setAutoSaveAttempted(false);
+    
+    // Start timeout monitoring
+    startTimeout();
 
     try {
       // Filter checklist based on fire door setting
@@ -310,6 +337,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       const result = await createInspection(inspectionData, checklistItems);
 
       if (result) {
+        stopTimeout(); // Stop timeout on success
         toast({
           title: "Success",
           description: "QA inspection created successfully. View it in the QA/ITP List tab."
@@ -323,6 +351,7 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
       console.error('Error saving QA inspection:', error);
       setError('An unexpected error occurred. Please try again.');
     } finally {
+      stopTimeout(); // Always stop timeout
       setIsSubmitting(false);
     }
   };
@@ -356,6 +385,32 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               </Button>
             </div>
           </div>
+          
+          {/* Timeout Progress Indicator */}
+          {isSubmitting && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                {getTimeoutWarning() === 'critical' ? (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                ) : (
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className={getTimeoutWarning() === 'critical' ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                  {getTimeoutWarning() === 'critical' ? 
+                    'Submission timeout approaching...' : 
+                    'Processing submission...'
+                  }
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({Math.ceil(remainingTime / 1000)}s remaining)
+                </span>
+              </div>
+              <Progress 
+                value={((45000 - remainingTime) / 45000) * 100} 
+                className={`h-2 ${getTimeoutWarning() === 'critical' ? 'text-destructive' : ''}`}
+              />
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -418,7 +473,12 @@ const QAITPForm: React.FC<QAITPFormProps> = ({
               disabled={isSubmitting}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Inspection'}
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 animate-spin" />
+                  {getTimeoutWarning() === 'critical' ? 'Timeout approaching...' : 'Submitting...'}
+                </div>
+              ) : 'Submit Inspection'}
             </Button>
           </div>
         </CardContent>

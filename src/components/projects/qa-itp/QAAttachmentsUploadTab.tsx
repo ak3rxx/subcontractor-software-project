@@ -5,6 +5,7 @@ import { Upload, Download, FileText, Trash2 } from 'lucide-react';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
 import { useToast } from '@/hooks/use-toast';
+import { useEnhancedFileUpload } from '@/hooks/useEnhancedFileUpload';
 import MobileOptimizedFileUpload from './MobileOptimizedFileUpload';
 import FileThumbnailViewer from './FileThumbnailViewer';
 import FieldAuditNote from './FieldAuditNote';
@@ -25,6 +26,21 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
   const { getChecklistItems } = useQAInspectionsSimple();
   const { changeHistory, recordChange } = useQAChangeHistory(inspection?.id);
   const { toast } = useToast();
+  
+  // Enhanced file upload with offline support and retry logic
+  const { setupNetworkMonitoring } = useEnhancedFileUpload({
+    bucket: 'qainspectionfiles',
+    inspectionId: inspection?.id || 'temp',
+    checklistItemId: 'general',
+    maxRetries: 2,
+    enableOfflineQueue: true
+  });
+
+  // Setup network monitoring
+  useEffect(() => {
+    const cleanup = setupNetworkMonitoring();
+    return cleanup;
+  }, [setupNetworkMonitoring]);
 
   useEffect(() => {
     const fetchAllFiles = async () => {
