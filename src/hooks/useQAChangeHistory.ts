@@ -183,11 +183,14 @@ export const useQAChangeHistory = (inspectionId: string) => {
   useEffect(() => {
     if (!inspectionId) return;
 
-    // Prevent duplicate subscriptions
+    // Enhanced subscription management to prevent duplicates and errors
     if (subscriptionActive.current) {
       console.log('Subscription already active for inspection:', inspectionId);
       return;
     }
+
+    // Additional safety check to prevent subscription errors
+    try {
 
     console.log('Setting up real-time subscription for QA change history:', inspectionId);
 
@@ -269,13 +272,22 @@ export const useQAChangeHistory = (inspectionId: string) => {
         }
       });
 
+    } catch (subscriptionError) {
+      console.error('Error setting up real-time subscriptions:', subscriptionError);
+      subscriptionActive.current = false;
+    }
+
     return () => {
       if (refreshTimeout.current) {
         clearTimeout(refreshTimeout.current);
       }
       if (realtimeChannel.current) {
         console.log('Cleaning up QA change history subscription');
-        supabase.removeChannel(realtimeChannel.current);
+        try {
+          supabase.removeChannel(realtimeChannel.current);
+        } catch (cleanupError) {
+          console.warn('Error during subscription cleanup:', cleanupError);
+        }
         realtimeChannel.current = null;
         subscriptionActive.current = false;
       }

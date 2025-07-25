@@ -120,7 +120,11 @@ export const useOnboardingState = (moduleId: string) => {
   };
 
   const markStepCompleted = (stepId: string) => {
-    if (!progress) return;
+    // Enhanced guard - prevent execution without proper authentication
+    if (!progress || !user?.id || !organizationId) {
+      console.warn('Cannot mark step completed: missing progress, user, or organization');
+      return;
+    }
     
     const completedSteps = [...progress.completedSteps];
     if (!completedSteps.includes(stepId)) {

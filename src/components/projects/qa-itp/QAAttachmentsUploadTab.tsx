@@ -109,10 +109,10 @@ const QAAttachmentsUploadTab: React.FC<QAAttachmentsUploadTabProps> = ({
             />
           )}
 
-          {/* Files Display with Enhanced Scroll */}
+          {/* Files Display with Fixed Scroll Performance */}
           {allFiles.length > 0 ? (
-            <div className="flex-1 overflow-y-auto max-h-96 overscroll-contain">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-2">
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 p-2" style={{ minHeight: 'min-content' }}>
               {allFiles.map((filePath, index) => {
                 const fileName = filePath.split('/').pop() || `File ${index + 1}`;
                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
