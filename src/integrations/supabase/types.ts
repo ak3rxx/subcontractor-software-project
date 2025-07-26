@@ -1604,46 +1604,64 @@ export type Database = {
       tasks: {
         Row: {
           assigned_to: string | null
+          attachments: Json | null
+          category: string | null
+          comments: string | null
           completed_date: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
           due_date: string | null
           id: string
+          linked_id: string | null
+          linked_module: string | null
           priority: string | null
           project_id: string | null
           reference_number: string | null
           status: string | null
+          task_number: string | null
           title: string
           updated_at: string | null
         }
         Insert: {
           assigned_to?: string | null
+          attachments?: Json | null
+          category?: string | null
+          comments?: string | null
           completed_date?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          linked_id?: string | null
+          linked_module?: string | null
           priority?: string | null
           project_id?: string | null
           reference_number?: string | null
           status?: string | null
+          task_number?: string | null
           title: string
           updated_at?: string | null
         }
         Update: {
           assigned_to?: string | null
+          attachments?: Json | null
+          category?: string | null
+          comments?: string | null
           completed_date?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          linked_id?: string | null
+          linked_module?: string | null
           priority?: string | null
           project_id?: string | null
           reference_number?: string | null
           status?: string | null
+          task_number?: string | null
           title?: string
           updated_at?: string | null
         }

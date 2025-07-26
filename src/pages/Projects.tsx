@@ -90,14 +90,11 @@ const Projects = memo(() => {
   } = useEnhancedVariations(projectId || '');
   
   const { 
-    getTaskSummary 
-  } = useEnhancedTasks();
+    taskSummary 
+  } = useEnhancedTasks({ projectId: projectId || '' });
 
   // Simplified state management - removed complex optimistic updates
   const [lastRefresh, setLastRefresh] = useState(Date.now());
-
-  // Safe data calculations with null checks
-  const taskSummary = getTaskSummary();
   
   const variationSummary = {
     approved: Array.isArray(variations) ? variations.filter(v => v?.status === 'approved').length : 0,

@@ -18,11 +18,18 @@ export interface Task {
   assignee_name?: string;
   created_by?: string;
   priority: 'low' | 'medium' | 'high';
-  status: 'todo' | 'in-progress' | 'completed';
+  status: 'todo' | 'in-progress' | 'completed' | 'blocked';
   due_date?: string;
   completed_date?: string;
   created_at: string;
   updated_at: string;
+  category?: string;
+  linked_module?: string;
+  linked_id?: string;
+  attachments?: any[];
+  comments?: string;
+  task_number?: string;
+  reference_number?: string;
 }
 
 export const useTasks = () => {
@@ -76,6 +83,13 @@ export const useTasks = () => {
         completed_date: task.completed_date,
         created_at: task.created_at,
         updated_at: task.updated_at,
+        category: task.category,
+        linked_module: task.linked_module,
+        linked_id: task.linked_id,
+        attachments: task.attachments || [],
+        comments: task.comments,
+        task_number: task.task_number,
+        reference_number: task.reference_number,
       }));
 
       setTasks(transformedTasks);
