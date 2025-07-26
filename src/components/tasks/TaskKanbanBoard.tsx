@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Task } from '@/hooks/useTasks';
+import { TaskLinkedBadge } from './TaskLinkedBadge';
 import { Calendar, User, Building, Link2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -84,12 +85,7 @@ export const TaskKanbanBoard: React.FC<TaskKanbanBoardProps> = ({
           {/* Badges */}
           <div className="flex flex-wrap gap-1">
             {getCategoryBadge(task.category)}
-            {task.linked_module && (
-              <Badge variant="outline" className="text-xs">
-                <Link2 className="w-3 h-3 mr-1" />
-                {task.linked_module}
-              </Badge>
-            )}
+            <TaskLinkedBadge task={task} />
             {isOverdue(task.due_date, task.status) && (
               <Badge variant="destructive" className="text-xs">
                 <AlertTriangle className="w-3 h-3 mr-1" />
