@@ -10,6 +10,7 @@ import { CalendarDays, MapPin, User, FileText, Flame } from 'lucide-react';
 import { calculateOverallStatus, getStatusDisplayName, getStatusBadgeStyle } from '@/utils/qaStatusCalculation';
 import { useQAInspectionsSimple } from '@/hooks/useQAInspectionsSimple';
 import { useQAChangeHistory } from '@/hooks/useQAChangeHistory';
+import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
 import { supabase } from '@/integrations/supabase/client';
 import FieldAuditNote from './FieldAuditNote';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -38,6 +39,10 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
 
   const { getChecklistItems } = useQAInspectionsSimple(inspection?.project_id);
   const { changeHistory, recordChange: recordAuditChange } = useQAChangeHistory(inspection?.id);
+  const { createFailedQATask } = useAutoTaskCreation({ 
+    enabled: true, 
+    projectId: inspection?.project_id 
+  });
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [autoCalculatedStatus, setAutoCalculatedStatus] = useState<string>('');
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
@@ -97,6 +102,27 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
           inspection.id,
           'Auto-calculated: Status updated based on checklist items completion'
         );
+      }
+
+      // Trigger auto-task creation for failed QA inspections
+      if (newStatus === 'failed' && inspection.overall_status !== 'failed') {
+        console.log('QA inspection failed, triggering auto-task creation');
+        
+        // Check if task already exists to avoid duplicates
+        const { data: existingTask } = await supabase
+          .from('tasks')
+          .select('id')
+          .eq('linked_module', 'qa')
+          .eq('linked_id', inspection.id)
+          .eq('category', 'qa')
+          .single();
+          
+        if (!existingTask && createFailedQATask) {
+          createFailedQATask({
+            ...inspection,
+            overall_status: newStatus
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to update inspection status:', error);

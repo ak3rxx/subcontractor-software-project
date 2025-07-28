@@ -12,6 +12,7 @@ import QAReportGenerator from './analytics/QAReportGenerator';
 import QAActionTaskList from './QAActionTaskList';
 import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
+import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, FileText, List, CheckSquare, ArrowLeft } from 'lucide-react';
@@ -82,6 +83,12 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
     getStatusColor,
     refetch
   } = useQATrackerLogic(projectId);
+
+  // Enable auto-task creation for QA failed inspections
+  const { createFailedQATask } = useAutoTaskCreation({ 
+    enabled: true, 
+    projectId 
+  });
 
   // Safe loading state
   if (loading) {

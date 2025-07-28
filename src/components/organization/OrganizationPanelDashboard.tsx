@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Users, FileText, Palette, FolderPlus, CheckSquare } from 'lucide-react';
+import { Building2, Users, FileText, Palette, FolderPlus, CheckSquare, Bot } from 'lucide-react';
 import EnhancedTeamManagement from '@/components/organization/EnhancedTeamManagement';
 import DocumentCompliance from '@/components/organization/DocumentCompliance';
 import ProjectSetupDefaults from '@/components/organization/ProjectSetupDefaults';
 import BrandingControls from '@/components/organization/BrandingControls';
 import MasterChecklist from '@/components/organization/MasterChecklist';
+import TaskAutomationControls from '@/components/organization/TaskAutomationControls';
 
 interface OrganizationPanelDashboardProps {
   organizationId?: string;
@@ -29,7 +30,7 @@ const OrganizationPanelDashboard: React.FC<OrganizationPanelDashboardProps> = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Overview
@@ -45,6 +46,10 @@ const OrganizationPanelDashboard: React.FC<OrganizationPanelDashboardProps> = ({
           <TabsTrigger value="defaults" className="flex items-center gap-2">
             <FolderPlus className="h-4 w-4" />
             Project Defaults
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Task Automation
           </TabsTrigger>
           <TabsTrigger value="branding" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
@@ -141,6 +146,10 @@ const OrganizationPanelDashboard: React.FC<OrganizationPanelDashboardProps> = ({
 
         <TabsContent value="defaults">
           <ProjectSetupDefaults organizationId={organizationId} />
+        </TabsContent>
+
+        <TabsContent value="automation">
+          <TaskAutomationControls organizationId={organizationId} />
         </TabsContent>
 
         <TabsContent value="branding">
