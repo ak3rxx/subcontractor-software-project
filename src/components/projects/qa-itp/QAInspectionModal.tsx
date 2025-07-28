@@ -80,7 +80,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
   const qaPermissions = useQAPermissions();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({});
+  const [editData, setEditData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('details');
   const [saving, setSaving] = useState(false);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -280,8 +280,11 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
     }
   }, [hasAnyChanges]);
 
+  // Track the latest status from edit data or inspection
+  const currentStatus = editData?.overall_status || inspection?.overall_status;
+  
   const getStatusBadge = useMemo(() => {
-    const status = inspection?.overall_status;
+    const status = currentStatus;
     switch (status) {
       case 'pass':
         return <Badge className="bg-green-100 text-green-800">✅ Pass</Badge>;
@@ -294,7 +297,7 @@ const QAInspectionModalEnhanced: React.FC<QAInspectionModalEnhancedProps> = memo
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
-  }, [inspection?.overall_status]);
+  }, [currentStatus]);
 
   const inspectionInfo = useMemo(() => [
     {

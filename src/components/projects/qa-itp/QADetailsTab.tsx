@@ -54,6 +54,11 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
           // Auto-calculate status
           const calculatedStatus = calculateOverallStatus(items || []);
           setAutoCalculatedStatus(calculatedStatus);
+          
+          // Update database if calculated status differs from stored status
+          if (calculatedStatus !== inspection.overall_status) {
+            await updateDatabaseStatus(calculatedStatus);
+          }
         } catch (error) {
           console.error('Error fetching checklist items:', error);
           setChecklistItems([]);
@@ -62,7 +67,41 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
     };
 
     fetchChecklistItems();
-  }, [inspection?.id, getChecklistItems]);
+  }, [inspection?.id, getChecklistItems, inspection?.overall_status]);
+
+  // Function to update database status
+  const updateDatabaseStatus = async (newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('qa_inspections')
+        .update({ overall_status: newStatus })
+        .eq('id', inspection.id);
+
+      if (error) {
+        console.error('Error updating inspection status:', error);
+        return;
+      }
+
+      console.log('Updated inspection status in database:', newStatus);
+      
+      // Update parent component to sync modal header
+      onDataChange({ overall_status: newStatus });
+      
+      // Record the status change in audit trail
+      if (recordChange) {
+        recordChange(
+          'overall_status',
+          inspection.overall_status,
+          newStatus,
+          'auto_calculated',
+          inspection.id,
+          'Auto-calculated status update'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update inspection status:', error);
+    }
+  };
 
   // Set up real-time subscription for checklist items to update status badge
   useEffect(() => {
@@ -105,6 +144,11 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
             // Auto-calculate status
             const calculatedStatus = calculateOverallStatus(items || []);
             setAutoCalculatedStatus(calculatedStatus);
+            
+            // Update database if calculated status differs from stored status
+            if (calculatedStatus !== inspection.overall_status) {
+              await updateDatabaseStatus(calculatedStatus);
+            }
             
             console.log('Status recalculated:', calculatedStatus);
           } catch (error) {
