@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -12,9 +12,48 @@ export const useAutoTaskCreation = (options: AutoTaskCreationOptions = {}) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { enabled = true, projectId } = options;
+  
+  // Fetch organization settings to check what's enabled
+  const [orgSettings, setOrgSettings] = useState<any>(null);
+  
+  useEffect(() => {
+    const fetchOrgSettings = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: userOrgs } = await supabase
+          .from('organization_users')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .limit(1);
+          
+        if (userOrgs && userOrgs.length > 0) {
+          const { data: settings } = await supabase
+            .from('organization_settings')
+            .select('notification_settings')
+            .eq('organization_id', userOrgs[0].organization_id)
+            .single();
+            
+          if (settings?.notification_settings && typeof settings.notification_settings === 'object') {
+            const notificationSettings = settings.notification_settings as any;
+            if (notificationSettings.auto_task_settings) {
+              setOrgSettings(notificationSettings.auto_task_settings);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching org settings:', error);
+      }
+    };
+    
+    fetchOrgSettings();
+  }, [user]);
 
   // Auto-create tasks for variations needing approval
   const createVariationApprovalTask = async (variation: any) => {
+    if (orgSettings && orgSettings.pending_variations === false) return;
+    
     try {
       const { error } = await supabase
         .from('tasks')
@@ -46,6 +85,8 @@ export const useAutoTaskCreation = (options: AutoTaskCreationOptions = {}) => {
 
   // Auto-create tasks for overdue RFIs
   const createOverdueRFITask = async (rfi: any) => {
+    if (orgSettings && orgSettings.overdue_rfis === false) return;
+    
     try {
       const { error } = await supabase
         .from('tasks')
@@ -77,6 +118,8 @@ export const useAutoTaskCreation = (options: AutoTaskCreationOptions = {}) => {
 
   // Auto-create tasks for failed QA inspections
   const createFailedQATask = async (inspection: any) => {
+    if (orgSettings && orgSettings.failed_qa_inspections === false) return;
+    
     try {
       const { error } = await supabase
         .from('tasks')
@@ -108,6 +151,8 @@ export const useAutoTaskCreation = (options: AutoTaskCreationOptions = {}) => {
 
   // Auto-create tasks for approved variations (site completion)
   const createApprovedVariationTask = async (variation: any) => {
+    if (orgSettings && orgSettings.approved_variations === false) return;
+    
     try {
       const { error } = await supabase
         .from('tasks')
@@ -139,6 +184,8 @@ export const useAutoTaskCreation = (options: AutoTaskCreationOptions = {}) => {
 
   // Auto-create tasks for new construction milestones (material planning)
   const createMaterialPlanningTask = async (milestone: any) => {
+    if (orgSettings && orgSettings.construction_milestones === false) return;
+    
     try {
       const { error } = await supabase
         .from('tasks')
@@ -170,6 +217,8 @@ export const useAutoTaskCreation = (options: AutoTaskCreationOptions = {}) => {
 
   // Auto-create tasks for delayed milestones
   const createDelayedMilestoneTask = async (milestone: any) => {
+    if (orgSettings && orgSettings.delayed_milestones === false) return;
+    
     try {
       const { error } = await supabase
         .from('tasks')

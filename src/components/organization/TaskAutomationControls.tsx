@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import TaskAutomationStatistics from './TaskAutomationStatistics';
 
 interface TaskAutomationControlsProps {
   organizationId?: string;
@@ -333,30 +334,7 @@ const TaskAutomationControls: React.FC<TaskAutomationControlsProps> = ({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Auto-Task Statistics</CardTitle>
-          <CardDescription>
-            Overview of automated task creation activity
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-primary">24</div>
-              <div className="text-sm text-muted-foreground">Tasks Created This Week</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">18</div>
-              <div className="text-sm text-muted-foreground">Tasks Completed</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">6</div>
-              <div className="text-sm text-muted-foreground">Tasks Overdue</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <TaskAutomationStatistics organizationId={organizationId} />
     </div>
   );
 };
