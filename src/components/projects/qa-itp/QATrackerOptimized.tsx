@@ -9,7 +9,7 @@ import QATrackerFilters from './tracker/QATrackerFilters';
 import QATrackerTable from './tracker/QATrackerTable';
 import QAMetricsDashboard from './analytics/QAMetricsDashboard';
 import QAReportGenerator from './analytics/QAReportGenerator';
-import QAActionTaskList from './QAActionTaskList';
+import { QATasksView } from './QATasksView';
 import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 import { useQATrackerLogic } from './tracker/useQATrackerLogic';
 import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
@@ -247,7 +247,10 @@ const QATrackerOptimized: React.FC<QATrackerProps> = ({
       case 'actions':
         return (
           <NavigationErrorBoundary>
-            <QAActionTaskList projectId={projectId} />
+            <QATasksView 
+              projectId={projectId} 
+              projectName="Current Project" 
+            />
           </NavigationErrorBoundary>
         );
       
