@@ -93,9 +93,9 @@ const QADetailsTab: React.FC<QADetailsTabProps> = ({
           'overall_status',
           inspection.overall_status,
           newStatus,
-          'auto_calculated',
+          'update',
           inspection.id,
-          'Auto-calculated status update'
+          'Auto-calculated: Status updated based on checklist items completion'
         );
       }
     } catch (error) {
