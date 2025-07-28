@@ -11,15 +11,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Plus, MessageSquare, Clock, AlertTriangle, CheckCircle2, Upload, Link } from 'lucide-react';
 import { useCrossModuleNavigation } from '@/hooks/useCrossModuleNavigation';
+import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
+import { RFITasksView } from './rfis/RFITasksView';
 
 interface RFIManagerProps {
   projectName: string;
+  projectId?: string;
   crossModuleData?: any;
 }
 
-const RFIManager: React.FC<RFIManagerProps> = ({ projectName, crossModuleData }) => {
+const RFIManager: React.FC<RFIManagerProps> = ({ projectName, projectId, crossModuleData }) => {
   const { toast } = useToast();
   const { getCrossModuleAction } = useCrossModuleNavigation();
+  
+  // Enable auto-task creation for RFIs
+  useAutoTaskCreation({ enabled: true, projectId });
   const [showNewRFI, setShowNewRFI] = useState(false);
   const [newRFI, setNewRFI] = useState({
     title: '',

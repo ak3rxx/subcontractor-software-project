@@ -12,6 +12,7 @@ export interface TaskFilters {
   assignedTo?: string;
   search?: string;
   linkedModule?: string;
+  linkedId?: string;
 }
 
 export interface TaskSummary {
@@ -40,6 +41,7 @@ export const useEnhancedTasks = (filters?: TaskFilters) => {
       if (filters?.priority && task.priority !== filters.priority) return false;
       if (filters?.assignedTo && task.assigned_to !== filters.assignedTo) return false;
       if (filters?.linkedModule && task.linked_module !== filters.linkedModule) return false;
+      if (filters?.linkedId && task.linked_id !== filters.linkedId) return false;
       
       if (filters?.search) {
         const searchLower = filters.search.toLowerCase();

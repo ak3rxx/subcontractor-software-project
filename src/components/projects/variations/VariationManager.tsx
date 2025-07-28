@@ -8,6 +8,7 @@ import VariationManagerFilters from './sections/VariationManagerFilters';
 import VariationTable from './VariationTable';
 import VariationManagerModals from './sections/VariationManagerModals';
 import VariationAnalytics from '../../variations/analytics/VariationAnalytics';
+import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
 
 interface VariationManagerProps {
   projectName: string;
@@ -20,6 +21,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({
   projectId, 
   crossModuleData 
 }) => {
+  // Enable auto-task creation for variations
+  useAutoTaskCreation({ enabled: true, projectId });
   return (
     <VariationManagerLogic projectId={projectId}>
       {(logicProps) => {

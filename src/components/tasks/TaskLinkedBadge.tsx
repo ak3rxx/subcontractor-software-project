@@ -2,7 +2,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Link2, FileText, MessageSquare, CheckSquare, Calculator, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Task } from '@/hooks/useTasks';
 
 interface TaskLinkedBadgeProps {
@@ -15,6 +15,7 @@ export const TaskLinkedBadge: React.FC<TaskLinkedBadgeProps> = ({
   showNavigateButton = false 
 }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   if (!task.linked_module || !task.linked_id) {
     return null;
@@ -65,7 +66,25 @@ export const TaskLinkedBadge: React.FC<TaskLinkedBadgeProps> = ({
 
   const handleNavigate = () => {
     if (task.project_id) {
-      navigate(moduleInfo.path);
+      // Preserve existing search params and add highlight for the linked item
+      const currentParams = new URLSearchParams(searchParams);
+      currentParams.set('id', task.project_id);
+      currentParams.set('tab', getTabName());
+      currentParams.set('highlight', task.linked_id || '');
+      
+      const url = `/projects?${currentParams.toString()}`;
+      navigate(url);
+    }
+  };
+
+  const getTabName = () => {
+    switch (task.linked_module) {
+      case 'variation': return 'variations';
+      case 'rfi': return 'rfis';
+      case 'qa': return 'qa';
+      case 'finance': return 'finance';
+      case 'milestone': return 'programme';
+      default: return 'dashboard';
     }
   };
 

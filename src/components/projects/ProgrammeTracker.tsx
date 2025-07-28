@@ -14,6 +14,8 @@ import WeeklyCalendarView from './programme/WeeklyCalendarView';
 import GanttChart from './programme/GanttChart';
 import TimelineView from './programme/TimelineView';
 import { useSearchParams } from 'react-router-dom';
+import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
+import { MilestoneTasksView } from './programme/MilestoneTasksView';
 
 interface ProgrammeTrackerProps {
   projectName: string;
@@ -27,6 +29,9 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { milestones, loading, createMilestone, updateMilestone, deleteMilestone } = useProgrammeMilestones(projectId);
+  
+  // Enable auto-task creation for milestones
+  useAutoTaskCreation({ enabled: true, projectId });
 
   // Handle cross-module navigation and auto-form opening
   useEffect(() => {
@@ -174,6 +179,16 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
 
         {/* Summary Cards */}
         <MilestoneSummaryCards milestones={milestones} />
+
+        {/* Milestone Tasks View for first milestone (demo) */}
+        {milestones.length > 0 && projectId && (
+          <MilestoneTasksView
+            milestoneId={milestones[0].id}
+            milestoneName={milestones[0].milestone_name}
+            projectId={projectId}
+            projectName={projectName}
+          />
+        )}
 
         {/* Programme Outlook Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
