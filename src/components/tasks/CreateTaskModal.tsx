@@ -358,14 +358,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           <div className="space-y-2">
             <Label>Assign To</Label>
             <Select 
-              value={formData.assigned_to || ''} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}
+              value={formData.assigned_to || 'unassigned'} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value === 'unassigned' ? '' : value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select team member" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {teamMembers.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
                     <div className="flex items-center gap-2">

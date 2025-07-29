@@ -18,7 +18,7 @@ export interface Task {
   assignee_name?: string;
   created_by?: string;
   priority: 'low' | 'medium' | 'high';
-  status: 'todo' | 'in-progress' | 'completed' | 'blocked';
+  status: 'todo' | 'in-progress' | 'completed' | 'blocked' | 'delayed' | 'overdue';
   due_date?: string;
   completed_date?: string;
   created_at: string;
@@ -108,11 +108,16 @@ export const useTasks = () => {
         title: taskData.title || '',
         description: taskData.description,
         project_id: taskData.project_id,
-        assigned_to: taskData.assigned_to || user.id,
+        assigned_to: taskData.assigned_to === '' ? null : (taskData.assigned_to || user.id),
         created_by: user.id,
         priority: taskData.priority || 'medium',
         status: taskData.status || 'todo',
         due_date: taskData.due_date,
+        category: taskData.category || 'general',
+        linked_module: taskData.linked_module,
+        linked_id: taskData.linked_id,
+        reference_number: taskData.reference_number,
+        comments: taskData.comments,
       };
 
       const { data, error } = await supabase
