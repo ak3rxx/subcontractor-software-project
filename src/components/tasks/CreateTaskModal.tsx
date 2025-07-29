@@ -549,7 +549,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   multiple={true}
                   maxFiles={10}
                   onFilesChange={() => {}}
-                  onUploadComplete={() => {}}
                 />
               </div>
             </div>
