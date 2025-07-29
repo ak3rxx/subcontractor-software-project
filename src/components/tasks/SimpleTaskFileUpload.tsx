@@ -3,11 +3,9 @@ import { useSimpleFileUpload } from '@/hooks/useSimpleFileUpload';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Upload, 
-  X, 
   File, 
   Image, 
   FileText, 
@@ -41,8 +39,7 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
     isUploading,
     uploadFiles,
     removeFile,
-    retryUpload,
-    clearFiles
+    retryUpload
   } = useSimpleFileUpload({
     bucket: 'taskfiles',
     inspectionId: taskId,
@@ -126,7 +123,7 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
   const isImage = (fileType: string) => fileType.startsWith('image/');
 
   const allFiles = [...existingFiles, ...uploadedFiles.filter(f => f.uploaded)];
-  const uploadingFiles = uploadedFiles.filter(f => !f.uploaded);
+  const uploadingFiles = uploadedFiles.filter(f => !f.uploaded || f.error);
 
   return (
     <div className="space-y-4">

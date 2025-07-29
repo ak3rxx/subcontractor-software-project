@@ -64,25 +64,30 @@ const TaskAssignmentSelector: React.FC<TaskAssignmentSelectorProps> = ({
         // Then get all users in the organization
         const { data, error } = await supabase
           .from('organization_users')
-          .select(`
-            user_id,
-            role,
-            profiles!organization_users_user_id_fkey (
-              full_name,
-              email
-            )
-          `)
+          .select('user_id, role')
           .eq('organization_id', project.organization_id)
           .eq('status', 'active');
 
         if (error) throw error;
 
-        const formattedUsers = data?.map(user => ({
-          user_id: user.user_id,
-          full_name: user.profiles?.full_name,
-          email: user.profiles?.email || '',
-          role: user.role
-        })) || [];
+        // Get user profiles separately
+        const userIds = data?.map(user => user.user_id) || [];
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds);
+
+        if (profilesError) throw profilesError;
+
+        const formattedUsers = data?.map(user => {
+          const profile = profiles?.find(p => p.id === user.user_id);
+          return {
+            user_id: user.user_id,
+            full_name: profile?.full_name,
+            email: profile?.email || '',
+            role: user.role
+          };
+        }) || [];
 
         setOrgUsers(formattedUsers);
       } catch (error) {

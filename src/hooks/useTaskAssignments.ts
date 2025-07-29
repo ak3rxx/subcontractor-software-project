@@ -22,37 +22,30 @@ export const useTaskAssignments = (taskId: string) => {
     
     setLoading(true);
     try {
-      // First get the task assignments
-      const { data: assignmentData, error: assignmentError } = await supabase
+      const { data, error } = await supabase
         .from('task_assignments')
         .select('*')
         .eq('task_id', taskId);
 
-      if (assignmentError) throw assignmentError;
+      if (error) throw error;
 
-      if (!assignmentData || assignmentData.length === 0) {
-        setAssignments([]);
-        return;
-      }
-
-      // Get user profile data for all assigned users
-      const userIds = assignmentData.map(a => a.user_id);
-      const { data: profileData, error: profileError } = await supabase
+      // Get user details separately
+      const userIds = data?.map(assignment => assignment.user_id) || [];
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .in('id', userIds);
 
-      if (profileError) throw profileError;
+      if (profilesError) throw profilesError;
 
-      // Combine assignment and profile data
-      const formattedAssignments = assignmentData.map(assignment => {
-        const profile = profileData?.find(p => p.id === assignment.user_id);
+      const formattedAssignments = data?.map(assignment => {
+        const profile = profiles?.find(p => p.id === assignment.user_id);
         return {
           ...assignment,
           user_name: profile?.full_name || profile?.email || 'Unknown User',
           user_email: profile?.email
         };
-      });
+      }) || [];
 
       setAssignments(formattedAssignments);
     } catch (error) {
