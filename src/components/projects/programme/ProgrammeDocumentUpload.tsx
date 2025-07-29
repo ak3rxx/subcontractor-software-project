@@ -36,18 +36,7 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Initialize PDF.js worker (dynamically import to avoid SSR issues)
-  useEffect(() => {
-    const initPDFJS = async () => {
-      try {
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-      } catch (error) {
-        console.warn('Failed to initialize PDF.js:', error);
-      }
-    };
-    initPDFJS();
-  }, []);
+  // PDF processing is now handled entirely by the Edge Function
 
   const supportedFileTypes = [
     'application/pdf',
@@ -111,31 +100,7 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
-      // Extract PDF metadata if it's a PDF
-      let pageCount: number | undefined;
-      let previewUrl: string | undefined;
-      
-      if (file.type === 'application/pdf') {
-        try {
-          const pdfjsLib = await import('pdfjs-dist');
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          pageCount = pdf.numPages;
-          
-          // Generate preview from first page
-          const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: 0.3 });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d')!;
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          
-          await page.render({ canvasContext: context, viewport, canvas }).promise;
-          previewUrl = canvas.toDataURL();
-        } catch (error) {
-          console.warn('Failed to extract PDF metadata:', error);
-        }
-      }
+      // PDF metadata extraction is now handled by the Edge Function
 
       // Create database record
       console.log('Creating database record for document');
@@ -184,13 +149,8 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
         onDocumentParsed(documentData.id, parseResult.data);
       }
 
-      // Add to uploaded documents list with metadata
-      const enhancedDocument = {
-        ...documentData,
-        page_count: pageCount,
-        preview_url: previewUrl
-      };
-      setUploadedDocuments(prev => [...prev, enhancedDocument]);
+      // Add to uploaded documents list
+      setUploadedDocuments(prev => [...prev, documentData]);
 
       toast({
         title: "Document Uploaded",
@@ -438,18 +398,7 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex-shrink-0">
-                      {document.preview_url ? (
-                        <div className="relative">
-                          <img 
-                            src={document.preview_url} 
-                            alt="PDF preview" 
-                            className="h-12 w-8 object-cover rounded border"
-                          />
-                          <div className="absolute inset-0 bg-black/10 rounded"></div>
-                        </div>
-                      ) : (
-                        getStatusIcon(document.parsing_status)
-                      )}
+                      {getStatusIcon(document.parsing_status)}
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">{document.file_name}</p>
@@ -482,16 +431,6 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {document.preview_url && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(document.preview_url, '_blank')}
-                        title="Preview PDF"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    )}
                     <Badge className={getStatusColor(document.parsing_status)}>
                       {document.parsing_status}
                     </Badge>
