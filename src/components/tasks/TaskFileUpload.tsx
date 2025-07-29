@@ -61,21 +61,20 @@ export const TaskFileUpload: React.FC<TaskFileUploadProps> = ({
 
     if (validFiles.length > 0) {
       await uploadFiles(validFiles);
-      onFilesChange?.(files);
+      // Don't call onFilesChange during upload to prevent state conflicts
     }
 
     // Reset input
     event.target.value = '';
-  }, [uploadFiles, files, onFilesChange, toast]);
+  }, [uploadFiles, toast]);
 
   const handleFileRemove = useCallback(async (fileId: string, fileName: string) => {
     await removeFile(fileId);
-    onFilesChange?.(files.filter(f => f.id !== fileId));
     toast({
       title: "File removed",
       description: `${fileName} has been removed`
     });
-  }, [removeFile, files, onFilesChange, toast]);
+  }, [removeFile, toast]);
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) return <Image className="h-4 w-4" />;
@@ -101,12 +100,11 @@ export const TaskFileUpload: React.FC<TaskFileUploadProps> = ({
       }
     }
     setSelectedFiles([]);
-    onFilesChange?.(files.filter(f => !selectedFiles.includes(f.id)));
     toast({
       title: "Files removed",
       description: `${selectedFiles.length} file(s) removed`
     });
-  }, [selectedFiles, allFiles, removeFile, files, onFilesChange, toast]);
+  }, [selectedFiles, allFiles, removeFile, toast]);
 
   return (
     <div className="space-y-4">

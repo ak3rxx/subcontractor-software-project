@@ -92,10 +92,12 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     clearErrors();
   };
 
-  const handleFieldChange = async (field: string, value: string) => {
+  const handleFieldChange = (field: string, value: string) => {
     setEditData(prev => ({ ...prev, [field]: value }));
-    
-    // Validate field on change for immediate feedback
+  };
+
+  const handleFieldBlur = async (field: string, value: string) => {
+    // Only validate on blur, not on every keystroke
     if (value) {
       await validateField(field, value, task.project_id);
     }
@@ -155,6 +157,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   id="title"
                   value={editData.title || ''}
                   onChange={(e) => handleFieldChange('title', e.target.value)}
+                  onBlur={(e) => handleFieldBlur('title', e.target.value)}
                   placeholder="Task title"
                   className={getFieldError('title') ? 'border-destructive' : ''}
                 />
@@ -242,6 +245,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   type="date"
                   value={editData.due_date || ''}
                   onChange={(e) => handleFieldChange('due_date', e.target.value)}
+                  onBlur={(e) => handleFieldBlur('due_date', e.target.value)}
                   className={getFieldError('due_date') ? 'border-destructive' : ''}
                 />
                 {getFieldError('due_date') && (
@@ -289,6 +293,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                       id="drawing_number"
                       value={editData.drawing_number || ''}
                       onChange={(e) => handleFieldChange('drawing_number', e.target.value)}
+                      onBlur={(e) => handleFieldBlur('drawing_number', e.target.value)}
                       placeholder="e.g., DRG-001"
                       className={getFieldError('drawing_number') ? 'border-destructive' : ''}
                     />
@@ -329,6 +334,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   type="url"
                   value={editData.url_link || ''}
                   onChange={(e) => handleFieldChange('url_link', e.target.value)}
+                  onBlur={(e) => handleFieldBlur('url_link', e.target.value)}
                   placeholder="https://example.com"
                   className={getFieldError('url_link') ? 'border-destructive' : ''}
                 />
