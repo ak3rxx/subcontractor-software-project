@@ -126,39 +126,123 @@ export const useProgrammeAI = (projectId: string) => {
     fetchSuggestions();
   };
 
-  // Get aggregated data from all parsed documents
+  // Get aggregated data from all parsed documents with enhanced analysis
   const getAggregatedData = () => {
     const completedDocs = parsedDocuments.filter(doc => 
       doc.parsing_status === 'completed' && doc.parsed_data
+    );
+
+    const failedDocs = parsedDocuments.filter(doc => 
+      doc.parsing_status === 'failed'
+    );
+
+    const processingDocs = parsedDocuments.filter(doc => 
+      doc.parsing_status === 'processing'
     );
 
     const allTrades = new Set<string>();
     const allZones = new Set<string>();
     const allMilestones: any[] = [];
     let totalConfidence = 0;
+    let processingQuality = 'unknown';
 
     completedDocs.forEach(doc => {
       totalConfidence += doc.ai_confidence || 0;
       
       if (doc.parsed_data) {
-        (doc.parsed_data.trades || []).forEach((trade: string) => allTrades.add(trade));
-        (doc.parsed_data.zones || []).forEach((zone: string) => allZones.add(zone));
-        (doc.parsed_data.milestones || []).forEach((milestone: any) => {
-          allMilestones.push({
-            ...milestone,
-            source_document: doc.file_name
-          });
+        // Enhanced data extraction with validation
+        const docTrades = doc.parsed_data.trades || [];
+        const docZones = doc.parsed_data.zones || [];
+        const docMilestones = doc.parsed_data.milestones || [];
+
+        docTrades.forEach((trade: string) => {
+          if (trade && trade.trim()) {
+            allTrades.add(trade.toLowerCase().trim());
+          }
+        });
+
+        docZones.forEach((zone: string) => {
+          if (zone && zone.trim()) {
+            allZones.add(zone.trim());
+          }
+        });
+
+        docMilestones.forEach((milestone: any) => {
+          if (milestone && milestone.name) {
+            allMilestones.push({
+              ...milestone,
+              source_document: doc.file_name,
+              extraction_confidence: doc.ai_confidence || 0,
+              has_dates: !!(milestone.startDate || milestone.endDate),
+              has_trade: !!milestone.trade,
+              has_zone: !!milestone.zone
+            });
+          }
         });
       }
     });
 
+    // Calculate processing quality
+    const avgConfidence = completedDocs.length > 0 ? totalConfidence / completedDocs.length : 0;
+    if (avgConfidence >= 0.7) {
+      processingQuality = 'excellent';
+    } else if (avgConfidence >= 0.5) {
+      processingQuality = 'good';
+    } else if (avgConfidence >= 0.3) {
+      processingQuality = 'fair';
+    } else if (avgConfidence > 0) {
+      processingQuality = 'poor';
+    }
+
+    // Enhanced analytics
+    const milestonesWithDates = allMilestones.filter(m => m.has_dates).length;
+    const milestonesWithTrades = allMilestones.filter(m => m.has_trade).length;
+    const milestonesWithZones = allMilestones.filter(m => m.has_zone).length;
+
     return {
+      // Core data
       trades: Array.from(allTrades),
       zones: Array.from(allZones),
       milestones: allMilestones,
-      averageConfidence: completedDocs.length > 0 ? totalConfidence / completedDocs.length : 0,
+      
+      // Quality metrics
+      averageConfidence: avgConfidence,
+      processingQuality,
+      
+      // Document statistics
       documentCount: completedDocs.length,
-      totalDocuments: parsedDocuments.length
+      totalDocuments: parsedDocuments.length,
+      failedDocuments: failedDocs.length,
+      processingDocuments: processingDocs.length,
+      
+      // Data quality analytics
+      dataQuality: {
+        milestonesTotal: allMilestones.length,
+        milestonesWithDates,
+        milestonesWithTrades,
+        milestonesWithZones,
+        completenessScore: allMilestones.length > 0 ? 
+          (milestonesWithDates + milestonesWithTrades + milestonesWithZones) / (allMilestones.length * 3) : 0
+      },
+      
+      // Processing diagnostics
+      processingDiagnostics: {
+        successRate: parsedDocuments.length > 0 ? completedDocs.length / parsedDocuments.length : 0,
+        failureReasons: failedDocs.map(doc => ({
+          document: doc.file_name,
+          error: doc.error_message,
+          fileSize: doc.file_size
+        })),
+        lowConfidenceDocs: completedDocs.filter(doc => (doc.ai_confidence || 0) < 0.3).map(doc => ({
+          document: doc.file_name,
+          confidence: doc.ai_confidence,
+          extractedData: {
+            milestones: doc.parsed_data?.milestones?.length || 0,
+            trades: doc.parsed_data?.trades?.length || 0,
+            zones: doc.parsed_data?.zones?.length || 0
+          }
+        }))
+      }
     };
   };
 

@@ -382,83 +382,205 @@ async function renderPdfPagesWithPdfium(pdfBytes: Uint8Array, documentId: string
 async function extractPageWithVisionAPI(base64Image: string, openaiApiKey: string, pageNumber: number): Promise<string> {
   console.log(`Processing page ${pageNumber} with Vision API`);
   
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `You are analyzing page ${pageNumber} of a construction programme/schedule document. Extract ALL visible text with EXTREME attention to:
+  // First pass: Analyze page type and content density
+  const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `QUICK ANALYSIS: Classify this construction schedule document page.
 
-CRITICAL SCHEDULE ELEMENTS TO FIND:
-- Activity/task names (e.g. "Excavation", "Concrete Pour", "Steel Erection")
-- ALL dates in ANY format (DD/MM/YYYY, MM/DD/YYYY, "Week 5", "Q2 2025", "Jan 2025")
-- Trade names (Concrete, Steel, Electrical, Plumbing, HVAC, Roofing, etc.)
-- Duration values (days, weeks, hours)
-- Milestone markers (★, ◆, "MILESTONE", highlighted items)
-- Zone/level references (Ground Floor, Level 1, Basement, Area A, Block B)
-- Dependency indicators (arrows, "after", "before", predecessor relationships)
-- Progress percentages (50%, 75% complete)
-- Resource allocations
-- Critical path indicators
+IDENTIFY PAGE TYPE:
+- GANTT_CHART: Timeline bars, dependencies, activity sequences
+- SCHEDULE_TABLE: Task lists with dates and durations  
+- MILESTONE_CHART: Key project dates and deliverables
+- RESOURCE_CHART: Trade assignments and resource allocation
+- COVER_PAGE: Title page, project summary
+- TEXT_PAGE: Specifications, notes, minimal schedule content
 
-VISUAL ELEMENTS TO IDENTIFY:
-- Gantt chart bars and timeline grids
-- Table headers and row data
-- Date columns and activity lists
-- Color-coded sections indicating different trades/phases
-- Progress bars or completion indicators
-- Calendar grids or time scales
+ASSESS SCHEDULE CONTENT DENSITY:
+- HIGH: Rich schedule data (multiple activities, clear dates, trade info)
+- MEDIUM: Some schedule elements (partial timeline, few activities)
+- LOW: Minimal schedule content (mostly text, legends, headers only)
 
-EXTRACTION REQUIREMENTS:
-- Extract EVERY piece of text, even partial words
-- Preserve hierarchical structure with indentation
-- Note spatial relationships (what appears next to what)
-- Include all numbers that could be dates, durations, or codes
-- Pay special attention to headers and column titles
-- Capture any legend or key information
-
-Return structured text preserving the document layout and relationships. Be extremely thorough - missing key dates or activities makes the entire parsing useless.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/png;base64,${base64Image}`,
-                  detail: 'high'
-                }
+Return: "TYPE:[type]|DENSITY:[high/medium/low]|SCHEDULE_VALUE:[high/medium/low]"`
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/png;base64,${base64Image}`,
+                detail: 'high'
               }
-            ]
-          }
-        ],
-        max_tokens: 3000,
-        temperature: 0.0
-      }),
-    });
+            }
+          ]
+        }
+      ],
+      max_tokens: 200,
+      temperature: 0.0
+    }),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`Vision API error ${response.status}: ${errorData}`);
-    }
+  const analysisResult = await analysisResponse.json();
+  const pageAnalysis = analysisResult.choices?.[0]?.message?.content || '';
+  console.log(`Page ${pageNumber} analysis: ${pageAnalysis}`);
 
-    const data = await response.json();
-    const extractedText = data.choices[0].message.content;
-    
-    console.log(`Successfully extracted ${extractedText.length} characters from page ${pageNumber}`);
-    return extractedText;
-    
-  } catch (error) {
-    console.error(`Vision API extraction failed for page ${pageNumber}:`, error);
-    throw error;
+  // Skip low-value pages to save API costs and improve quality
+  if (pageAnalysis.includes('SCHEDULE_VALUE:low') || pageAnalysis.includes('DENSITY:low')) {
+    console.log(`Skipping page ${pageNumber} - low schedule value`);
+    return `--- PAGE ${pageNumber} (SKIPPED: ${pageAnalysis}) ---\nPage contains minimal schedule content.`;
   }
+
+  // Second pass: Deep extraction based on page type
+  const pageType = pageAnalysis.match(/TYPE:([^|]+)/)?.[1] || 'UNKNOWN';
+  
+  let extractionPrompt;
+  if (pageType.includes('GANTT')) {
+    extractionPrompt = `GANTT CHART SPECIALIZED EXTRACTION:
+
+TARGET VISUAL ELEMENTS:
+- Timeline grid with date headers (weeks, months, quarters)
+- Activity bars showing start/end times and durations
+- Task names on left side (Work Breakdown Structure)
+- Dependencies (arrows, lines connecting activities)
+- Critical path (usually highlighted in red or bold)
+- Milestone markers (diamonds, stars, vertical lines)
+- Progress indicators (% complete, filled portions of bars)
+- Resource assignments (initials, codes next to activities)
+
+EXTRACTION STRATEGY:
+1. Start with timeline scale (top dates/weeks)
+2. Map each activity bar to its timeframe
+3. Extract all task names and their hierarchical level
+4. Identify dependencies and relationships
+5. Note any progress indicators or status updates
+
+Focus on the VISUAL TIMELINE MAPPING - where each activity sits on the calendar.`;
+
+  } else if (pageType.includes('TABLE')) {
+    extractionPrompt = `SCHEDULE TABLE SPECIALIZED EXTRACTION:
+
+TARGET TABLE STRUCTURE:
+- Column headers (Task Name, Start Date, End Date, Duration, Predecessors, Resources)
+- Row data with task hierarchy (indentation levels, WBS codes)
+- Date values in all possible formats
+- Duration calculations (days, weeks, man-hours)
+- Dependency relationships (finish-to-start, IDs)
+- Resource assignments and allocations
+- Constraint types (Must Start On, As Soon As Possible)
+
+EXTRACTION STRATEGY:
+1. Identify and extract all column headers
+2. Process each row systematically
+3. Preserve parent-child relationships in task hierarchy
+4. Extract all date values regardless of format
+5. Capture constraint and dependency information
+
+Focus on TABULAR DATA PRECISION - every cell value matters.`;
+
+  } else if (pageType.includes('MILESTONE')) {
+    extractionPrompt = `MILESTONE CHART SPECIALIZED EXTRACTION:
+
+TARGET MILESTONE ELEMENTS:
+- Key project dates and deliverables
+- Phase completion markers
+- Critical decision points
+- Client approval dates
+- Regulatory submission deadlines
+- Handover and commissioning dates
+- Contract milestones and payment triggers
+
+EXTRACTION STRATEGY:
+1. Identify all milestone names and descriptions
+2. Extract associated dates and deadlines
+3. Note any dependencies between milestones
+4. Capture approval requirements or conditions
+5. Identify responsible parties or trades
+
+Focus on CRITICAL DATES and PROJECT DELIVERABLES.`;
+
+  } else {
+    extractionPrompt = `COMPREHENSIVE SCHEDULE EXTRACTION:
+
+Extract any schedule-related content including:
+- Project phases and major activities
+- Trade sequences and construction order
+- Key dates and timeframes
+- Resource requirements
+- Progress tracking information
+- Quality checkpoints`;
+  }
+
+  // Deep extraction with specialized prompt
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `${extractionPrompt}
+
+CRITICAL SUCCESS FACTORS:
+- Extract EVERY visible text element, even if partially cut off
+- Include ALL dates (DD/MM/YYYY, MM/DD/YYYY, "Week 1", "Q1 2024", etc.)
+- Capture ALL activity/task names and descriptions
+- Include ALL numerical data (durations like "5d", "2w", percentages)
+- Identify ALL trades (concrete, steel, electrical, plumbing, HVAC, etc.)
+- Note ALL locations/zones (Level 1, Building A, Area B, etc.)
+- Preserve spatial relationships and hierarchy
+
+QUALITY REQUIREMENTS:
+- Be extremely thorough - missing data breaks downstream analysis
+- Include context for each extracted element
+- Note any unclear or partially visible text as [PARTIAL: text]
+- Maintain document structure and formatting cues
+- Extract table headers, legends, and notes
+
+Return comprehensive, structured text preserving all schedule information.`
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/png;base64,${base64Image}`,
+                detail: 'high'
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4000,
+      temperature: 0.0
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Vision API error ${response.status}: ${errorData}`);
+  }
+
+  const data = await response.json();
+  const extractedText = data.choices[0].message.content;
+  
+  console.log(`Successfully extracted ${extractedText.length} characters from page ${pageNumber} (${pageType})`);
+  console.log(`Page ${pageNumber} sample content: ${extractedText.substring(0, 300)}...`);
+  
+  return `--- PAGE ${pageNumber} (${pageType}) ---\n${extractedText}`;
 }
 
 // Enhanced pdf-lib fallback with better text handling
@@ -534,135 +656,303 @@ async function extractTextFromSpreadsheet(base64Content: string, fileName: strin
 
 async function parseDocumentWithAI(text: string, fileName: string, apiKey: string): Promise<DocumentParsingResult> {
   console.log('Parsing document content with AI');
+  console.log('Input text length:', text.length);
+  console.log('Text preview:', text.substring(0, 500));
 
+  // Pre-processing: Analyze text quality and structure
+  const textAnalysis = {
+    hasDatePatterns: /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\w+\s+\d{1,2},?\s+\d{4}|week\s+\d+/i.test(text),
+    hasActivityNames: /\b(excavat|concrete|steel|frame|roof|electrical|plumb|paint|tile)\w*/i.test(text),
+    hasTimeIndications: /\b(start|end|duration|days?|weeks?|months?)\b/i.test(text),
+    structuralComplexity: text.split('\n').length > 10 ? 'high' : text.split('\n').length > 5 ? 'medium' : 'low'
+  };
+
+  console.log('Text analysis:', textAnalysis);
+
+  // Enhanced prompt with construction programme expertise
   const prompt = `
-You are an expert construction project manager analyzing a construction programme/schedule document named: "${fileName}"
+EXPERT CONSTRUCTION PROGRAMME ANALYSIS
 
-EXTRACTED DOCUMENT TEXT:
+You are analyzing "${fileName}" - a construction schedule document. Use your expertise to extract ALL meaningful schedule information.
+
+DOCUMENT CONTENT:
 ${text}
 
-PARSING REQUIREMENTS:
-Parse this construction programme document with EXTREME precision. Focus on identifying:
+ANALYSIS CONTEXT:
+- Document has date patterns: ${textAnalysis.hasDatePatterns}
+- Contains activity names: ${textAnalysis.hasActivityNames}  
+- Has timing indicators: ${textAnalysis.hasTimeIndications}
+- Structural complexity: ${textAnalysis.structuralComplexity}
 
-1. ACTIVITIES/MILESTONES:
-   - Task names (e.g., "Excavation", "Concrete Pour", "Steel Erection", "Foundation Completion")
-   - Work packages or trade activities
-   - Key milestone markers (often marked with ★, ◆, or "MILESTONE")
-   - Sub-activities and work breakdowns
+EXTRACTION STRATEGY:
 
-2. DATES & SCHEDULING:
-   - Start dates and end dates in ANY format
-   - Duration values (convert all to days)
-   - Timeline relationships and sequencing
-   - Critical path indicators
+1. MILESTONE/ACTIVITY IDENTIFICATION:
+   Primary indicators: Activity names, task descriptions, work packages
+   Look for: "Excavation", "Foundation", "Concrete Pour", "Steel Erection", "Roofing", "Fit-out"
+   Also identify: Phase names, deliverables, handover dates, commissioning activities
+   
+2. INTELLIGENT DATE PARSING:
+   Recognize ALL date formats: DD/MM/YYYY, MM/DD/YYYY, "15 Jan 2024", "Week 5", "Q1 2024"
+   Timeline indicators: "Start:", "End:", "Due:", "Complete by:"
+   Duration parsing: "5 days", "2 weeks", "3 months" → convert to days (1 week = 7 days, 1 month = 30 days)
+   
+3. CONSTRUCTION TRADE DETECTION:
+   Primary trades: Earthworks, Concrete, Steel, Carpentry, Roofing, Electrical, Plumbing, HVAC
+   Secondary trades: Insulation, Drywall, Flooring, Tiling, Painting, Glazing, Landscaping
+   Specialized: Fire Protection, Lifts/Elevators, Security, Commissioning
+   
+4. LOCATION/ZONE PARSING:
+   Building references: "Level 1", "Ground Floor", "Basement", "Roof Level"
+   Area designations: "North Wing", "Block A", "Car Park", "Plant Room"
+   Work zones: "Core", "Perimeter", "Services", "External Works"
+   
+5. DEPENDENCY ANALYSIS:
+   Sequential indicators: "After", "Following", "Upon completion", "Before"
+   Critical path markers: "Critical", "Must complete", "Key milestone"
+   Parallel work: "Concurrent", "Simultaneously", "In parallel"
 
-3. TRADE IDENTIFICATION:
-   - Concrete/Concreting
-   - Steel/Structural Steel
-   - Carpentry/Framing
-   - Electrical/Electrician
-   - Plumbing/Plumber
-   - HVAC/Mechanical
-   - Roofing/Roofer
-   - Drywall/Plasterer
-   - Tiling/Tiler
-   - Painting/Painter
-   - Site Establishment
-   - And any other construction trades
+CONFIDENCE CALCULATION:
+Base confidence on extraction completeness:
+- 0.8-1.0: Multiple activities with dates, trades, and locations clearly identified
+- 0.6-0.7: Good activity/trade identification, some temporal information
+- 0.4-0.5: Basic activities identified, limited date/timing info
+- 0.2-0.3: Few trades/activities detected, minimal structure
+- 0.0-0.1: No meaningful construction schedule content found
 
-4. ZONES/LOCATIONS:
-   - Building levels (Ground Floor, Level 1, Level 2, Basement)
-   - Areas (North Wing, South Block, Car Park)
-   - Specific locations (Plant Room, Lobby, Stairwell A)
+CRITICAL SUCCESS FACTORS:
+- Extract EVERY activity/task mentioned, even if dates are missing
+- Include ALL trades referenced, even in passing
+- Capture partial information (better than missing completely)
+- Convert relative dates (Week 1, etc.) to best-guess absolute dates
+- Identify project phases and major milestones
+- Note any progress indicators or completion percentages
 
-5. DEPENDENCIES:
-   - "After completion of X"
-   - Sequential relationships
-   - Parallel activities
-   - Critical path items
-
-CONFIDENCE SCORING:
-- 0.9-1.0: Clear schedule with dates, activities, and trades
-- 0.7-0.8: Most elements identified but some ambiguity
-- 0.5-0.6: Basic structure identified but missing key details
-- 0.3-0.4: Limited extraction, mostly trade names or basic info
-- 0.0-0.2: No meaningful schedule data extracted
-
-RETURN STRUCTURE:
+JSON OUTPUT STRUCTURE:
 {
   "milestones": [
     {
-      "name": "Activity/milestone name exactly as written",
-      "description": "Additional context or full description",
-      "trade": "Primary trade responsible (use standard names: concrete, steel, electrical, etc.)",
-      "zone": "Location/area (use exact terms from document)",
-      "startDate": "YYYY-MM-DD (convert any date format)",
-      "endDate": "YYYY-MM-DD (convert any date format)", 
-      "duration": "number of days (convert from weeks/months)",
-      "dependencies": ["List of activities that must complete first"],
-      "priority": "high/medium/low based on criticality indicators"
+      "name": "Exact activity name as written in document",
+      "description": "Full context/description if available",
+      "trade": "Standard trade name (concrete, electrical, carpentry, etc.)",
+      "zone": "Location/area from document",
+      "startDate": "YYYY-MM-DD format (estimate if unclear)",
+      "endDate": "YYYY-MM-DD format (calculate from start + duration)",
+      "duration": "Days as integer (convert weeks/months)",
+      "dependencies": ["Activities that must finish first"],
+      "priority": "high/medium/low based on critical path indicators"
     }
   ],
-  "trades": ["Complete unique list of all construction trades mentioned"],
-  "zones": ["Complete unique list of all locations/zones/areas mentioned"],
+  "trades": ["Comprehensive list of all construction trades mentioned"],
+  "zones": ["All locations, levels, areas, zones referenced"],
   "projectInfo": {
-    "projectName": "Project name if clearly stated",
-    "startDate": "Overall project start date YYYY-MM-DD",
-    "endDate": "Overall project end date YYYY-MM-DD",
-    "duration": "Total duration in days"
+    "projectName": "Project name/title if clearly stated",
+    "startDate": "Project start date YYYY-MM-DD",
+    "endDate": "Project completion date YYYY-MM-DD", 
+    "duration": "Total project duration in days"
   },
-  "confidence": "Confidence score 0-1 based on clarity and completeness of extraction"
+  "confidence": "Float 0-1 representing extraction confidence"
 }
 
-CRITICAL: Extract ALL identifiable activities, even if incomplete. Better to include partial information than miss important milestones. Return ONLY valid JSON.`;
+VALIDATION REQUIREMENTS:
+- Ensure ALL trades use standard naming (concrete NOT concreting)
+- Convert ALL durations to days consistently
+- Include activities even if dates are missing (set dates to null)
+- Assign reasonable priority levels based on document emphasis
+- Return confidence score honestly based on actual extraction quality
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert construction project manager who excels at parsing construction programme documents. Always return valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.1,
-      max_tokens: 4000
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${await response.text()}`);
-  }
-
-  const result = await response.json();
-  const content = result.choices[0].message.content;
+Return ONLY the JSON object, no other text.`;
 
   try {
-    // Clean up the response to ensure it's valid JSON
-    const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleanedContent);
-  } catch (parseError) {
-    console.error('Error parsing AI response:', parseError);
-    console.error('Raw content:', content);
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a senior construction project manager with 20+ years experience in programme management, scheduling, and document analysis. You excel at extracting structured data from construction documents. Always return only valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.0, // Zero temperature for consistent parsing
+        max_tokens: 4000,
+        response_format: { type: "json_object" } // Force JSON response
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices[0].message.content;
     
-    // Return a fallback structure
-    return {
-      milestones: [],
-      trades: [],
-      zones: [],
-      projectInfo: {},
-      confidence: 0.1
-    };
+    console.log('AI response length:', content.length);
+    console.log('AI response preview:', content.substring(0, 300));
+
+    // Parse and validate the JSON response
+    const parsedResult = JSON.parse(content);
+    
+    // Validate and enhance the result
+    const validatedResult = validateAndEnhanceParsedData(parsedResult, fileName);
+    
+    console.log('Final validated result:', {
+      milestonesCount: validatedResult.milestones.length,
+      tradesCount: validatedResult.trades.length,
+      zonesCount: validatedResult.zones.length,
+      confidence: validatedResult.confidence,
+      hasProjectInfo: !!validatedResult.projectInfo.projectName
+    });
+
+    return validatedResult;
+
+  } catch (parseError) {
+    console.error('Error in AI parsing:', parseError);
+    console.error('Input text length:', text.length);
+    
+    // Enhanced fallback with basic extraction
+    const fallbackResult = createFallbackResult(text, fileName);
+    console.log('Using fallback result:', fallbackResult);
+    
+    return fallbackResult;
   }
+}
+
+function validateAndEnhanceParsedData(data: any, fileName: string): DocumentParsingResult {
+  // Ensure all required fields exist
+  const result: DocumentParsingResult = {
+    milestones: Array.isArray(data.milestones) ? data.milestones : [],
+    trades: Array.isArray(data.trades) ? data.trades : [],
+    zones: Array.isArray(data.zones) ? data.zones : [],
+    projectInfo: data.projectInfo || {},
+    confidence: Math.max(0, Math.min(1, Number(data.confidence) || 0))
+  };
+
+  // Validate and clean milestones
+  result.milestones = result.milestones.map((milestone: any) => ({
+    name: String(milestone.name || 'Unnamed Activity'),
+    description: milestone.description ? String(milestone.description) : undefined,
+    trade: milestone.trade ? String(milestone.trade).toLowerCase() : undefined,
+    zone: milestone.zone ? String(milestone.zone) : undefined,
+    startDate: milestone.startDate ? String(milestone.startDate) : undefined,
+    endDate: milestone.endDate ? String(milestone.endDate) : undefined,
+    duration: milestone.duration ? Number(milestone.duration) : undefined,
+    dependencies: Array.isArray(milestone.dependencies) ? milestone.dependencies : [],
+    priority: ['low', 'medium', 'high'].includes(milestone.priority) ? milestone.priority : 'medium'
+  }));
+
+  // Clean and deduplicate trades
+  result.trades = [...new Set(result.trades.map(trade => String(trade).toLowerCase().trim()))];
+  
+  // Clean and deduplicate zones
+  result.zones = [...new Set(result.zones.map(zone => String(zone).trim()))];
+
+  // Extract project name from filename if not provided
+  if (!result.projectInfo.projectName && fileName) {
+    result.projectInfo.projectName = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+  }
+
+  // Adjust confidence based on actual extraction quality
+  const qualityScore = calculateExtractionQuality(result);
+  result.confidence = Math.min(result.confidence, qualityScore);
+
+  return result;
+}
+
+function calculateExtractionQuality(data: DocumentParsingResult): number {
+  let score = 0;
+  
+  // Activity extraction quality (40% of score)
+  if (data.milestones.length > 0) {
+    score += 0.4;
+    // Bonus for milestones with dates
+    const milestonesWithDates = data.milestones.filter(m => m.startDate || m.endDate).length;
+    score += (milestonesWithDates / data.milestones.length) * 0.2;
+  }
+  
+  // Trade identification quality (30% of score)
+  if (data.trades.length > 0) {
+    score += 0.3;
+    // Bonus for multiple trades (indicates comprehensive extraction)
+    if (data.trades.length >= 3) score += 0.1;
+  }
+  
+  // Location/zone quality (20% of score)
+  if (data.zones.length > 0) {
+    score += 0.2;
+  }
+  
+  // Project info quality (10% of score)
+  if (data.projectInfo.projectName) score += 0.1;
+  
+  return Math.min(1.0, score);
+}
+
+function createFallbackResult(text: string, fileName: string): DocumentParsingResult {
+  console.log('Creating fallback result from text analysis');
+  
+  // Basic pattern matching for fallback
+  const trades = [];
+  const zones = [];
+  const milestones = [];
+  
+  // Extract basic trade patterns
+  const tradePatterns = [
+    /\b(concrete|concreting)\b/gi,
+    /\b(steel|structural)\b/gi, 
+    /\b(electrical|electrician)\b/gi,
+    /\b(plumbing|plumber)\b/gi,
+    /\b(carpentry|framing|carpenter)\b/gi,
+    /\b(roofing|roofer)\b/gi,
+    /\b(tiling|tiler)\b/gi,
+    /\b(painting|painter)\b/gi
+  ];
+  
+  tradePatterns.forEach(pattern => {
+    const matches = text.match(pattern);
+    if (matches) {
+      trades.push(matches[0].toLowerCase());
+    }
+  });
+  
+  // Extract basic zone patterns
+  const zonePatterns = [
+    /\b(level\s+\d+|ground\s+floor|basement)\b/gi,
+    /\b(building\s+[a-z]|block\s+[a-z])\b/gi,
+    /\b(area\s+[a-z]|zone\s+[a-z])\b/gi
+  ];
+  
+  zonePatterns.forEach(pattern => {
+    const matches = text.match(pattern);
+    if (matches) {
+      zones.push(...matches);
+    }
+  });
+  
+  // Assign confidence based on what we found
+  let confidence = 0.1; // Base fallback confidence
+  if (trades.length > 0) confidence += 0.2;
+  if (zones.length > 0) confidence += 0.1;
+  if (text.length > 500) confidence += 0.1; // Substantial content
+  
+  return {
+    milestones,
+    trades: [...new Set(trades)],
+    zones: [...new Set(zones)],
+    projectInfo: {
+      projectName: fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
+    },
+    confidence: Math.min(confidence, 0.4) // Cap fallback confidence
+  };
 }
 
 async function generateAISuggestions(
@@ -676,88 +966,126 @@ async function generateAISuggestions(
     milestonesCount: parsedData.milestones.length,
     tradesCount: parsedData.trades.length,
     zonesCount: parsedData.zones.length,
-    confidence: parsedData.confidence,
+    confidence: parsedData.confidence.toFixed(2),
     projectInfo: parsedData.projectInfo
   });
 
   const suggestions = [];
 
-  // Only generate suggestions if we have meaningful data
-  if (parsedData.confidence < 0.1) {
-    console.log('Confidence too low, skipping AI suggestions generation');
-    return;
+  // Enhanced confidence thresholds for different suggestion types
+  const confidenceThresholds = {
+    diagnostic: 0.0,      // Always generate diagnostic info
+    milestone: 0.1,       // Generate milestone suggestions with minimal confidence
+    trade_mapping: 0.2,   // Trade mapping requires some confidence
+    sequence: 0.3         // Sequence suggestions require higher confidence
+  };
+
+  // Always generate diagnostic suggestion for debugging
+  const diagnosticSuggestion = {
+    project_id: projectId,
+    document_parsing_id: documentId,
+    suggestion_type: 'diagnostic_info',
+    suggestion_data: {
+      extractionQuality: {
+        confidence: parsedData.confidence,
+        milestonesExtracted: parsedData.milestones.length,
+        tradesIdentified: parsedData.trades.length,
+        zonesIdentified: parsedData.zones.length,
+        dataCompleteness: calculateDataCompleteness(parsedData)
+      },
+      processingIssues: identifyProcessingIssues(parsedData),
+      recommendations: generateProcessingRecommendations(parsedData),
+      nextSteps: generateNextSteps(parsedData)
+    },
+    confidence: 1.0 // Diagnostic info always has high confidence
+  };
+  suggestions.push(diagnosticSuggestion);
+
+  // Enhanced milestone creation suggestions with fallback strategies
+  if (parsedData.confidence >= confidenceThresholds.milestone) {
+    const milestoneAnalysis = analyzeMilestoneQuality(parsedData.milestones);
+    const additionalMilestones = generateAdditionalMilestones(parsedData);
+    
+    suggestions.push({
+      project_id: projectId,
+      document_parsing_id: documentId,
+      suggestion_type: 'milestone_creation',
+      suggestion_data: {
+        extractedMilestones: parsedData.milestones,
+        milestoneQuality: milestoneAnalysis,
+        suggestedImprovements: generateMilestoneImprovements(parsedData.milestones),
+        additionalMilestones: additionalMilestones,
+        implementationStrategy: generateImplementationStrategy(parsedData)
+      },
+      confidence: parsedData.confidence
+    });
+    console.log('Generated milestone suggestions with quality analysis');
+  } else {
+    // Low confidence fallback with basic milestones
+    suggestions.push({
+      project_id: projectId,
+      document_parsing_id: documentId,
+      suggestion_type: 'milestone_creation',
+      suggestion_data: {
+        extractedMilestones: [],
+        fallbackSuggestions: generateFallbackMilestones(parsedData),
+        lowConfidenceReason: 'Document parsing had low confidence - using template milestones',
+        recommendedActions: [
+          'Review document quality and clarity',
+          'Check if document contains visible schedule information',
+          'Consider manual milestone creation',
+          'Upload higher quality or different format if available'
+        ]
+      },
+      confidence: 0.3 // Fixed confidence for fallback
+    });
+    console.log('Generated fallback milestone suggestions due to low confidence');
   }
 
-  // Trade mapping suggestions
-  if (parsedData.trades.length > 0) {
-    const tradeMappings = generateTradeMappings(parsedData.trades);
-    console.log('Generated trade mappings:', tradeMappings);
+  // Trade mapping suggestions with enhanced intelligence
+  if (parsedData.trades.length > 0 && parsedData.confidence >= confidenceThresholds.trade_mapping) {
+    const tradeMappings = generateEnhancedTradeMappings(parsedData.trades);
+    const tradeAnalysis = analyzeTradePatterns(parsedData.trades, parsedData.milestones);
     
     suggestions.push({
       project_id: projectId,
       document_parsing_id: documentId,
       suggestion_type: 'trade_mapping',
       suggestion_data: {
-        trades: parsedData.trades,
-        mappings: tradeMappings,
-        extractionSource: 'AI document analysis'
+        identifiedTrades: parsedData.trades,
+        standardMappings: tradeMappings,
+        tradeAnalysis: tradeAnalysis,
+        integrationRecommendations: generateTradeIntegrationRecommendations(parsedData)
       },
-      confidence: Math.max(parsedData.confidence, 0.6) // Boost confidence for trade mapping
+      confidence: Math.min(parsedData.confidence + 0.1, 0.9)
     });
-  } else {
-    console.log('No trades detected in parsed data');
+    console.log('Generated enhanced trade mapping suggestions');
+  } else if (parsedData.trades.length === 0) {
+    console.log('No trades detected - document may not contain trade-specific information');
   }
 
-  // Sequence suggestions based on trade patterns
-  if (parsedData.milestones.length > 0) {
-    const suggestedSequence = generateTradeSequence(parsedData.milestones);
-    console.log('Generated trade sequence:', suggestedSequence);
+  // Advanced sequence suggestions with dependency analysis
+  if (parsedData.milestones.length > 0 && parsedData.confidence >= confidenceThresholds.sequence) {
+    const sequenceAnalysis = analyzeConstructionSequence(parsedData.milestones);
+    const dependencyRecommendations = generateDependencyRecommendations(parsedData.milestones);
     
     suggestions.push({
       project_id: projectId,
       document_parsing_id: documentId,
       suggestion_type: 'sequence_suggestion',
       suggestion_data: {
-        suggestedSequence,
-        reasoning: 'Based on detected milestones and standard construction trade sequences',
-        detectedMilestones: parsedData.milestones.map(m => ({ name: m.name, trade: m.trade }))
+        sequenceAnalysis: sequenceAnalysis,
+        dependencyRecommendations: dependencyRecommendations,
+        criticalPathSuggestions: identifyCriticalPathActivities(parsedData.milestones),
+        phaseBreakdown: generatePhaseBreakdown(parsedData.milestones),
+        timelineOptimization: generateTimelineOptimizations(parsedData.milestones)
       },
-      confidence: Math.min(parsedData.confidence + 0.2, 0.9) // Slightly boost sequence confidence
+      confidence: Math.min(parsedData.confidence + 0.15, 0.95)
     });
+    console.log('Generated advanced sequence suggestions with dependency analysis');
   } else {
-    console.log('No milestones detected for sequence generation');
+    console.log(`Sequence suggestions skipped - milestones: ${parsedData.milestones.length}, confidence: ${parsedData.confidence}`);
   }
-
-  // Milestone creation suggestions - always create this to help debugging
-  const additionalMilestones = generateAdditionalMilestones(parsedData);
-  console.log('Generated additional milestones:', additionalMilestones);
-  
-  suggestions.push({
-    project_id: projectId,
-    document_parsing_id: documentId,
-    suggestion_type: 'milestone_creation',
-    suggestion_data: {
-      milestones: parsedData.milestones,
-      additionalSuggestions: additionalMilestones,
-      extractionSummary: {
-        totalMilestonesExtracted: parsedData.milestones.length,
-        tradesIdentified: parsedData.trades.length,
-        zonesIdentified: parsedData.zones.length,
-        confidenceScore: parsedData.confidence
-      }
-    },
-    confidence: parsedData.confidence
-  });
-
-  // Diagnostic suggestion to help with debugging
-  suggestions.push({
-    project_id: projectId,
-    document_parsing_id: documentId,
-    suggestion_type: 'diagnostic_info',
-    suggestion_data: {
-      processingResults: {
-        extractedTextLength: 0, // Will be filled by caller
-        parsingMethod: 'Vision API + ChatGPT',
         confidenceBreakdown: {
           textExtraction: 'success',
           aiParsing: parsedData.confidence > 0.5 ? 'success' : 'limited',
@@ -889,4 +1217,114 @@ function generateAdditionalMilestones(parsedData: DocumentParsingResult): any[] 
   });
 
   return additionalMilestones;
+}
+
+// Helper functions for enhanced AI suggestions
+function calculateDataCompleteness(data: DocumentParsingResult): number {
+  let score = 0;
+  if (data.milestones.length > 0) score += 0.4;
+  if (data.trades.length > 0) score += 0.3;
+  if (data.zones.length > 0) score += 0.2;
+  if (data.projectInfo.projectName) score += 0.1;
+  return score;
+}
+
+function identifyProcessingIssues(data: DocumentParsingResult): string[] {
+  const issues = [];
+  if (data.confidence < 0.3) issues.push('Low confidence extraction');
+  if (data.milestones.length === 0) issues.push('No milestones detected');
+  if (data.trades.length === 0) issues.push('No trades identified');
+  return issues;
+}
+
+function generateProcessingRecommendations(data: DocumentParsingResult): string[] {
+  const recommendations = [];
+  if (data.confidence < 0.5) {
+    recommendations.push('Consider uploading a higher quality document');
+    recommendations.push('Check if document contains actual schedule information');
+  }
+  if (data.milestones.length === 0) {
+    recommendations.push('Document may need manual milestone creation');
+  }
+  return recommendations;
+}
+
+function generateNextSteps(data: DocumentParsingResult): string[] {
+  if (data.confidence >= 0.5) {
+    return ['Review extracted milestones', 'Create programme milestones', 'Set up dependencies'];
+  }
+  return ['Manual review required', 'Consider alternative document format', 'Create milestones manually'];
+}
+
+function analyzeMilestoneQuality(milestones: any[]): any {
+  return {
+    total: milestones.length,
+    withDates: milestones.filter(m => m.startDate || m.endDate).length,
+    withTrades: milestones.filter(m => m.trade).length,
+    withZones: milestones.filter(m => m.zone).length
+  };
+}
+
+function generateMilestoneImprovements(milestones: any[]): string[] {
+  const improvements = [];
+  if (milestones.filter(m => !m.startDate && !m.endDate).length > 0) {
+    improvements.push('Add missing dates to milestones');
+  }
+  return improvements;
+}
+
+function generateImplementationStrategy(data: DocumentParsingResult): any {
+  return {
+    approach: data.confidence >= 0.7 ? 'direct_import' : 'manual_review',
+    priority: data.milestones.length > 10 ? 'batch_processing' : 'individual_review'
+  };
+}
+
+function generateFallbackMilestones(data: DocumentParsingResult): any[] {
+  return [
+    { name: 'Project Commencement', trade: 'general', priority: 'high' },
+    { name: 'Site Establishment', trade: 'general', priority: 'high' },
+    { name: 'Foundation Complete', trade: 'concrete', priority: 'high' },
+    { name: 'Structure Complete', trade: 'steel', priority: 'high' },
+    { name: 'Practical Completion', trade: 'general', priority: 'high' }
+  ];
+}
+
+function generateEnhancedTradeMappings(trades: string[]): any {
+  return trades.map(trade => ({
+    original: trade,
+    standardized: trade.toLowerCase(),
+    category: 'construction'
+  }));
+}
+
+function analyzeTradePatterns(trades: string[], milestones: any[]): any {
+  return {
+    diversity: trades.length,
+    coverage: milestones.filter(m => m.trade).length / Math.max(milestones.length, 1)
+  };
+}
+
+function generateTradeIntegrationRecommendations(data: DocumentParsingResult): string[] {
+  return ['Map trades to programme activities', 'Assign trade responsibilities'];
+}
+
+function analyzeConstructionSequence(milestones: any[]): any {
+  return { sequenceLogic: 'standard_construction', conflicts: [] };
+}
+
+function generateDependencyRecommendations(milestones: any[]): any[] {
+  return milestones.map(m => ({ milestone: m.name, suggestedDependencies: [] }));
+}
+
+function identifyCriticalPathActivities(milestones: any[]): any[] {
+  return milestones.filter(m => m.priority === 'high');
+}
+
+function generatePhaseBreakdown(milestones: any[]): any {
+  return { phases: ['Planning', 'Construction', 'Completion'] };
+}
+
+function generateTimelineOptimizations(milestones: any[]): string[] {
+  return ['Review parallel execution opportunities', 'Optimize trade sequences'];
 }
