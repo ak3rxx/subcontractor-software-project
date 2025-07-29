@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,8 @@ interface UploadedDocument {
   ai_confidence?: number;
   error_message?: string;
   created_at: string;
+  page_count?: number;
+  preview_url?: string;
 }
 
 interface ProgrammeDocumentUploadProps {
@@ -33,6 +35,19 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Initialize PDF.js worker (dynamically import to avoid SSR issues)
+  useEffect(() => {
+    const initPDFJS = async () => {
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+      } catch (error) {
+        console.warn('Failed to initialize PDF.js:', error);
+      }
+    };
+    initPDFJS();
+  }, []);
 
   const supportedFileTypes = [
     'application/pdf',
@@ -96,6 +111,32 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
+      // Extract PDF metadata if it's a PDF
+      let pageCount: number | undefined;
+      let previewUrl: string | undefined;
+      
+      if (file.type === 'application/pdf') {
+        try {
+          const pdfjsLib = await import('pdfjs-dist');
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          pageCount = pdf.numPages;
+          
+          // Generate preview from first page
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 0.3 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d')!;
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          await page.render({ canvasContext: context, viewport, canvas }).promise;
+          previewUrl = canvas.toDataURL();
+        } catch (error) {
+          console.warn('Failed to extract PDF metadata:', error);
+        }
+      }
+
       // Create database record
       console.log('Creating database record for document');
       const { data: documentData, error: dbError } = await supabase
@@ -143,8 +184,13 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
         onDocumentParsed(documentData.id, parseResult.data);
       }
 
-      // Add to uploaded documents list
-      setUploadedDocuments(prev => [...prev, documentData]);
+      // Add to uploaded documents list with metadata
+      const enhancedDocument = {
+        ...documentData,
+        page_count: pageCount,
+        preview_url: previewUrl
+      };
+      setUploadedDocuments(prev => [...prev, enhancedDocument]);
 
       toast({
         title: "Document Uploaded",
@@ -391,7 +437,20 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    {getStatusIcon(document.parsing_status)}
+                    <div className="flex-shrink-0">
+                      {document.preview_url ? (
+                        <div className="relative">
+                          <img 
+                            src={document.preview_url} 
+                            alt="PDF preview" 
+                            className="h-12 w-8 object-cover rounded border"
+                          />
+                          <div className="absolute inset-0 bg-black/10 rounded"></div>
+                        </div>
+                      ) : (
+                        getStatusIcon(document.parsing_status)
+                      )}
+                    </div>
                     <div className="flex-1">
                       <p className="font-medium">{document.file_name}</p>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -401,6 +460,11 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                         <span>
                           {(document.file_size / 1024 / 1024).toFixed(1)} MB
                         </span>
+                        {document.page_count && (
+                          <span>
+                            {document.page_count} pages
+                          </span>
+                        )}
                         {document.ai_confidence && (
                           <span>
                             {Math.round(document.ai_confidence * 100)}% confidence
@@ -418,6 +482,16 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {document.preview_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(document.preview_url, '_blank')}
+                        title="Preview PDF"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Badge className={getStatusColor(document.parsing_status)}>
                       {document.parsing_status}
                     </Badge>
