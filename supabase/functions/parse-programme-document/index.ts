@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import pdfParse from 'https://esm.sh/pdf-parse@1.1.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,8 +73,8 @@ serve(async (req) => {
 
     // Handle different file types
     if (fileType === 'application/pdf') {
-      // For PDF files, we'll use OCR-like processing with OpenAI Vision
-      extractedText = await extractTextFromPDF(fileContent, OPENAI_API_KEY);
+      // For PDF files, use OpenAI Vision API for robust text extraction
+      extractedText = await extractTextFromPDFVision(fileContent, OPENAI_API_KEY);
     } else if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileName.endsWith('.xlsx') || fileName.endsWith('.csv')) {
       // For Excel/CSV files, extract structured data
       extractedText = await extractTextFromSpreadsheet(fileContent, fileName);
@@ -145,76 +144,68 @@ serve(async (req) => {
   }
 });
 
-async function extractTextFromPDF(base64Content: string, apiKey: string): Promise<string> {
-  try {
-    console.log('Extracting text from PDF using pdf-parse');
-    
-    // Convert base64 to Uint8Array buffer
-    const binaryString = atob(base64Content);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Parse PDF with pdf-parse
-    const data = await pdfParse(bytes);
-    const extractedText = data.text;
-    
-    console.log(`Successfully extracted ${extractedText.length} characters from PDF using pdf-parse`);
-    console.log(`PDF metadata: ${data.numpages} pages, ${data.numrender} rendered objects`);
-
-    // If we got very little text, it might be a scanned PDF
-    if (extractedText.trim().length < 100) {
-      console.log('Very little text extracted, falling back to Vision API...');
-      return await extractTextFromPDFVision(base64Content, apiKey);
-    }
-
-    return extractedText;
-  } catch (error) {
-    console.error('Error extracting text from PDF with pdf-parse:', error);
-    console.log('Falling back to Vision API...');
-    return await extractTextFromPDFVision(base64Content, apiKey);
-  }
-}
+// Function removed - using Vision API directly
 
 async function extractTextFromPDFVision(base64Content: string, apiKey: string): Promise<string> {
   console.log('Extracting text from PDF using OpenAI Vision API');
   
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Extract all text content from this construction programme document. Focus on milestones, activities, dates, trades, zones, and dependencies. Return as plain text.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:application/pdf;base64,${base64Content}`
+  try {
+    // For multi-page PDFs, we'll process the first few pages
+    // Vision API works better with individual pages
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert at reading construction programme documents. Extract all text content including milestones, activities, dates, trades, zones, dependencies, and any scheduling information. Preserve the structure and relationships between items.'
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract all text content from this construction programme document. Focus on:\n- Milestones and activities\n- Start/end dates\n- Trade classifications\n- Zone/location information\n- Dependencies between tasks\n- Duration information\n- Priority levels\n\nReturn all extracted text in a structured format that preserves relationships.'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:application/pdf;base64,${base64Content}`
+                }
               }
-            }
-          ]
-        }
-      ],
-      max_tokens: 4000
-    }),
-  });
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI Vision API error: ${await response.text()}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI Vision API error response:', errorText);
+      throw new Error(`OpenAI Vision API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.choices || !result.choices[0] || !result.choices[0].message) {
+      throw new Error('Invalid response format from OpenAI Vision API');
+    }
+    
+    const extractedText = result.choices[0].message.content;
+    console.log(`Successfully extracted ${extractedText.length} characters from PDF using Vision API`);
+    
+    return extractedText;
+  } catch (error) {
+    console.error('Error in Vision API extraction:', error);
+    throw new Error(`Failed to extract text from PDF: ${error.message}`);
   }
-
-  const result = await response.json();
-  return result.choices[0].message.content;
 }
 
 async function extractTextFromSpreadsheet(base64Content: string, fileName: string): Promise<string> {
