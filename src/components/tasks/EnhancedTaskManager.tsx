@@ -7,8 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEnhancedTasks, TaskFilters } from '@/hooks/useEnhancedTasks';
 import { TaskKanbanBoard } from './TaskKanbanBoard';
+import { TaskTableView } from './TaskTableView';
 import { TaskDetailsModal } from './TaskDetailsModal';
 import { CreateTaskModal } from './CreateTaskModal';
+import { TaskNavigationBreadcrumb } from './TaskNavigationBreadcrumb';
 import { Task } from '@/hooks/useTasks';
 import { Search, Plus, Filter, Users, BarChart3, AlertTriangle, CheckSquare, Clock } from 'lucide-react';
 
@@ -133,6 +135,14 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Navigation Breadcrumb */}
+      <TaskNavigationBreadcrumb
+        projectId={projectId}
+        projectName={projectName}
+        linkedModule={linkedModule}
+        showGlobalTasksLink={!projectId}
+      />
+      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -185,12 +195,12 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
               </div>
             </div>
             
-            <Select value={filters.status || ''} onValueChange={(value) => handleFilterChange('status', value)}>
+            <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="todo">To Do</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -198,24 +208,24 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
               </SelectContent>
             </Select>
 
-            <Select value={filters.priority || ''} onValueChange={(value) => handleFilterChange('priority', value)}>
+            <Select value={filters.priority || 'all'} onValueChange={(value) => handleFilterChange('priority', value === 'all' ? undefined : value)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Priority</SelectItem>
+                <SelectItem value="all">All Priority</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
                 <SelectItem value="high">High</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filters.category || ''} onValueChange={(value) => handleFilterChange('category', value)}>
+            <Select value={filters.category || 'all'} onValueChange={(value) => handleFilterChange('category', value === 'all' ? undefined : value)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="general">General</SelectItem>
                 <SelectItem value="trade">Trade</SelectItem>
                 <SelectItem value="qa">QA</SelectItem>
@@ -247,14 +257,13 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
         </TabsContent>
 
         <TabsContent value="list" className="mt-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-                <p>List view coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          <TaskTableView
+            tasks={tasks}
+            selectedTasks={selectedTasks}
+            onSelectedTasksChange={setSelectedTasks}
+            onTaskClick={handleTaskClick}
+            onStatusChange={handleStatusChange}
+          />
         </TabsContent>
       </Tabs>
 

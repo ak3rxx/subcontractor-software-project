@@ -20,7 +20,7 @@ import NavigationErrorBoundary from '@/components/NavigationErrorBoundary';
 // Lazy load components with error boundaries
 const ProjectSetup = lazy(() => import('@/components/projects/ProjectSetup'));
 const VariationManager = lazy(() => import('@/components/projects/variations/VariationManager'));
-const TaskManager = lazy(() => import('@/components/projects/TaskManager'));
+const EnhancedTaskManager = lazy(() => import('@/components/tasks/EnhancedTaskManager').then(module => ({ default: module.EnhancedTaskManager })));
 const RFIManager = lazy(() => import('@/components/projects/RFIManager'));
 const QATrackerOptimized = lazy(() => import('@/components/projects/qa-itp/QATrackerOptimized'));
 const ProgrammeTracker = lazy(() => import('@/components/projects/ProgrammeTracker'));
@@ -574,9 +574,11 @@ const Projects = memo(() => {
               <TabsContent value="tasks" className="mt-6">
                 <TabErrorBoundary fallback={<TabErrorFallback tabName="Tasks" />}>
                   <Suspense fallback={<ModuleLoader />}>
-                    <TaskManager 
+                    <EnhancedTaskManager 
+                      projectId={selectedProject.id}
                       projectName={selectedProject.name}
-                      crossModuleData={crossModuleData}
+                      showProjectFilter={false}
+                      title={`${selectedProject.name} - Tasks`}
                     />
                   </Suspense>
                 </TabErrorBoundary>
