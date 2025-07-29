@@ -3,10 +3,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1';
 
-// Enhanced PDF processing with multiple libraries
-// Note: MuPDF and pdfium-wasm would be loaded dynamically
+// Enhanced PDF processing with multiple libraries and failover strategies
 const PDF_PROCESSING_TIMEOUT = 300000; // 5 minutes
 const MAX_RETRIES = 3;
+const DOCUMENT_QUALITY_THRESHOLD = 50; // Minimum extracted text length for quality
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,13 +77,16 @@ serve(async (req) => {
 
     let extractedText = '';
 
-    // Handle different file types with enhanced processing pipeline
+    // Enhanced multi-engine document processing pipeline
     if (fileType === 'application/pdf') {
-      // Enhanced PDF processing with multi-library approach
+      // Multi-engine PDF processing with Australian construction optimization
       extractedText = await extractTextFromPDFEnhanced(fileContent, fileName, OPENAI_API_KEY, supabase, documentId);
     } else if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileName.endsWith('.xlsx') || fileName.endsWith('.csv')) {
-      // For Excel/CSV files, extract structured data
-      extractedText = await extractTextFromSpreadsheet(fileContent, fileName);
+      // Enhanced spreadsheet processing for construction schedules
+      extractedText = await extractTextFromSpreadsheetEnhanced(fileContent, fileName, documentId, supabase);
+    } else if (fileType.includes('image')) {
+      // Direct image processing for scanned documents
+      extractedText = await extractTextFromImageDirect(fileContent, OPENAI_API_KEY, documentId, supabase);
     } else {
       throw new Error(`Unsupported file type: ${fileType}`);
     }

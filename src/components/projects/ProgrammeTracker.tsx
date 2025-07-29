@@ -17,6 +17,8 @@ import GanttChart from './programme/GanttChart';
 import TimelineView from './programme/TimelineView';
 import ProgrammeDocumentUpload from './programme/ProgrammeDocumentUpload';
 import ProgrammeAIAssistant from './programme/ProgrammeAIAssistant';
+import ProgrammeIntelligencePanel from './programme/ProgrammeIntelligencePanel';
+import { ProgrammeNotificationProvider } from '@/components/notifications/ProgrammeNotificationProvider';
 import { useSearchParams } from 'react-router-dom';
 import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
 import { MilestoneTasksView } from './programme/MilestoneTasksView';
@@ -175,8 +177,9 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
   }
 
   return (
-    <TooltipProvider>
-      <div className="space-y-6">
+    <ProgrammeNotificationProvider milestones={milestones} projectId={projectId || ''}>
+      <TooltipProvider>
+        <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h3 className="text-lg font-semibold">Programme Tracker</h3>
@@ -270,10 +273,14 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
 
         {/* Programme Outlook Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="intelligence" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              Intelligence
             </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
@@ -307,6 +314,23 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
               threeWeekLookAhead={threeWeekLookAhead}
               allMilestones={milestones}
             />
+          </TabsContent>
+
+          <TabsContent value="intelligence" className="space-y-4">
+            {projectId ? (
+              <ProgrammeIntelligencePanel
+                milestones={milestones}
+                projectId={projectId}
+                onCreateMilestones={handleCreateAIMilestones}
+              />
+            ) : (
+              <div className="text-center py-8">
+                <Brain className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600">
+                  Select a project to access Programme Intelligence features.
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="ai-insights" className="space-y-4">
@@ -383,8 +407,9 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             />
           </TabsContent>
         </Tabs>
-      </div>
-    </TooltipProvider>
+        </div>
+      </TooltipProvider>
+    </ProgrammeNotificationProvider>
   );
 };
 
