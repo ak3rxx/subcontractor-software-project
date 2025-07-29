@@ -22,24 +22,37 @@ export const useTaskAssignments = (taskId: string) => {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get the task assignments
+      const { data: assignmentData, error: assignmentError } = await supabase
         .from('task_assignments')
-        .select(`
-          *,
-          profiles!task_assignments_user_id_fkey (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('task_id', taskId);
 
-      if (error) throw error;
+      if (assignmentError) throw assignmentError;
 
-      const formattedAssignments = data?.map(assignment => ({
-        ...assignment,
-        user_name: assignment.profiles?.full_name || assignment.profiles?.email || 'Unknown User',
-        user_email: assignment.profiles?.email
-      })) || [];
+      if (!assignmentData || assignmentData.length === 0) {
+        setAssignments([]);
+        return;
+      }
+
+      // Get user profile data for all assigned users
+      const userIds = assignmentData.map(a => a.user_id);
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (profileError) throw profileError;
+
+      // Combine assignment and profile data
+      const formattedAssignments = assignmentData.map(assignment => {
+        const profile = profileData?.find(p => p.id === assignment.user_id);
+        return {
+          ...assignment,
+          user_name: profile?.full_name || profile?.email || 'Unknown User',
+          user_email: profile?.email
+        };
+      });
 
       setAssignments(formattedAssignments);
     } catch (error) {

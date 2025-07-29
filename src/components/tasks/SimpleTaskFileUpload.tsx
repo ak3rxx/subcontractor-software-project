@@ -71,7 +71,7 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
     try {
       const uploaded = await uploadFiles(selectedFiles);
       if (onFilesChange && uploaded.length > 0) {
-        const allFiles = [...existingFiles, ...uploaded.filter(f => f.upload_status === 'completed')];
+        const allFiles = [...existingFiles, ...uploaded.filter(f => f.uploaded)];
         onFilesChange(allFiles);
       }
     } catch (error) {
@@ -89,7 +89,7 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
     
     // Update parent component
     if (onFilesChange) {
-      const remainingUploaded = uploadedFiles.filter(f => f.id !== fileId && f.upload_status === 'completed');
+      const remainingUploaded = uploadedFiles.filter(f => f.id !== fileId && f.uploaded);
       const allFiles = [...existingFiles, ...remainingUploaded];
       onFilesChange(allFiles);
     }
@@ -98,7 +98,7 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
   const handleRemoveExistingFile = (fileIndex: number) => {
     if (onFilesChange) {
       const updatedExisting = existingFiles.filter((_, index) => index !== fileIndex);
-      const completedUploaded = uploadedFiles.filter(f => f.upload_status === 'completed');
+      const completedUploaded = uploadedFiles.filter(f => f.uploaded);
       onFilesChange([...updatedExisting, ...completedUploaded]);
     }
   };
@@ -125,8 +125,8 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
 
   const isImage = (fileType: string) => fileType.startsWith('image/');
 
-  const allFiles = [...existingFiles, ...uploadedFiles.filter(f => f.upload_status === 'completed')];
-  const uploadingFiles = uploadedFiles.filter(f => f.upload_status === 'uploading' || f.upload_status === 'error');
+  const allFiles = [...existingFiles, ...uploadedFiles.filter(f => f.uploaded)];
+  const uploadingFiles = uploadedFiles.filter(f => !f.uploaded);
 
   return (
     <div className="space-y-4">
@@ -175,11 +175,11 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
                 <div className="flex items-center justify-between text-sm">
                   <span className="truncate flex-1">{file.name}</span>
                   <span className="text-muted-foreground ml-2">
-                    {file.upload_status === 'error' ? 'Failed' : `${file.progress || 0}%`}
+                    {file.error ? 'Failed' : `${file.progress || 0}%`}
                   </span>
                 </div>
                 <Progress value={file.progress || 0} className="h-2" />
-                {file.upload_status === 'error' && (
+                {file.error && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-destructive">Upload failed</span>
                     <Button
