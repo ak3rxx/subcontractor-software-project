@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import * as pdfjsLib from 'https://esm.sh/pdfjs-dist@5.4.54';
+import pdfParse from 'https://esm.sh/pdf-parse@1.1.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -147,48 +147,32 @@ serve(async (req) => {
 
 async function extractTextFromPDF(base64Content: string, apiKey: string): Promise<string> {
   try {
-    console.log('Extracting text from PDF using pdfjs-dist');
+    console.log('Extracting text from PDF using pdf-parse');
     
-    // Convert base64 to Uint8Array
+    // Convert base64 to Uint8Array buffer
     const binaryString = atob(base64Content);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Load PDF document
-    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-    let fullText = '';
+    // Parse PDF with pdf-parse
+    const data = await pdfParse(bytes);
+    const extractedText = data.text;
     
-    console.log(`Processing PDF with ${pdf.numPages} pages`);
+    console.log(`Successfully extracted ${extractedText.length} characters from PDF using pdf-parse`);
+    console.log(`PDF metadata: ${data.numpages} pages, ${data.numrender} rendered objects`);
 
-    // Extract text from each page
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      
-      // Combine text items with proper spacing
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      if (pageText) {
-        fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
-      }
-    }
-
-    if (!fullText.trim()) {
-      console.log('No text extracted with pdfjs-dist, falling back to Vision API');
+    // If we got very little text, it might be a scanned PDF
+    if (extractedText.trim().length < 100) {
+      console.log('Very little text extracted, falling back to Vision API...');
       return await extractTextFromPDFVision(base64Content, apiKey);
     }
 
-    console.log(`Successfully extracted ${fullText.length} characters from PDF using pdfjs-dist`);
-    return fullText;
+    return extractedText;
   } catch (error) {
-    console.error('Error extracting text from PDF with pdfjs-dist:', error);
-    console.log('Falling back to Vision API');
+    console.error('Error extracting text from PDF with pdf-parse:', error);
+    console.log('Falling back to Vision API...');
     return await extractTextFromPDFVision(base64Content, apiKey);
   }
 }
