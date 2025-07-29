@@ -199,6 +199,107 @@ export const useProgrammeMilestones = (projectId?: string) => {
     }
   };
 
+  // Bulk create milestones (for template-based programmes)
+  const createMultipleMilestones = async (milestonesData: Partial<ProgrammeMilestone>[]): Promise<ProgrammeMilestone[]> => {
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create milestones",
+        variant: "destructive"
+      });
+      return [];
+    }
+
+    try {
+      const insertDataArray: MilestoneInsert[] = milestonesData.map(milestoneData => ({
+        project_id: milestoneData.project_id,
+        milestone_name: milestoneData.milestone_name || '',
+        description: milestoneData.description,
+        start_date_planned: milestoneData.start_date_planned,
+        end_date_planned: milestoneData.end_date_planned,
+        planned_date: milestoneData.planned_date || milestoneData.start_date_planned || new Date().toISOString().split('T')[0],
+        status: milestoneData.status || 'upcoming',
+        priority: milestoneData.priority || 'medium',
+        category: milestoneData.category,
+        trade: milestoneData.trade,
+        reference_number: milestoneData.reference_number,
+        assigned_to: milestoneData.assigned_to,
+        completion_percentage: milestoneData.completion_percentage || 0,
+        critical_path: milestoneData.critical_path || false,
+        delay_risk_flag: milestoneData.delay_risk_flag || false,
+        linked_tasks: milestoneData.linked_tasks || [],
+        linked_itps: milestoneData.linked_itps || [],
+        linked_deliveries: milestoneData.linked_deliveries || [],
+        linked_handovers: milestoneData.linked_handovers || [],
+        dependencies: milestoneData.dependencies || [],
+        notes: milestoneData.notes,
+      }));
+
+      const { data, error } = await supabase
+        .from('programme_milestones')
+        .insert(insertDataArray)
+        .select();
+
+      if (error) {
+        console.error('Error creating milestones:', error);
+        toast({
+          title: "Database Error",
+          description: `Failed to create milestones: ${error.message}`,
+          variant: "destructive"
+        });
+        return [];
+      }
+
+      toast({
+        title: "Success",
+        description: `Created ${data.length} milestones successfully`
+      });
+
+      await fetchMilestones();
+      
+      // Transform the returned data to match ProgrammeMilestone interface
+      const transformedData: ProgrammeMilestone[] = data.map((milestone: MilestoneRow) => ({
+        id: milestone.id,
+        project_id: milestone.project_id || undefined,
+        milestone_name: milestone.milestone_name,
+        description: milestone.description || undefined,
+        start_date_planned: milestone.start_date_planned || undefined,
+        end_date_planned: milestone.end_date_planned || undefined,
+        start_date_actual: milestone.start_date_actual || undefined,
+        end_date_actual: milestone.end_date_actual || undefined,
+        planned_date: milestone.planned_date,
+        actual_date: milestone.actual_date || undefined,
+        status: milestone.status as ProgrammeMilestone['status'] || 'upcoming',
+        priority: milestone.priority as ProgrammeMilestone['priority'] || 'medium',
+        category: milestone.category || undefined,
+        trade: milestone.trade || undefined,
+        reference_number: milestone.reference_number || undefined,
+        assigned_to: milestone.assigned_to || undefined,
+        completion_percentage: milestone.completion_percentage || 0,
+        critical_path: milestone.critical_path || false,
+        delay_risk_flag: milestone.delay_risk_flag || false,
+        linked_tasks: milestone.linked_tasks || [],
+        linked_itps: milestone.linked_itps || [],
+        linked_deliveries: milestone.linked_deliveries || [],
+        linked_handovers: milestone.linked_handovers || [],
+        dependencies: milestone.dependencies || [],
+        notes: milestone.notes || undefined,
+        created_at: milestone.created_at || '',
+        updated_at: milestone.updated_at || '',
+      }));
+      
+      return transformedData;
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while creating milestones",
+        variant: "destructive"
+      });
+      return [];
+    }
+  };
+
   const updateMilestone = async (id: string, updates: Partial<ProgrammeMilestone>) => {
     try {
       const updateData: MilestoneUpdate = {
@@ -290,6 +391,7 @@ export const useProgrammeMilestones = (projectId?: string) => {
     milestones,
     loading,
     createMilestone,
+    createMultipleMilestones,
     updateMilestone,
     deleteMilestone,
     refetch: fetchMilestones
