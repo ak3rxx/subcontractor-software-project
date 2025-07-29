@@ -205,6 +205,8 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="blocked">Blocked</SelectItem>
+                <SelectItem value="delayed">Delayed</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
 
@@ -224,13 +226,14 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
-              <SelectContent>
+                <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="general">General</SelectItem>
                 <SelectItem value="trade">Trade</SelectItem>
                 <SelectItem value="qa">QA</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="safety">Safety</SelectItem>
+                <SelectItem value="finance">Finance</SelectItem>
                 <SelectItem value="variation">Variation</SelectItem>
                 <SelectItem value="rfi">RFI</SelectItem>
                 <SelectItem value="delivery">Delivery</SelectItem>
