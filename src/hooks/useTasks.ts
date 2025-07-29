@@ -30,6 +30,9 @@ export interface Task {
   comments?: string;
   task_number?: string;
   reference_number?: string;
+  url_link?: string;
+  drawing_number?: string;
+  location?: string;
 }
 
 export const useTasks = () => {
@@ -90,6 +93,9 @@ export const useTasks = () => {
         comments: task.comments,
         task_number: task.task_number,
         reference_number: task.reference_number,
+        url_link: task.url_link,
+        drawing_number: task.drawing_number,
+        location: task.location,
       }));
 
       setTasks(transformedTasks);
@@ -118,6 +124,9 @@ export const useTasks = () => {
         linked_id: taskData.linked_id,
         reference_number: taskData.reference_number,
         comments: taskData.comments,
+        url_link: taskData.url_link,
+        drawing_number: taskData.drawing_number,
+        location: taskData.location,
       };
 
       const { data, error } = await supabase
@@ -160,6 +169,10 @@ export const useTasks = () => {
           status: updates.status,
           due_date: updates.due_date,
           completed_date: updates.status === 'completed' ? new Date().toISOString().split('T')[0] : null,
+          comments: updates.comments,
+          url_link: updates.url_link,
+          drawing_number: updates.drawing_number,
+          location: updates.location,
         })
         .eq('id', id);
 
