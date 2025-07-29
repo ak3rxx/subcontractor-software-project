@@ -154,32 +154,65 @@ const ProgrammeAIAssistant: React.FC<ProgrammeAIAssistantProps> = ({
       selectedTrades.includes(milestone.trade) || selectedTrades.includes('all')
     );
 
-    // Add suggested planning stages
+    // Add suggested planning stages with proper structure
     const planningStageMilestones = [
       {
-        name: 'Site Establishment',
+        milestone_name: 'Site Establishment',
         description: 'Set up site facilities, safety measures, and access',
         trade: 'site_management',
         priority: 'high',
-        suggested: true
+        category: 'planning',
+        status: 'upcoming',
+        planned_date: new Date().toISOString().split('T')[0],
+        start_date_planned: new Date().toISOString().split('T')[0],
+        end_date_planned: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       },
       {
-        name: 'Procurement Setup',
+        milestone_name: 'Procurement Setup',
         description: 'Finalize supplier agreements and order long-lead items',
         trade: 'procurement',
         priority: 'high',
-        suggested: true
+        category: 'planning',
+        status: 'upcoming',
+        planned_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start_date_planned: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end_date_planned: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       },
       {
-        name: 'QA/ITP Preparation',
+        milestone_name: 'QA/ITP Preparation',
         description: 'Prepare quality assurance and inspection test plans',
         trade: 'qa',
         priority: 'medium',
-        suggested: true
+        category: 'preparation',
+        status: 'upcoming',
+        planned_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start_date_planned: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end_date_planned: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       }
     ];
 
-    onCreateMilestones([...planningStageMilestones, ...filteredMilestones]);
+    // Transform filtered milestones to proper structure
+    const transformedMilestones = filteredMilestones.map((milestone, index) => ({
+      milestone_name: milestone.name,
+      description: milestone.description || `${milestone.trade} milestone extracted from documents`,
+      trade: milestone.trade,
+      priority: milestone.priority || 'medium',
+      category: milestone.category || 'construction',
+      status: 'upcoming',
+      planned_date: new Date(Date.now() + (14 + index * 7) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      start_date_planned: new Date(Date.now() + (14 + index * 7) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date_planned: new Date(Date.now() + (21 + index * 7) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    }));
+
+    const allMilestones = [...planningStageMilestones, ...transformedMilestones];
+    
+    console.log('Generating milestones:', allMilestones);
+    toast({
+      title: "Creating Programme",
+      description: `Creating ${allMilestones.length} milestones for selected trades...`
+    });
+    
+    onCreateMilestones(allMilestones);
   };
 
   const toggleSection = (section: string) => {

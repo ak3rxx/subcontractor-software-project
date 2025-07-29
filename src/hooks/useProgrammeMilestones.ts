@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -45,7 +45,7 @@ export const useProgrammeMilestones = (projectId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchMilestones = async () => {
+  const fetchMilestones = useCallback(async () => {
     if (!user) {
       console.log('No user found, skipping milestone fetch');
       setLoading(false);
@@ -120,7 +120,7 @@ export const useProgrammeMilestones = (projectId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, user, toast]);
 
   const createMilestone = async (milestoneData: Partial<ProgrammeMilestone>) => {
     if (!user) {
@@ -284,7 +284,7 @@ export const useProgrammeMilestones = (projectId?: string) => {
   useEffect(() => {
     console.log('useProgrammeMilestones effect triggered:', { user: user?.id, projectId });
     fetchMilestones();
-  }, [user, projectId]);
+  }, [fetchMilestones]);
 
   return {
     milestones,
