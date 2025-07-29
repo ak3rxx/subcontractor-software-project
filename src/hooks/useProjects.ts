@@ -99,8 +99,19 @@ export const useProjects = () => {
     if (!user) return null;
 
     try {
-      // Get the organization ID (for now, we'll use null as we simplified the organization system)
-      const orgId = null; // This would be the user's organization ID when implemented
+      // Get the user's primary organization ID
+      const { data: orgId, error: orgError } = await supabase
+        .rpc('get_user_primary_org', { user_id: user.id });
+
+      if (orgError || !orgId) {
+        console.error('Error getting user organization:', orgError);
+        toast({
+          title: "Error",
+          description: "You must belong to an organization to create projects",
+          variant: "destructive"
+        });
+        return null;
+      }
       
       // Generate project number
       const { data: projectNumber, error: numberError } = await supabase
@@ -125,6 +136,7 @@ export const useProjects = () => {
         estimated_completion: projectData.estimatedCompletion,
         site_address: projectData.siteAddress,
         project_manager_id: user.id,
+        organization_id: orgId,
         total_budget: projectData.totalBudget || null,
         project_number: projectNumber
       };

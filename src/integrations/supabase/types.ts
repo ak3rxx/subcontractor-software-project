@@ -1158,7 +1158,7 @@ export type Database = {
           estimated_completion: string | null
           id: string
           name: string
-          organization_id: string | null
+          organization_id: string
           project_manager_id: string | null
           project_number: number
           project_type: string | null
@@ -1176,7 +1176,7 @@ export type Database = {
           estimated_completion?: string | null
           id?: string
           name: string
-          organization_id?: string | null
+          organization_id: string
           project_manager_id?: string | null
           project_number: number
           project_type?: string | null
@@ -1194,7 +1194,7 @@ export type Database = {
           estimated_completion?: string | null
           id?: string
           name?: string
-          organization_id?: string | null
+          organization_id?: string
           project_manager_id?: string | null
           project_number?: number
           project_type?: string | null
@@ -2225,6 +2225,25 @@ export type Database = {
       accept_organization_invitation: {
         Args: { invitation_token: string }
         Returns: Json
+      }
+      associate_user_projects_to_org: {
+        Args: { user_email: string; target_org_id: string }
+        Returns: {
+          updated_count: number
+          project_ids: string[]
+        }[]
+      }
+      audit_project_organization_associations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          issue_type: string
+          project_id: string
+          project_name: string
+          project_manager_email: string
+          organization_id: string
+          organization_name: string
+          severity: string
+        }[]
       }
       auto_approve_frequent_trades: {
         Args: Record<PropertyKey, never>
