@@ -1086,24 +1086,6 @@ async function generateAISuggestions(
   } else {
     console.log(`Sequence suggestions skipped - milestones: ${parsedData.milestones.length}, confidence: ${parsedData.confidence}`);
   }
-        confidenceBreakdown: {
-          textExtraction: 'success',
-          aiParsing: parsedData.confidence > 0.5 ? 'success' : 'limited',
-          dataStructuring: parsedData.milestones.length > 0 ? 'success' : 'failed'
-        }
-      },
-      recommendations: parsedData.confidence < 0.3 ? [
-        'Document may require manual review',
-        'Consider uploading a clearer version',
-        'Check if document contains actual schedule data'
-      ] : [
-        'Schedule data successfully extracted',
-        'Ready for milestone creation'
-      ]
-    },
-    confidence: 1.0 // Always confident in diagnostic data
-  });
-
   console.log(`Generated ${suggestions.length} AI suggestions`);
 
   // Insert suggestions into database
