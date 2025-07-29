@@ -380,9 +380,9 @@ async function renderPdfPagesWithPdfium(pdfBytes: Uint8Array, documentId: string
 }
 
 async function extractPageWithVisionAPI(base64Image: string, openaiApiKey: string, pageNumber: number): Promise<string> {
-  console.log(`Processing page ${pageNumber} with Vision API`);
+  console.log(`Processing page ${pageNumber} with Enhanced Australian Construction Vision API`);
   
-  // First pass: Analyze page type and content density
+  // Enhanced first pass: Analyze page type with Australian construction focus
   const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -397,22 +397,27 @@ async function extractPageWithVisionAPI(base64Image: string, openaiApiKey: strin
           content: [
             {
               type: 'text',
-              text: `QUICK ANALYSIS: Classify this construction schedule document page.
+              text: `ENHANCED AUSTRALIAN CONSTRUCTION SCHEDULE ANALYSIS:
 
 IDENTIFY PAGE TYPE:
-- GANTT_CHART: Timeline bars, dependencies, activity sequences
-- SCHEDULE_TABLE: Task lists with dates and durations  
-- MILESTONE_CHART: Key project dates and deliverables
-- RESOURCE_CHART: Trade assignments and resource allocation
-- COVER_PAGE: Title page, project summary
-- TEXT_PAGE: Specifications, notes, minimal schedule content
+- GANTT_CHART: Timeline bars with Australian construction phases (excavation, concrete, frame, fit-out, handover)
+- SCHEDULE_TABLE: Task lists with Australian trades (carpentry, tiling, rendering, electrical, plumbing)
+- MILESTONE_CHART: Key dates for building permits, inspections, practical completion
+- RESOURCE_CHART: Trade assignments and subcontractor schedules
+- COVER_PAGE: Project summary with Australian standards references
+- TEXT_PAGE: Specifications, RFI logs, minimal schedule content
 
-ASSESS SCHEDULE CONTENT DENSITY:
-- HIGH: Rich schedule data (multiple activities, clear dates, trade info)
-- MEDIUM: Some schedule elements (partial timeline, few activities)
-- LOW: Minimal schedule content (mostly text, legends, headers only)
+ASSESS CONSTRUCTION CONTENT DENSITY:
+- HIGH: Rich construction data (trade sequences, inspection points, delivery schedules)
+- MEDIUM: Some construction elements (partial trades, basic timeline)
+- LOW: Minimal construction content (admin only, legends, headers)
 
-Return: "TYPE:[type]|DENSITY:[high/medium/low]|SCHEDULE_VALUE:[high/medium/low]"`
+IDENTIFY AUSTRALIAN CONSTRUCTION TERMINOLOGY:
+Look for terms like: "fit off", "fix out", "delivery of door jambs", "delivery of skirting", 
+"basement", "building 3", "building 2", "rough in", "first fix", "second fix", 
+"practical completion", "defects liability", "handover", "commissioning"
+
+Return: "TYPE:[type]|DENSITY:[high/medium/low]|SCHEDULE_VALUE:[high/medium/low]|AU_TERMS:[count]"`
             },
             {
               type: 'image_url',
@@ -424,7 +429,7 @@ Return: "TYPE:[type]|DENSITY:[high/medium/low]|SCHEDULE_VALUE:[high/medium/low]"
           ]
         }
       ],
-      max_tokens: 200,
+      max_tokens: 300,
       temperature: 0.0
     }),
   });
@@ -466,25 +471,38 @@ EXTRACTION STRATEGY:
 Focus on the VISUAL TIMELINE MAPPING - where each activity sits on the calendar.`;
 
   } else if (pageType.includes('TABLE')) {
-    extractionPrompt = `SCHEDULE TABLE SPECIALIZED EXTRACTION:
+    extractionPrompt = `SCHEDULE TABLE SPECIALIZED EXTRACTION (AUSTRALIAN CONSTRUCTION):
 
 TARGET TABLE STRUCTURE:
-- Column headers (Task Name, Start Date, End Date, Duration, Predecessors, Resources)
+- Column headers (Task Name, Start Date, End Date, Duration, Predecessors, Resources, Trade)
 - Row data with task hierarchy (indentation levels, WBS codes)
-- Date values in all possible formats
+- Date values in all possible formats (DD/MM/YYYY, Australian standard)
 - Duration calculations (days, weeks, man-hours)
 - Dependency relationships (finish-to-start, IDs)
-- Resource assignments and allocations
+- Resource/trade assignments (carpenter, tiler, renderer, electrician, plumber)
 - Constraint types (Must Start On, As Soon As Possible)
+
+AUSTRALIAN CONSTRUCTION TERMINOLOGY TO EXTRACT:
+CARPENTRY TERMS: "fit off", "fix out", "door install", "delivery of door jambs", "delivery of skirting", 
+"architraves", "cornices", "window frames", "cabinetry", "joinery", "first fix", "second fix", 
+"finish carpentry", "timber frame", "steel frame", "floor systems"
+
+LOCATION TERMS: "basement", "building 3", "building 2", "level 1", "ground floor", "roof level",
+"north wing", "south block", "car park", "plant room", "wet areas", "services", "common areas", 
+"external works", "core", "perimeter"
+
+TRADE ACTIVITIES: "rough in", "commissioning", "handover", "practical completion", "defects liability",
+"supply and install", "materials to site", "inspection", "approval", "certification", "sign-off"
 
 EXTRACTION STRATEGY:
 1. Identify and extract all column headers
-2. Process each row systematically
+2. Process each row systematically, looking for Australian construction terms
 3. Preserve parent-child relationships in task hierarchy
 4. Extract all date values regardless of format
 5. Capture constraint and dependency information
+6. Pay special attention to location references and trade-specific activities
 
-Focus on TABULAR DATA PRECISION - every cell value matters.`;
+Focus on TABULAR DATA PRECISION with AUSTRALIAN CONSTRUCTION CONTEXT.`;
 
   } else if (pageType.includes('MILESTONE')) {
     extractionPrompt = `MILESTONE CHART SPECIALIZED EXTRACTION:
@@ -669,11 +687,11 @@ async function parseDocumentWithAI(text: string, fileName: string, apiKey: strin
 
   console.log('Text analysis:', textAnalysis);
 
-  // Enhanced prompt with construction programme expertise
+  // Enhanced prompt with Australian construction programme expertise
   const prompt = `
-EXPERT CONSTRUCTION PROGRAMME ANALYSIS
+EXPERT AUSTRALIAN CONSTRUCTION PROGRAMME ANALYSIS
 
-You are analyzing "${fileName}" - a construction schedule document. Use your expertise to extract ALL meaningful schedule information.
+You are analyzing "${fileName}" - an Australian construction schedule document. Use your expertise to extract ALL meaningful schedule information with focus on Australian construction terminology and practices.
 
 DOCUMENT CONTENT:
 ${text}
@@ -684,32 +702,44 @@ ANALYSIS CONTEXT:
 - Has timing indicators: ${textAnalysis.hasTimeIndications}
 - Structural complexity: ${textAnalysis.structuralComplexity}
 
-EXTRACTION STRATEGY:
+ENHANCED AUSTRALIAN CONSTRUCTION EXTRACTION STRATEGY:
 
 1. MILESTONE/ACTIVITY IDENTIFICATION:
    Primary indicators: Activity names, task descriptions, work packages
    Look for: "Excavation", "Foundation", "Concrete Pour", "Steel Erection", "Roofing", "Fit-out"
    Also identify: Phase names, deliverables, handover dates, commissioning activities
    
-2. INTELLIGENT DATE PARSING:
-   Recognize ALL date formats: DD/MM/YYYY, MM/DD/YYYY, "15 Jan 2024", "Week 5", "Q1 2024"
-   Timeline indicators: "Start:", "End:", "Due:", "Complete by:"
+   AUSTRALIAN CARPENTRY TERMINOLOGY (CRITICAL):
+   - "fit off", "fix out", "door install", "delivery of door jambs", "delivery of skirting"
+   - "architraves", "cornices", "window frames", "cabinetry", "joinery" 
+   - "first fix", "second fix", "finish carpentry", "timber frame", "steel frame"
+   - "floor systems", "roof trusses", "wall frames", "internal linings"
+   
+2. INTELLIGENT DATE PARSING (AUSTRALIAN FORMATS):
+   Recognize ALL date formats: DD/MM/YYYY (Australian standard), MM/DD/YYYY, "15 Jan 2024", "Week 5", "Q1 2024"
+   Timeline indicators: "Start:", "End:", "Due:", "Complete by:", "Programmed for:", "Scheduled:"
    Duration parsing: "5 days", "2 weeks", "3 months" → convert to days (1 week = 7 days, 1 month = 30 days)
    
-3. CONSTRUCTION TRADE DETECTION:
+3. AUSTRALIAN CONSTRUCTION TRADE DETECTION:
    Primary trades: Earthworks, Concrete, Steel, Carpentry, Roofing, Electrical, Plumbing, HVAC
-   Secondary trades: Insulation, Drywall, Flooring, Tiling, Painting, Glazing, Landscaping
+   Secondary trades: Insulation, Drywall/Plasterboard, Flooring, Tiling, Painting, Glazing, Landscaping
    Specialized: Fire Protection, Lifts/Elevators, Security, Commissioning
    
-4. LOCATION/ZONE PARSING:
-   Building references: "Level 1", "Ground Floor", "Basement", "Roof Level"
-   Area designations: "North Wing", "Block A", "Car Park", "Plant Room"
-   Work zones: "Core", "Perimeter", "Services", "External Works"
+   AUSTRALIAN TRADE ACTIVITIES:
+   - "rough in", "commissioning", "handover", "practical completion", "defects liability"
+   - "supply and install", "materials to site", "inspection", "approval", "certification", "sign-off"
+   - "wet trades", "dry trades", "mechanical services", "hydraulic services"
+   
+4. AUSTRALIAN LOCATION/ZONE PARSING:
+   Building references: "basement", "building 3", "building 2", "level 1", "ground floor", "roof level"
+   Area designations: "north wing", "south block", "car park", "plant room", "services", "common areas"
+   Work zones: "wet areas", "external works", "core", "perimeter", "amenities", "circulation"
+   Australian-specific: "lift wells", "fire stairs", "loading dock", "substation", "switch room"
    
 5. DEPENDENCY ANALYSIS:
-   Sequential indicators: "After", "Following", "Upon completion", "Before"
-   Critical path markers: "Critical", "Must complete", "Key milestone"
-   Parallel work: "Concurrent", "Simultaneously", "In parallel"
+   Sequential indicators: "After", "Following", "Upon completion", "Before", "Dependent on"
+   Critical path markers: "Critical", "Must complete", "Key milestone", "Long lead item"
+   Parallel work: "Concurrent", "Simultaneously", "In parallel", "Overlapping"
 
 CONFIDENCE CALCULATION:
 Base confidence on extraction completeness:
@@ -861,11 +891,14 @@ function validateAndEnhanceParsedData(data: any, fileName: string): DocumentPars
     result.projectInfo.projectName = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
   }
 
+  // Enhanced with Australian construction terminology
+  const enhancedResult = enhanceWithAustralianTerminology(result, fileName);
+  
   // Adjust confidence based on actual extraction quality
-  const qualityScore = calculateExtractionQuality(result);
-  result.confidence = Math.min(result.confidence, qualityScore);
+  const qualityScore = calculateExtractionQuality(enhancedResult);
+  enhancedResult.confidence = Math.min(enhancedResult.confidence, qualityScore);
 
-  return result;
+  return enhancedResult;
 }
 
 function calculateExtractionQuality(data: DocumentParsingResult): number {
