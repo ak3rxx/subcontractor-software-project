@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Clock, GitBranch, AlertCircle, Brain } from 'lucide-react';
@@ -27,6 +28,7 @@ interface ProgrammeTrackerProps {
 }
 
 const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projectId, crossModuleData }) => {
+  const { toast } = useToast();
   const [showNewMilestone, setShowNewMilestone] = useState(false);
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -100,18 +102,26 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
     
     const results = await Promise.all(
       milestones.map(milestone => createMilestone({
-        ...milestone,
         project_id: projectId,
-        milestone_name: milestone.name,
+        milestone_name: milestone.milestone_name || milestone.name,
         description: milestone.description,
         trade: milestone.trade,
         priority: milestone.priority || 'medium',
-        status: 'upcoming'
+        status: 'upcoming',
+        category: milestone.category,
+        planned_date: milestone.planned_date,
+        start_date_planned: milestone.start_date_planned,
+        end_date_planned: milestone.end_date_planned
       }))
     );
     
     const successCount = results.filter(Boolean).length;
     console.log(`Created ${successCount} out of ${milestones.length} AI milestones`);
+    
+    toast({
+      title: "Programme Created",
+      description: `Successfully created ${successCount} milestones from AI suggestions.`,
+    });
   };
 
   // Handle AI suggestion application
