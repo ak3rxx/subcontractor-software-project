@@ -42,14 +42,13 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
     const randomId = Math.random().toString(36).substr(2, 9);
     const fileName = `${timestamp}-${randomId}.${fileExt}`;
     
-    if (inspectionId && checklistItemId) {
-      return `${inspectionId}/${checklistItemId}/${fileName}`;
-    } else if (inspectionId) {
-      return `${inspectionId}/general/${fileName}`;
+    // Simplified path structure for tasks - remove dependency on projectId
+    if (inspectionId) {
+      return `tasks/${inspectionId}/${fileName}`;
     } else {
-      return `temp/${fileName}`;
+      return `tasks/temp/${fileName}`;
     }
-  }, [inspectionId, checklistItemId]);
+  }, [inspectionId]);
 
   // Enhanced file identity function
   const getFileIdentity = useCallback((file: File): string => {
@@ -157,6 +156,7 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
             f.id === fileId ? { ...f, progress: 20 } : f
           ));
 
+          console.log(`Uploading to bucket: ${bucket}, path: ${filePath}`);
           const { data, error } = await supabase.storage
             .from(bucket)
             .upload(filePath, processedFile, {
@@ -164,7 +164,11 @@ export const useSimpleFileUpload = (options: UseSimpleFileUploadOptions = {}) =>
               upsert: false
             });
 
-          if (error) throw error;
+          console.log('Supabase upload result:', { data, error });
+          if (error) {
+            console.error('Supabase storage error:', error);
+            throw error;
+          }
 
           const { data: urlData } = supabase.storage
             .from(bucket)

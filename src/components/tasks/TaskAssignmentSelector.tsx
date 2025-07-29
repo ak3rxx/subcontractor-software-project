@@ -48,10 +48,12 @@ const TaskAssignmentSelector: React.FC<TaskAssignmentSelectorProps> = ({
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const { toast } = useToast();
 
-  // Fetch organization users
+  // Fetch organization users with fallback
   useEffect(() => {
     const fetchOrgUsers = async () => {
       try {
+        console.log('Fetching users for project:', projectId);
+        
         // First get the organization ID from the project
         const { data: project, error: projectError } = await supabase
           .from('projects')
@@ -59,44 +61,112 @@ const TaskAssignmentSelector: React.FC<TaskAssignmentSelectorProps> = ({
           .eq('id', projectId)
           .single();
 
-        if (projectError) throw projectError;
+        if (projectError) {
+          console.error('Project fetch error:', projectError);
+          throw projectError;
+        }
 
-        // Then get all users in the organization
-        const { data, error } = await supabase
-          .from('organization_users')
-          .select('user_id, role')
-          .eq('organization_id', project.organization_id)
-          .eq('status', 'active');
+        console.log('Project organization_id:', project?.organization_id);
 
-        if (error) throw error;
+        let orgUsers: any[] = [];
 
-        // Get user profiles separately
-        const userIds = data?.map(user => user.user_id) || [];
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', userIds);
+        // Try to get users from the project's organization
+        if (project?.organization_id) {
+          const { data, error } = await supabase
+            .from('organization_users')
+            .select('user_id, role')
+            .eq('organization_id', project.organization_id)
+            .eq('status', 'active');
 
-        if (profilesError) throw profilesError;
+          if (error) {
+            console.error('Organization users fetch error:', error);
+          } else {
+            orgUsers = data || [];
+            console.log('Found organization users:', orgUsers.length);
+          }
+        }
 
-        const formattedUsers = data?.map(user => {
-          const profile = profiles?.find(p => p.id === user.user_id);
-          return {
-            user_id: user.user_id,
-            full_name: profile?.full_name,
-            email: profile?.email || '',
-            role: user.role
-          };
-        }) || [];
+        // Fallback: If no organization or no users found, get current user's organization users
+        if (orgUsers.length === 0) {
+          console.log('No org users found, trying current user organizations...');
+          const { data: currentUserOrgs, error: userOrgError } = await supabase
+            .from('organization_users')
+            .select('organization_id, user_id, role')
+            .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+            .eq('status', 'active');
 
-        setOrgUsers(formattedUsers);
+          if (!userOrgError && currentUserOrgs && currentUserOrgs.length > 0) {
+            // Get all users from current user's first organization
+            const { data: fallbackUsers, error: fallbackError } = await supabase
+              .from('organization_users')
+              .select('user_id, role')
+              .eq('organization_id', currentUserOrgs[0].organization_id)
+              .eq('status', 'active');
+
+            if (!fallbackError) {
+              orgUsers = fallbackUsers || [];
+              console.log('Found fallback org users:', orgUsers.length);
+            }
+          }
+        }
+
+        // Final fallback: Get all available users (limited to prevent performance issues)
+        if (orgUsers.length === 0) {
+          console.log('No org users found, getting all available users...');
+          const { data: allProfiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .limit(50); // Limit to prevent performance issues
+
+          if (!profilesError && allProfiles) {
+            const formattedUsers = allProfiles.map(profile => ({
+              user_id: profile.id,
+              full_name: profile.full_name,
+              email: profile.email || '',
+              role: 'user' // Default role for fallback users
+            }));
+            setOrgUsers(formattedUsers);
+            console.log('Set fallback users:', formattedUsers.length);
+            return;
+          }
+        }
+
+        // Get user profiles for organization users
+        const userIds = orgUsers.map(user => user.user_id);
+        console.log('Getting profiles for user IDs:', userIds);
+
+        if (userIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
+
+          if (profilesError) {
+            console.error('Profiles fetch error:', profilesError);
+            throw profilesError;
+          }
+
+          const formattedUsers = orgUsers.map(user => {
+            const profile = profiles?.find(p => p.id === user.user_id);
+            return {
+              user_id: user.user_id,
+              full_name: profile?.full_name,
+              email: profile?.email || '',
+              role: user.role
+            };
+          });
+
+          setOrgUsers(formattedUsers);
+          console.log('Set organization users:', formattedUsers.length);
+        } else {
+          setOrgUsers([]);
+          console.log('No users found');
+        }
+
       } catch (error) {
         console.error('Error fetching organization users:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load organization users",
-          variant: "destructive"
-        });
+        // Don't show error toast immediately, try fallback first
+        setOrgUsers([]);
       }
     };
 

@@ -52,11 +52,16 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
+    console.log('TaskFile - Selected files:', selectedFiles.length);
+    console.log('TaskFile - Task ID:', taskId);
+    console.log('TaskFile - Project ID:', projectId);
+    
     if (selectedFiles.length === 0) return;
 
     // Validate file size (10MB limit)
     const oversizedFiles = selectedFiles.filter(file => file.size > 10 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
+      console.log('TaskFile - Oversized files detected:', oversizedFiles.length);
       toast({
         title: "File too large",
         description: `Files must be under 10MB. ${oversizedFiles.length} file(s) exceeded this limit.`,
@@ -66,13 +71,35 @@ const SimpleTaskFileUpload: React.FC<SimpleTaskFileUploadProps> = ({
     }
 
     try {
+      console.log('TaskFile - Starting upload process...');
       const uploaded = await uploadFiles(selectedFiles);
+      console.log('TaskFile - Upload result:', uploaded.length, 'files');
+      console.log('TaskFile - Uploaded files details:', uploaded.map(f => ({ name: f.name, uploaded: f.uploaded, error: f.error })));
+      
       if (onFilesChange && uploaded.length > 0) {
-        const allFiles = [...existingFiles, ...uploaded.filter(f => f.uploaded)];
+        const successfullyUploaded = uploaded.filter(f => f.uploaded);
+        const allFiles = [...existingFiles, ...successfullyUploaded];
+        console.log('TaskFile - Calling onFilesChange with:', allFiles.length, 'total files');
         onFilesChange(allFiles);
       }
+      
+      // Show specific feedback for failed uploads
+      const failedFiles = uploaded.filter(f => !f.uploaded);
+      if (failedFiles.length > 0) {
+        console.log('TaskFile - Failed uploads:', failedFiles.length);
+        toast({
+          title: "Some uploads failed",
+          description: `${failedFiles.length} file(s) failed to upload. Check the retry options below.`,
+          variant: "destructive"
+        });
+      }
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('TaskFile - Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload files. Please try again.",
+        variant: "destructive"
+      });
     }
 
     // Reset file input
