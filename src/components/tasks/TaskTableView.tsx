@@ -6,8 +6,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Task } from '@/hooks/useTasks';
 import { TaskLinkedBadge } from './TaskLinkedBadge';
-import { CalendarDays, Clock, User, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { CalendarDays, Clock, User, MoreHorizontal, Edit, Trash2, Eye, AlertTriangle } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useSimplePermissions } from '@/hooks/useSimplePermissions';
+import { useAuth } from '@/hooks/useAuth';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
 interface TaskTableViewProps {
@@ -17,6 +30,7 @@ interface TaskTableViewProps {
   onTaskClick: (task: Task) => void;
   onStatusChange: (taskId: string, status: Task['status']) => void;
   onDeleteTask?: (taskId: string) => void;
+  onBulkDelete?: (taskIds: string[]) => void;
 }
 
 export const TaskTableView: React.FC<TaskTableViewProps> = ({
@@ -26,7 +40,10 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
   onTaskClick,
   onStatusChange,
   onDeleteTask,
+  onBulkDelete,
 }) => {
+  const { user } = useAuth();
+  const permissions = useSimplePermissions();
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       onSelectedTasksChange(tasks.map(task => task.id));
@@ -40,6 +57,45 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
       onSelectedTasksChange([...selectedTasks, taskId]);
     } else {
       onSelectedTasksChange(selectedTasks.filter(id => id !== taskId));
+    }
+  };
+
+  // Check if user can delete a specific task
+  const canDeleteTask = (task: Task) => {
+    if (!user || !onDeleteTask) return false;
+    
+    // Developers, PM/Org Admin can delete any task
+    if (permissions.isDeveloper() || permissions.isOrgAdmin() || permissions.isProjectManager()) {
+      return true;
+    }
+    
+    // Subcontractors cannot delete any tasks
+    if (user.roles?.some(role => role.role === 'subcontractor')) {
+      return false;
+    }
+    
+    // Other users can only delete tasks they created (not tasks assigned to them by others)
+    return task.created_by === user.id;
+  };
+
+  // Check if user can delete any of the selected tasks
+  const canBulkDelete = () => {
+    if (!onBulkDelete || selectedTasks.length === 0) return false;
+    
+    const selectedTaskObjects = tasks.filter(task => selectedTasks.includes(task.id));
+    return selectedTaskObjects.some(task => canDeleteTask(task));
+  };
+
+  const handleBulkDelete = () => {
+    if (!onBulkDelete) return;
+    
+    // Only delete tasks the user has permission to delete
+    const deletableTasks = tasks
+      .filter(task => selectedTasks.includes(task.id) && canDeleteTask(task))
+      .map(task => task.id);
+    
+    if (deletableTasks.length > 0) {
+      onBulkDelete(deletableTasks);
     }
   };
 
@@ -85,7 +141,56 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
   }
 
   return (
-    <Card>
+    <div className="space-y-4">
+      {/* Bulk Actions Bar */}
+      {selectedTasks.length > 0 && (
+        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+          <span className="text-sm font-medium">
+            {selectedTasks.length} task{selectedTasks.length === 1 ? '' : 's'} selected
+          </span>
+          <div className="flex gap-2">
+            {canBulkDelete() && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Selected Tasks</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete the selected tasks? This action cannot be undone.
+                      {selectedTasks.length > tasks.filter(t => selectedTasks.includes(t.id) && canDeleteTask(t)).length && (
+                        <div className="mt-2 p-2 bg-amber-50 rounded text-amber-800 text-sm">
+                          <AlertTriangle className="h-4 w-4 inline mr-1" />
+                          Some tasks will be skipped due to insufficient permissions.
+                        </div>
+                      )}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onSelectedTasksChange([])}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Card>
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -104,7 +209,7 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
               <TableHead>Due Date</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Module</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-12 transform -rotate-12 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -197,14 +302,38 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Task
                       </DropdownMenuItem>
-                      {onDeleteTask && (
-                        <DropdownMenuItem 
-                          onClick={() => onDeleteTask(task.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Task
-                        </DropdownMenuItem>
+                      {canDeleteTask(task) && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem 
+                                onSelect={(e) => e.preventDefault()}
+                                className="text-destructive cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Task
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{task.title}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => onDeleteTask?.(task.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -215,5 +344,6 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
         </Table>
       </CardContent>
     </Card>
+    </div>
   );
 };

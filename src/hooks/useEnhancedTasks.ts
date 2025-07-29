@@ -124,6 +124,59 @@ export const useEnhancedTasks = (filters?: TaskFilters) => {
     }
   };
 
+  // Delete single task
+  const deleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Task deleted successfully"
+      });
+
+      await refetch();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete task",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Bulk delete tasks
+  const bulkDeleteTasks = async (taskIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', taskIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Deleted ${taskIds.length} task${taskIds.length === 1 ? '' : 's'}`
+      });
+
+      await refetch();
+      setSelectedTasks([]);
+    } catch (error) {
+      console.error('Error bulk deleting tasks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete tasks",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Create task from cross-module (Variation, RFI, etc.)
   const createLinkedTask = async (
     projectId: string,
@@ -173,7 +226,9 @@ export const useEnhancedTasks = (filters?: TaskFilters) => {
     createTask: createEnhancedTask,
     createLinkedTask,
     updateTask,
+    deleteTask,
     bulkUpdateTasks,
+    bulkDeleteTasks,
     refetch,
   };
 };

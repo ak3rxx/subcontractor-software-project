@@ -48,7 +48,9 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
     createTask,
     createLinkedTask,
     updateTask,
+    deleteTask,
     bulkUpdateTasks,
+    bulkDeleteTasks,
     refetch,
   } = useEnhancedTasks(filters);
 
@@ -266,6 +268,8 @@ export const EnhancedTaskManager: React.FC<EnhancedTaskManagerProps> = ({
             onSelectedTasksChange={setSelectedTasks}
             onTaskClick={handleTaskClick}
             onStatusChange={handleStatusChange}
+            onDeleteTask={deleteTask}
+            onBulkDelete={bulkDeleteTasks}
           />
         </TabsContent>
       </Tabs>
