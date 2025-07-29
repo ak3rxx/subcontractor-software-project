@@ -12,7 +12,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, Search } from 'lucide-react';
+import { ExternalLink, Search, Link, FileText, MapPin, Paperclip } from 'lucide-react';
+import SimpleFileUpload from '@/components/projects/qa-itp/SimpleFileUpload';
+import { useSimpleFileUpload } from '@/hooks/useSimpleFileUpload';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -48,7 +50,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const { organizationUsers } = useOrganizations();
   const { toast } = useToast();
   
-  const [formData, setFormData] = useState<Partial<Task>>({
+  const [formData, setFormData] = useState<Partial<Task> & { url_link?: string; drawing_number?: string; location?: string }>({
     title: '',
     description: '',
     priority: 'medium',
@@ -60,6 +62,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     linked_module: '',
     linked_id: '',
     reference_number: '',
+    url_link: '',
+    drawing_number: '',
+    location: '',
   });
   
   const [loading, setLoading] = useState(false);
@@ -67,6 +72,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [linkedItems, setLinkedItems] = useState<LinkedItem[]>([]);
   const [selectedLinkedItem, setSelectedLinkedItem] = useState<LinkedItem | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  
+  // File upload integration
+  const { files, uploadFiles, removeFile, clearFiles, isUploading } = useSimpleFileUpload({
+    bucket: 'taskfiles'
+  });
 
   // Load team members when project is selected
   useEffect(() => {
@@ -200,7 +210,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      // Prepare attachments data from uploaded files
+      const attachments = files.map(file => ({
+        id: file.id,
+        name: file.name,
+        path: file.path,
+        size: file.size,
+        type: file.type,
+        uploaded_at: new Date().toISOString()
+      }));
+
+      await onSubmit({
+        ...formData,
+        attachments: attachments.length > 0 ? attachments : []
+      });
       resetForm();
       onClose();
     } catch (error) {
@@ -228,10 +251,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       linked_module: '',
       linked_id: '',
       reference_number: '',
+      url_link: '',
+      drawing_number: '',
+      location: '',
     });
     setSelectedLinkedItem(null);
     setSearchTerm('');
     setLinkedItems([]);
+    clearFiles();
   };
 
   const handleClose = () => {
@@ -456,6 +483,78 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             />
           </div>
 
+          {/* Additional Information Section */}
+          <div className="space-y-4 border-t pt-4">
+            <h4 className="text-sm font-medium text-muted-foreground">Additional Information</h4>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {/* URL Link */}
+              <div className="space-y-2">
+                <Label htmlFor="url_link" className="flex items-center gap-2">
+                  <Link className="h-4 w-4" />
+                  URL Link
+                </Label>
+                <Input
+                  id="url_link"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={formData.url_link || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, url_link: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Drawing Number */}
+                <div className="space-y-2">
+                  <Label htmlFor="drawing_number" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Drawing Number
+                  </Label>
+                  <Input
+                    id="drawing_number"
+                    placeholder="DWG-001"
+                    value={formData.drawing_number || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, drawing_number: e.target.value }))}
+                  />
+                  {formData.drawing_number && (
+                    <p className="text-xs text-muted-foreground">
+                      Will auto-link to drawings folder
+                    </p>
+                  )}
+                </div>
+
+                {/* Location */}
+                <div className="space-y-2">
+                  <Label htmlFor="location" className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Location
+                  </Label>
+                  <Input
+                    id="location"
+                    placeholder="Building A, Level 2"
+                    value={formData.location || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* File Attachments */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  Attachments
+                </Label>
+                <SimpleFileUpload
+                  accept="*/*"
+                  multiple={true}
+                  maxFiles={10}
+                  onFilesChange={() => {}}
+                  onUploadComplete={() => {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Action Buttons */}
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose}>
@@ -463,9 +562,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !formData.title || !formData.project_id}
+              disabled={loading || isUploading || !formData.title || !formData.project_id}
             >
-              {loading ? 'Creating...' : 'Create Task'}
+              {loading || isUploading ? 'Creating...' : 'Create Task'}
             </Button>
           </div>
         </form>

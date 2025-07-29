@@ -1611,10 +1611,12 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           description: string | null
+          drawing_number: string | null
           due_date: string | null
           id: string
           linked_id: string | null
           linked_module: string | null
+          location: string | null
           priority: string | null
           project_id: string | null
           reference_number: string | null
@@ -1622,6 +1624,7 @@ export type Database = {
           task_number: string | null
           title: string
           updated_at: string | null
+          url_link: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -1632,10 +1635,12 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          drawing_number?: string | null
           due_date?: string | null
           id?: string
           linked_id?: string | null
           linked_module?: string | null
+          location?: string | null
           priority?: string | null
           project_id?: string | null
           reference_number?: string | null
@@ -1643,6 +1648,7 @@ export type Database = {
           task_number?: string | null
           title: string
           updated_at?: string | null
+          url_link?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -1653,10 +1659,12 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          drawing_number?: string | null
           due_date?: string | null
           id?: string
           linked_id?: string | null
           linked_module?: string | null
+          location?: string | null
           priority?: string | null
           project_id?: string | null
           reference_number?: string | null
@@ -1664,6 +1672,7 @@ export type Database = {
           task_number?: string | null
           title?: string
           updated_at?: string | null
+          url_link?: string | null
         }
         Relationships: [
           {
