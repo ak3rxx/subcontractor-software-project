@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,16 +92,17 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     clearErrors();
   };
 
-  const handleFieldChange = (field: string, value: string) => {
+  // FIXED: Memoize handlers to prevent re-renders
+  const handleFieldChange = useCallback((field: string, value: string) => {
     setEditData(prev => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleFieldBlur = async (field: string, value: string) => {
+  const handleFieldBlur = useCallback(async (field: string, value: string) => {
     // Only validate on blur, not on every keystroke
-    if (value) {
+    if (value && task?.project_id) {
       await validateField(field, value, task.project_id);
     }
-  };
+  }, [validateField, task?.project_id]);
 
   const getPriorityBadge = (priority: string) => {
     const variants = {

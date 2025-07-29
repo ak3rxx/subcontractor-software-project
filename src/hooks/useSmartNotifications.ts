@@ -89,45 +89,49 @@ export const useSmartNotifications = () => {
     setNotifications([]);
   }, []);
 
-  // Enhanced notification creation with deduplication
+  // Enhanced notification creation with deduplication - FIXED: Stable memoization
   const createNotification = useCallback((notification: Omit<SmartNotification, 'id' | 'timestamp' | 'read' | 'dismissed'>) => {
     try {
-      // Check for duplicate notifications (same title and module in last 5 minutes)
+      // Use ref to avoid dependency on notifications state
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const isDuplicate = notifications.some(n => 
-        n.title === notification.title && 
-        n.moduleSource === notification.moduleSource &&
-        n.timestamp > fiveMinutesAgo &&
-        !n.dismissed
-      );
+      
+      setNotifications(prev => {
+        // Check for duplicates within the setter to avoid state dependency
+        const isDuplicate = prev.some(n => 
+          n.title === notification.title && 
+          n.moduleSource === notification.moduleSource &&
+          n.timestamp > fiveMinutesAgo &&
+          !n.dismissed
+        );
 
-      if (!isDuplicate) {
-        const newNotification: SmartNotification = {
-          ...notification,
-          id: crypto.randomUUID(),
-          timestamp: new Date(),
-          read: false,
-          dismissed: false
-        };
+        if (!isDuplicate) {
+          const newNotification: SmartNotification = {
+            ...notification,
+            id: crypto.randomUUID(),
+            timestamp: new Date(),
+            read: false,
+            dismissed: false
+          };
 
-        setNotifications(prev => [newNotification, ...prev.slice(0, 49)]);
-        
-        // Show toast for high/critical priority
-        if (notification.priority === 'high' || notification.priority === 'critical') {
-          toast({
-            title: notification.title,
-            description: notification.message,
-            variant: notification.type === 'error' ? 'destructive' : 'default'
-          });
+          // Show toast for high/critical priority
+          if (notification.priority === 'high' || notification.priority === 'critical') {
+            toast({
+              title: notification.title,
+              description: notification.message,
+              variant: notification.type === 'error' ? 'destructive' : 'default'
+            });
+          }
+
+          return [newNotification, ...prev.slice(0, 49)];
         }
-
-        return newNotification.id;
-      }
+        
+        return prev;
+      });
     } catch (error) {
       console.error('Error creating notification:', error);
       setSystemHealth(prev => ({ ...prev, lastError: `Notification creation failed: ${error}` }));
     }
-  }, [notifications, toast]);
+  }, [toast]); // Only depend on toast, not notifications
 
   // Analytics-driven notification monitoring with enhanced error handling
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ValidationErrors {
@@ -12,7 +12,8 @@ export const useTaskValidation = () => {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isValidating, setIsValidating] = useState(false);
 
-  const validateUrl = (url: string): boolean => {
+  // FIXED: Memoize validation functions to prevent re-renders
+  const validateUrl = useCallback((url: string): boolean => {
     if (!url) return true; // Empty URL is valid
     
     try {
@@ -21,9 +22,9 @@ export const useTaskValidation = () => {
     } catch {
       return false;
     }
-  };
+  }, []);
 
-  const validateDrawingNumber = async (drawingNumber: string, projectId?: string): Promise<boolean> => {
+  const validateDrawingNumber = useCallback(async (drawingNumber: string, projectId?: string): Promise<boolean> => {
     if (!drawingNumber || !projectId) return true;
     
     try {
@@ -48,9 +49,9 @@ export const useTaskValidation = () => {
     } finally {
       setIsValidating(false);
     }
-  };
+  }, []);
 
-  const validateRequired = (value: string, fieldName: string): boolean => {
+  const validateRequired = useCallback((value: string, fieldName: string): boolean => {
     const isValid = value && value.trim().length > 0;
     if (!isValid) {
       setErrors(prev => ({
@@ -65,9 +66,9 @@ export const useTaskValidation = () => {
       });
     }
     return isValid;
-  };
+  }, []);
 
-  const validateField = async (fieldName: string, value: string, projectId?: string): Promise<boolean> => {
+  const validateField = useCallback(async (fieldName: string, value: string, projectId?: string): Promise<boolean> => {
     let isValid = true;
 
     switch (fieldName) {
@@ -120,9 +121,9 @@ export const useTaskValidation = () => {
     }
 
     return isValid;
-  };
+  }, [validateUrl, validateDrawingNumber, validateRequired]);
 
-  const validateAllFields = async (data: any, projectId?: string): Promise<boolean> => {
+  const validateAllFields = useCallback(async (data: any, projectId?: string): Promise<boolean> => {
     const validations = await Promise.all([
       validateField('title', data.title || '', projectId),
       validateField('url_link', data.url_link || '', projectId),
@@ -131,15 +132,15 @@ export const useTaskValidation = () => {
     ]);
 
     return validations.every(Boolean);
-  };
+  }, [validateField]);
 
-  const clearErrors = () => {
+  const clearErrors = useCallback(() => {
     setErrors({});
-  };
+  }, []);
 
-  const getFieldError = (fieldName: keyof ValidationErrors): string | undefined => {
+  const getFieldError = useCallback((fieldName: keyof ValidationErrors): string | undefined => {
     return errors[fieldName];
-  };
+  }, [errors]);
 
   const hasErrors = Object.keys(errors).length > 0;
 

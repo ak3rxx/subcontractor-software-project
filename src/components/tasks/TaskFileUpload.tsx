@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,13 +68,26 @@ export const TaskFileUpload: React.FC<TaskFileUploadProps> = ({
     event.target.value = '';
   }, [uploadFiles, toast]);
 
+  // FIXED: Sync uploaded files back to parent when upload completes
+  useEffect(() => {
+    const uploadedFiles = files.filter(f => f.uploaded);
+    if (uploadedFiles.length > 0 && onFilesChange) {
+      onFilesChange(uploadedFiles);
+    }
+  }, [files, onFilesChange]);
+
   const handleFileRemove = useCallback(async (fileId: string, fileName: string) => {
     await removeFile(fileId);
+    // Update parent state after removal
+    if (onFilesChange) {
+      const remainingFiles = files.filter(f => f.id !== fileId && f.uploaded);
+      onFilesChange(remainingFiles);
+    }
     toast({
       title: "File removed",
       description: `${fileName} has been removed`
     });
-  }, [removeFile, toast]);
+  }, [removeFile, files, onFilesChange, toast]);
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) return <Image className="h-4 w-4" />;
@@ -100,11 +113,16 @@ export const TaskFileUpload: React.FC<TaskFileUploadProps> = ({
       }
     }
     setSelectedFiles([]);
+    // Update parent state after bulk removal
+    if (onFilesChange) {
+      const remainingFiles = files.filter(f => !selectedFiles.includes(f.id) && f.uploaded);
+      onFilesChange(remainingFiles);
+    }
     toast({
       title: "Files removed",
       description: `${selectedFiles.length} file(s) removed`
     });
-  }, [selectedFiles, allFiles, removeFile, toast]);
+  }, [selectedFiles, allFiles, removeFile, files, onFilesChange, toast]);
 
   return (
     <div className="space-y-4">
