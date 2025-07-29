@@ -61,8 +61,8 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     
-    // Validate all fields
-    const isValid = await validateAllFields(editData, task.project_id);
+    // Validate all fields (isNewTask = false for existing tasks)
+    const isValid = await validateAllFields(editData, task.project_id, false);
     
     if (!isValid) {
       setIsSaving(false);
@@ -99,10 +99,8 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   }, []);
 
   const handleFieldBlur = useCallback(async (field: string, value: string) => {
-    // Only validate on blur, not on every keystroke
-    if (value && task?.project_id) {
-      await validateField(field, value, task.project_id);
-    }
+    // Validate field on blur (isNewTask = false for existing tasks)
+    await validateField(field, value, task?.project_id, false);
   }, [validateField, task?.project_id]);
 
   const getPriorityBadge = (priority: string) => {
@@ -150,9 +148,30 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Validation Summary */}
+          {isEditing && hasErrors && (
+            <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-lg">
+              <div className="flex items-center space-x-2 text-destructive mb-2">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Please fix the validation errors below:</span>
+              </div>
+              <ul className="text-sm text-destructive space-y-1">
+                {Object.entries(errors).map(([field, error]) => (
+                  <li key={field} className="flex items-center space-x-2">
+                    <XCircle className="h-3 w-3" />
+                    <span>{error}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title" className={getFieldError('title') ? 'text-destructive flex items-center' : ''}>
+              {getFieldError('title') && <AlertCircle className="h-4 w-4 mr-1" />}
+              Title *
+            </Label>
             {isEditing ? (
               <div className="space-y-1">
                 <Input
@@ -161,10 +180,10 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   onChange={(e) => handleFieldChange('title', e.target.value)}
                   onBlur={(e) => handleFieldBlur('title', e.target.value)}
                   placeholder="Task title"
-                  className={getFieldError('title') ? 'border-destructive' : ''}
+                  className={getFieldError('title') ? 'border-destructive focus:border-destructive ring-destructive/20' : ''}
                 />
                 {getFieldError('title') && (
-                  <p className="text-sm text-destructive flex items-center">
+                  <p className="text-sm text-destructive flex items-center bg-destructive/10 p-2 rounded">
                     <XCircle className="h-4 w-4 mr-1" />
                     {getFieldError('title')}
                   </p>
@@ -239,7 +258,10 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
           {/* Due Date */}
           <div className="space-y-2">
-            <Label htmlFor="due_date">Due Date</Label>
+            <Label htmlFor="due_date" className={getFieldError('due_date') ? 'text-destructive flex items-center' : ''}>
+              {getFieldError('due_date') && <AlertCircle className="h-4 w-4 mr-1" />}
+              Due Date
+            </Label>
             {isEditing ? (
               <div className="space-y-1">
                 <Input
@@ -248,12 +270,12 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   value={editData.due_date || ''}
                   onChange={(e) => handleFieldChange('due_date', e.target.value)}
                   onBlur={(e) => handleFieldBlur('due_date', e.target.value)}
-                  className={getFieldError('due_date') ? 'border-destructive' : ''}
+                  className={getFieldError('due_date') ? 'border-destructive focus:border-destructive ring-destructive/20' : ''}
                 />
                 {getFieldError('due_date') && (
-                  <p className="text-sm text-destructive flex items-center">
+                  <p className="text-sm text-destructive flex items-center bg-destructive/10 p-2 rounded">
                     <XCircle className="h-4 w-4 mr-1" />
-                    {getFieldError('due_date')}
+                    {getFieldError('due_date')} {task.id && '(Existing tasks can have past due dates)'}
                   </p>
                 )}
               </div>
@@ -287,7 +309,10 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
             {/* Drawing Number */}
             <div className="space-y-2">
-              <Label htmlFor="drawing_number">Drawing Number</Label>
+              <Label htmlFor="drawing_number" className={getFieldError('drawing_number') ? 'text-destructive flex items-center' : ''}>
+                {getFieldError('drawing_number') && <AlertCircle className="h-4 w-4 mr-1" />}
+                Drawing Number
+              </Label>
               {isEditing ? (
                 <div className="space-y-1">
                   <div className="relative">
@@ -297,14 +322,14 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                       onChange={(e) => handleFieldChange('drawing_number', e.target.value)}
                       onBlur={(e) => handleFieldBlur('drawing_number', e.target.value)}
                       placeholder="e.g., DRG-001"
-                      className={getFieldError('drawing_number') ? 'border-destructive' : ''}
+                      className={getFieldError('drawing_number') ? 'border-destructive focus:border-destructive ring-destructive/20' : ''}
                     />
                     {isValidating && (
                       <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                   </div>
                   {getFieldError('drawing_number') && (
-                    <p className="text-sm text-destructive flex items-center">
+                    <p className="text-sm text-destructive flex items-center bg-destructive/10 p-2 rounded">
                       <XCircle className="h-4 w-4 mr-1" />
                       {getFieldError('drawing_number')}
                     </p>
@@ -328,7 +353,10 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
           {/* URL Link */}
           <div className="space-y-2">
-            <Label htmlFor="url_link">URL Link</Label>
+            <Label htmlFor="url_link" className={getFieldError('url_link') ? 'text-destructive flex items-center' : ''}>
+              {getFieldError('url_link') && <AlertCircle className="h-4 w-4 mr-1" />}
+              URL Link
+            </Label>
             {isEditing ? (
               <div className="space-y-1">
                 <Input
@@ -338,10 +366,10 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   onChange={(e) => handleFieldChange('url_link', e.target.value)}
                   onBlur={(e) => handleFieldBlur('url_link', e.target.value)}
                   placeholder="https://example.com"
-                  className={getFieldError('url_link') ? 'border-destructive' : ''}
+                  className={getFieldError('url_link') ? 'border-destructive focus:border-destructive ring-destructive/20' : ''}
                 />
                 {getFieldError('url_link') && (
-                  <p className="text-sm text-destructive flex items-center">
+                  <p className="text-sm text-destructive flex items-center bg-destructive/10 p-2 rounded">
                     <XCircle className="h-4 w-4 mr-1" />
                     {getFieldError('url_link')}
                   </p>

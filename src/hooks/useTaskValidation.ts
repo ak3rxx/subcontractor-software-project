@@ -46,7 +46,31 @@ export const useTaskValidation = () => {
     return isValid;
   }, []);
 
-  const validateField = useCallback(async (fieldName: string, value: string, projectId?: string): Promise<boolean> => {
+  const validateDueDate = useCallback((value: string, isNewTask: boolean = false): boolean => {
+    if (!value) return true; // Empty due date is valid
+    
+    const dueDate = new Date(value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Only validate future dates for new tasks, allow past dates for existing tasks
+    if (isNewTask && dueDate < today) {
+      setErrors(prev => ({
+        ...prev,
+        due_date: 'Due date cannot be in the past'
+      }));
+      return false;
+    } else {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.due_date;
+        return newErrors;
+      });
+      return true;
+    }
+  }, []);
+
+  const validateField = useCallback(async (fieldName: string, value: string, projectId?: string, isNewTask: boolean = false): Promise<boolean> => {
     let isValid = true;
 
     switch (fieldName) {
@@ -73,25 +97,7 @@ export const useTaskValidation = () => {
         break;
 
       case 'due_date':
-        if (value) {
-          const dueDate = new Date(value);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          if (dueDate < today) {
-            setErrors(prev => ({
-              ...prev,
-              due_date: 'Due date cannot be in the past'
-            }));
-            isValid = false;
-          } else {
-            setErrors(prev => {
-              const newErrors = { ...prev };
-              delete newErrors.due_date;
-              return newErrors;
-            });
-          }
-        }
+        isValid = validateDueDate(value, isNewTask);
         break;
 
       default:
@@ -99,14 +105,14 @@ export const useTaskValidation = () => {
     }
 
     return isValid;
-  }, [validateUrl, validateDrawingNumber, validateRequired]);
+  }, [validateUrl, validateDrawingNumber, validateRequired, validateDueDate]);
 
-  const validateAllFields = useCallback(async (data: any, projectId?: string): Promise<boolean> => {
+  const validateAllFields = useCallback(async (data: any, projectId?: string, isNewTask: boolean = false): Promise<boolean> => {
     const validations = await Promise.all([
-      validateField('title', data.title || '', projectId),
-      validateField('url_link', data.url_link || '', projectId),
-      validateField('drawing_number', data.drawing_number || '', projectId),
-      validateField('due_date', data.due_date || '', projectId)
+      validateField('title', data.title || '', projectId, isNewTask),
+      validateField('url_link', data.url_link || '', projectId, isNewTask),
+      validateField('drawing_number', data.drawing_number || '', projectId, isNewTask),
+      validateField('due_date', data.due_date || '', projectId, isNewTask)
     ]);
 
     return validations.every(Boolean);
