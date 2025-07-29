@@ -25,30 +25,8 @@ export const useTaskValidation = () => {
   }, []);
 
   const validateDrawingNumber = useCallback(async (drawingNumber: string, projectId?: string): Promise<boolean> => {
-    if (!drawingNumber || !projectId) return true;
-    
-    try {
-      setIsValidating(true);
-      
-      // Check if drawing exists in documents bucket
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .list(`${projectId}/drawings`, {
-          search: drawingNumber
-        });
-
-      if (error) {
-        console.warn('Error checking drawing number:', error);
-        return true; // Don't block if we can't verify
-      }
-
-      return data && data.length > 0;
-    } catch (error) {
-      console.warn('Error validating drawing number:', error);
-      return true; // Don't block if we can't verify
-    } finally {
-      setIsValidating(false);
-    }
+    // Always allow any text or blank values for drawing numbers
+    return true;
   }, []);
 
   const validateRequired = useCallback((value: string, fieldName: string): boolean => {

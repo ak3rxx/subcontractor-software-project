@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Task } from '@/hooks/useTasks';
-import { TaskFileUpload } from './TaskFileUpload';
+import SimpleTaskFileUpload from './SimpleTaskFileUpload';
+import TaskAssignmentSelector from './TaskAssignmentSelector';
 import { useTaskValidation } from '@/hooks/useTaskValidation';
 import { Calendar, User, Building, Link2, Clock, Edit3, ExternalLink, MapPin, FileText, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -366,10 +367,19 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             )}
           </div>
 
+          {/* Task Assignments */}
+          <div className="space-y-2">
+            <TaskAssignmentSelector
+              taskId={task.id}
+              projectId={task.project_id || ''}
+              isEditing={isEditing}
+            />
+          </div>
+
           {/* Enhanced File Upload/Management */}
           <div className="space-y-2">
             <Label>Attachments</Label>
-            <TaskFileUpload
+            <SimpleTaskFileUpload
               taskId={task.id}
               projectId={task.project_id || ''}
               existingFiles={task.attachments || []}
@@ -390,13 +400,6 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Assigned To</Label>
-              <div className="flex items-center text-sm">
-                <User className="h-4 w-4 mr-2" />
-                {task.assignee_name || 'Unassigned'}
-              </div>
-            </div>
 
             {task.linked_module && (
               <div className="space-y-2">
