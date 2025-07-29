@@ -19,6 +19,7 @@ interface UploadedDocument {
   created_at: string;
   page_count?: number;
   preview_url?: string;
+  parsed_data?: any; // Using any to handle Json type from database
 }
 
 interface ProgrammeDocumentUploadProps {
@@ -186,7 +187,7 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
   };
 
   const pollParsingStatus = async (documentId: string) => {
-    const maxAttempts = 30; // 5 minutes with 10-second intervals
+    const maxAttempts = 60; // 10 minutes with 10-second intervals for enhanced processing
     let attempts = 0;
 
     const checkStatus = async () => {
@@ -421,7 +422,17 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                         )}
                       </div>
                       {document.parsing_status === 'processing' && (
-                        <Progress value={50} className="mt-2 h-2" />
+                        <div className="mt-2 space-y-1">
+                          <Progress 
+                            value={document.parsed_data?.progress || 25} 
+                            className="h-2" 
+                          />
+                          {document.parsed_data?.message && (
+                            <p className="text-xs text-gray-500">
+                              {document.parsed_data.message}
+                            </p>
+                          )}
+                        </div>
                       )}
                       {document.error_message && (
                         <p className="text-sm text-red-600 mt-1">
