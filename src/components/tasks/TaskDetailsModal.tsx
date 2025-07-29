@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Task } from '@/hooks/useTasks';
-import { Calendar, User, Building, Link2, Clock, Edit3, ExternalLink, MapPin, FileText, Download } from 'lucide-react';
+import { TaskFileUpload } from './TaskFileUpload';
+import { useTaskValidation } from '@/hooks/useTaskValidation';
+import { Calendar, User, Building, Link2, Clock, Edit3, ExternalLink, MapPin, FileText, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TaskDetailsModalProps {
@@ -24,6 +26,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   onUpdate,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<Task>>({
     title: task.title,
     description: task.description,
@@ -36,11 +39,41 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     location: task.location,
   });
 
+  const { errors, isValidating, validateField, validateAllFields, clearErrors, getFieldError, hasErrors } = useTaskValidation();
+
+  // Reset edit data when task changes
+  useEffect(() => {
+    setEditData({
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      status: task.status,
+      due_date: task.due_date,
+      comments: task.comments,
+      url_link: task.url_link,
+      drawing_number: task.drawing_number,
+      location: task.location,
+    });
+    clearErrors();
+  }, [task, clearErrors]);
+
   const handleSave = async () => {
+    setIsSaving(true);
+    
+    // Validate all fields
+    const isValid = await validateAllFields(editData, task.project_id);
+    
+    if (!isValid) {
+      setIsSaving(false);
+      return;
+    }
+
     const success = await onUpdate(task.id, editData);
     if (success) {
       setIsEditing(false);
+      clearErrors();
     }
+    setIsSaving(false);
   };
 
   const handleCancel = () => {
@@ -56,6 +89,16 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
       location: task.location,
     });
     setIsEditing(false);
+    clearErrors();
+  };
+
+  const handleFieldChange = async (field: string, value: string) => {
+    setEditData(prev => ({ ...prev, [field]: value }));
+    
+    // Validate field on change for immediate feedback
+    if (value) {
+      await validateField(field, value, task.project_id);
+    }
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -93,7 +136,8 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
+              disabled={isSaving}
             >
               <Edit3 className="h-4 w-4" />
               {isEditing ? 'Cancel' : 'Edit'}
@@ -104,14 +148,23 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
         <div className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">Title *</Label>
             {isEditing ? (
-              <Input
-                id="title"
-                value={editData.title || ''}
-                onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Task title"
-              />
+              <div className="space-y-1">
+                <Input
+                  id="title"
+                  value={editData.title || ''}
+                  onChange={(e) => handleFieldChange('title', e.target.value)}
+                  placeholder="Task title"
+                  className={getFieldError('title') ? 'border-destructive' : ''}
+                />
+                {getFieldError('title') && (
+                  <p className="text-sm text-destructive flex items-center">
+                    <XCircle className="h-4 w-4 mr-1" />
+                    {getFieldError('title')}
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-lg font-medium">{task.title}</p>
             )}
@@ -183,12 +236,21 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="due_date">Due Date</Label>
             {isEditing ? (
-              <Input
-                id="due_date"
-                type="date"
-                value={editData.due_date || ''}
-                onChange={(e) => setEditData(prev => ({ ...prev, due_date: e.target.value }))}
-              />
+              <div className="space-y-1">
+                <Input
+                  id="due_date"
+                  type="date"
+                  value={editData.due_date || ''}
+                  onChange={(e) => handleFieldChange('due_date', e.target.value)}
+                  className={getFieldError('due_date') ? 'border-destructive' : ''}
+                />
+                {getFieldError('due_date') && (
+                  <p className="text-sm text-destructive flex items-center">
+                    <XCircle className="h-4 w-4 mr-1" />
+                    {getFieldError('due_date')}
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="flex items-center text-muted-foreground">
                 <Calendar className="h-4 w-4 mr-2" />
@@ -206,7 +268,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                 <Input
                   id="location"
                   value={editData.location || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
+                  onChange={(e) => handleFieldChange('location', e.target.value)}
                   placeholder="e.g., Building A, Level 2"
                 />
               ) : (
@@ -221,16 +283,37 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             <div className="space-y-2">
               <Label htmlFor="drawing_number">Drawing Number</Label>
               {isEditing ? (
-                <Input
-                  id="drawing_number"
-                  value={editData.drawing_number || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, drawing_number: e.target.value }))}
-                  placeholder="e.g., DRG-001"
-                />
+                <div className="space-y-1">
+                  <div className="relative">
+                    <Input
+                      id="drawing_number"
+                      value={editData.drawing_number || ''}
+                      onChange={(e) => handleFieldChange('drawing_number', e.target.value)}
+                      placeholder="e.g., DRG-001"
+                      className={getFieldError('drawing_number') ? 'border-destructive' : ''}
+                    />
+                    {isValidating && (
+                      <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {getFieldError('drawing_number') && (
+                    <p className="text-sm text-destructive flex items-center">
+                      <XCircle className="h-4 w-4 mr-1" />
+                      {getFieldError('drawing_number')}
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="flex items-center text-muted-foreground">
                   <FileText className="h-4 w-4 mr-2" />
-                  {task.drawing_number || 'No drawing reference'}
+                  {task.drawing_number ? (
+                    <div className="flex items-center">
+                      <span>{task.drawing_number}</span>
+                      <CheckCircle className="h-4 w-4 ml-2 text-green-600" />
+                    </div>
+                  ) : (
+                    'No drawing reference'
+                  )}
                 </div>
               )}
             </div>
@@ -240,13 +323,22 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="url_link">URL Link</Label>
             {isEditing ? (
-              <Input
-                id="url_link"
-                type="url"
-                value={editData.url_link || ''}
-                onChange={(e) => setEditData(prev => ({ ...prev, url_link: e.target.value }))}
-                placeholder="https://example.com"
-              />
+              <div className="space-y-1">
+                <Input
+                  id="url_link"
+                  type="url"
+                  value={editData.url_link || ''}
+                  onChange={(e) => handleFieldChange('url_link', e.target.value)}
+                  placeholder="https://example.com"
+                  className={getFieldError('url_link') ? 'border-destructive' : ''}
+                />
+                {getFieldError('url_link') && (
+                  <p className="text-sm text-destructive flex items-center">
+                    <XCircle className="h-4 w-4 mr-1" />
+                    {getFieldError('url_link')}
+                  </p>
+                )}
+              </div>
             ) : task.url_link ? (
               <div className="flex items-center">
                 <ExternalLink className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -267,38 +359,19 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             )}
           </div>
 
-          {/* Attachments */}
-          {task.attachments && task.attachments.length > 0 && (
-            <div className="space-y-2">
-              <Label>Attachments</Label>
-              <div className="space-y-2">
-                {task.attachments.map((attachment: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Download className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{attachment.name || `Attachment ${index + 1}`}</span>
-                      {attachment.size && (
-                        <span className="text-xs text-muted-foreground">
-                          ({Math.round(attachment.size / 1024)}KB)
-                        </span>
-                      )}
-                    </div>
-                    {attachment.url && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                      >
-                        <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Enhanced File Upload/Management */}
+          <div className="space-y-2">
+            <Label>Attachments</Label>
+            <TaskFileUpload
+              taskId={task.id}
+              projectId={task.project_id || ''}
+              existingFiles={task.attachments || []}
+              isEditing={isEditing}
+              onFilesChange={(files) => {
+                setEditData(prev => ({ ...prev, attachments: files }));
+              }}
+            />
+          </div>
 
           {/* Metadata */}
           <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
@@ -379,12 +452,27 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
           {/* Action Buttons */}
           {isEditing && (
             <div className="flex justify-end space-x-2 pt-4 border-t">
-              <Button variant="outline" onClick={handleCancel}>
+              <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button onClick={handleSave}>
-                Save Changes
+              <Button onClick={handleSave} disabled={isSaving || hasErrors}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </Button>
+            </div>
+          )}
+
+          {/* Validation Summary */}
+          {isEditing && hasErrors && (
+            <div className="flex items-center justify-center p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              <span className="text-sm">Please fix the validation errors above before saving</span>
             </div>
           )}
         </div>
