@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Clock, GitBranch, AlertCircle } from 'lucide-react';
+import { Plus, Calendar, Eye, CalendarDays, Upload, FileText, BarChart3, Clock, GitBranch, AlertCircle, Brain } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProgrammeMilestones } from '@/hooks/useProgrammeMilestones';
+import { useProgrammeAI } from '@/hooks/useProgrammeAI';
 import { getUpcomingMilestones, sortMilestonesByDate } from './programme/milestoneUtils';
 import MilestoneSummaryCards from './programme/MilestoneSummaryCards';
 import MilestoneForm from './programme/MilestoneForm';
@@ -13,6 +14,8 @@ import OutlookOverview from './programme/OutlookOverview';
 import WeeklyCalendarView from './programme/WeeklyCalendarView';
 import GanttChart from './programme/GanttChart';
 import TimelineView from './programme/TimelineView';
+import ProgrammeDocumentUpload from './programme/ProgrammeDocumentUpload';
+import ProgrammeAIAssistant from './programme/ProgrammeAIAssistant';
 import { useSearchParams } from 'react-router-dom';
 import { useAutoTaskCreation } from '@/hooks/useAutoTaskCreation';
 import { MilestoneTasksView } from './programme/MilestoneTasksView';
@@ -25,10 +28,12 @@ interface ProgrammeTrackerProps {
 
 const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projectId, crossModuleData }) => {
   const [showNewMilestone, setShowNewMilestone] = useState(false);
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { milestones, loading, createMilestone, updateMilestone, deleteMilestone } = useProgrammeMilestones(projectId);
+  const aiHook = useProgrammeAI(projectId || '');
   
   // Enable auto-task creation for milestones
   useAutoTaskCreation({ enabled: true, projectId });
@@ -87,6 +92,47 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
     }
   };
 
+  // Handle AI-generated milestones
+  const handleCreateAIMilestones = async (milestones: any[]) => {
+    if (!projectId) return;
+    
+    console.log('Creating AI-generated milestones:', milestones);
+    
+    const results = await Promise.all(
+      milestones.map(milestone => createMilestone({
+        ...milestone,
+        project_id: projectId,
+        milestone_name: milestone.name,
+        description: milestone.description,
+        trade: milestone.trade,
+        priority: milestone.priority || 'medium',
+        status: 'upcoming'
+      }))
+    );
+    
+    const successCount = results.filter(Boolean).length;
+    console.log(`Created ${successCount} out of ${milestones.length} AI milestones`);
+  };
+
+  // Handle AI suggestion application
+  const handleApplySuggestion = async (suggestion: any) => {
+    console.log('Applying AI suggestion:', suggestion);
+    
+    switch (suggestion.suggestion_type) {
+      case 'milestone_creation':
+        if (suggestion.suggestion_data.milestones) {
+          await handleCreateAIMilestones(suggestion.suggestion_data.milestones);
+        }
+        break;
+      case 'sequence_suggestion':
+        // Handle sequence application logic here
+        console.log('Applied sequence suggestion:', suggestion.suggestion_data);
+        break;
+      default:
+        console.log('Applied generic suggestion:', suggestion.suggestion_data);
+    }
+  };
+
   // Parse cross-module data for form auto-population
   const getCrossModuleFormData = () => {
     const data = searchParams.get('data');
@@ -128,7 +174,11 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             {projectId && <p className="text-sm text-gray-500">Project ID: {projectId}</p>}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={() => setShowDocumentUpload(!showDocumentUpload)}
+            >
               <Upload className="h-4 w-4" />
               Upload Schedule
             </Button>
@@ -157,6 +207,24 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
             </Tooltip>
           </div>
         </div>
+
+        {/* Document Upload Section */}
+        {showDocumentUpload && projectId && (
+          <ProgrammeDocumentUpload
+            projectId={projectId}
+            onDocumentParsed={aiHook.handleDocumentParsed}
+          />
+        )}
+
+        {/* AI Assistant */}
+        {projectId && aiHook.parsedDocuments.length > 0 && (
+          <ProgrammeAIAssistant
+            projectId={projectId}
+            parsedDocuments={aiHook.parsedDocuments}
+            onApplySuggestion={handleApplySuggestion}
+            onCreateMilestones={handleCreateAIMilestones}
+          />
+        )}
 
         {/* Show form when requested */}
         {showNewMilestone && (
@@ -192,10 +260,14 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
 
         {/* Programme Outlook Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="ai-insights" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              AI Insights
             </TabsTrigger>
             <TabsTrigger value="gantt" className="flex items-center gap-2">
               <GitBranch className="h-4 w-4" />
@@ -225,6 +297,30 @@ const ProgrammeTracker: React.FC<ProgrammeTrackerProps> = ({ projectName, projec
               threeWeekLookAhead={threeWeekLookAhead}
               allMilestones={milestones}
             />
+          </TabsContent>
+
+          <TabsContent value="ai-insights" className="space-y-4">
+            {projectId ? (
+              <>
+                <ProgrammeDocumentUpload
+                  projectId={projectId}
+                  onDocumentParsed={aiHook.handleDocumentParsed}
+                />
+                <ProgrammeAIAssistant
+                  projectId={projectId}
+                  parsedDocuments={aiHook.parsedDocuments}
+                  onApplySuggestion={handleApplySuggestion}
+                  onCreateMilestones={handleCreateAIMilestones}
+                />
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Brain className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600">
+                  Select a project to use AI-powered programme building features.
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="gantt" className="space-y-4">

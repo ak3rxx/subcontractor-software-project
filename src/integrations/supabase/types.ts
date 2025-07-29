@@ -967,6 +967,119 @@ export type Database = {
         }
         Relationships: []
       }
+      programme_ai_suggestions: {
+        Row: {
+          applied: boolean | null
+          applied_at: string | null
+          confidence: number | null
+          created_at: string | null
+          created_by: string | null
+          document_parsing_id: string | null
+          id: string
+          project_id: string | null
+          suggestion_data: Json
+          suggestion_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          applied?: boolean | null
+          applied_at?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          document_parsing_id?: string | null
+          id?: string
+          project_id?: string | null
+          suggestion_data?: Json
+          suggestion_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          applied?: boolean | null
+          applied_at?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          document_parsing_id?: string | null
+          id?: string
+          project_id?: string | null
+          suggestion_data?: Json
+          suggestion_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programme_ai_suggestions_document_parsing_id_fkey"
+            columns: ["document_parsing_id"]
+            isOneToOne: false
+            referencedRelation: "programme_document_parsing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programme_ai_suggestions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programme_document_parsing: {
+        Row: {
+          ai_confidence: number | null
+          created_at: string | null
+          error_message: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          parsed_data: Json | null
+          parsing_status: string | null
+          project_id: string | null
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          parsed_data?: Json | null
+          parsing_status?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          parsed_data?: Json | null
+          parsing_status?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programme_document_parsing_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programme_milestones: {
         Row: {
           actual_date: string | null
@@ -1110,6 +1223,42 @@ export type Database = {
           project_type?: string | null
           template_data?: Json
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      programme_trade_sequences: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          organization_id: string | null
+          sequence_data: Json
+          trade_pattern: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string | null
+          sequence_data?: Json
+          trade_pattern: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string | null
+          sequence_data?: Json
+          trade_pattern?: string
+          updated_at?: string | null
+          usage_count?: number | null
         }
         Relationships: []
       }
@@ -2463,6 +2612,14 @@ export type Database = {
           p_module_name: string
           p_completed?: boolean
           p_show_again?: boolean
+        }
+        Returns: string
+      }
+      update_trade_sequence_usage: {
+        Args: {
+          p_organization_id: string
+          p_trade_pattern: string
+          p_sequence_data: Json
         }
         Returns: string
       }
