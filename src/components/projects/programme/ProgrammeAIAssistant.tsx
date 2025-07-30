@@ -76,8 +76,14 @@ const ProgrammeAIAssistant: React.FC<ProgrammeAIAssistantProps> = ({
         documentCount++;
         totalConfidence += doc.ai_confidence || 0;
         
-        (doc.parsed_data.trades || []).forEach((trade: string) => allTrades.add(trade));
-        (doc.parsed_data.zones || []).forEach((zone: string) => allZones.add(zone));
+        (doc.parsed_data.trades || []).forEach((trade: any) => {
+          const tradeName = typeof trade === 'string' ? trade : (trade?.name || 'Unknown Trade');
+          allTrades.add(tradeName);
+        });
+        (doc.parsed_data.zones || []).forEach((zone: any) => {
+          const zoneName = typeof zone === 'string' ? zone : (zone?.name || 'Unknown Zone');
+          allZones.add(zoneName);
+        });
         (doc.parsed_data.milestones || []).forEach((milestone: any) => {
           allMilestones.push({
             ...milestone,
@@ -289,20 +295,23 @@ const ProgrammeAIAssistant: React.FC<ProgrammeAIAssistantProps> = ({
                     Detected Trades ({aggregatedData.trades.length})
                   </h4>
                   <div className="space-y-2">
-                    {aggregatedData.trades.map(trade => (
-                      <Badge 
-                        key={trade} 
-                        variant={selectedTrades.includes(trade) ? "default" : "outline"}
-                        className="mr-2 cursor-pointer"
-                        onClick={() => setSelectedTrades(prev => 
-                          prev.includes(trade) 
-                            ? prev.filter(t => t !== trade)
-                            : [...prev, trade]
-                        )}
-                      >
-                        {trade}
-                      </Badge>
-                    ))}
+                      {aggregatedData.trades.map((trade: string, index: number) => {
+                        const tradeName = typeof trade === 'string' ? trade : 'Unknown Trade';
+                        return (
+                          <Badge 
+                            key={`trade-${index}-${tradeName}`}
+                            variant={selectedTrades.includes(tradeName) ? "default" : "outline"}
+                            className="mr-2 cursor-pointer"
+                            onClick={() => setSelectedTrades(prev => 
+                              prev.includes(tradeName) 
+                                ? prev.filter(t => t !== tradeName)
+                                : [...prev, tradeName]
+                            )}
+                          >
+                            {tradeName}
+                          </Badge>
+                        );
+                      })}
                     {aggregatedData.trades.length > 0 && (
                       <Badge 
                         variant={selectedTrades.includes('all') ? "default" : "outline"}
@@ -324,11 +333,14 @@ const ProgrammeAIAssistant: React.FC<ProgrammeAIAssistantProps> = ({
                     Zones/Areas ({aggregatedData.zones.length})
                   </h4>
                   <div className="space-y-1">
-                    {aggregatedData.zones.map(zone => (
-                      <Badge key={zone} variant="secondary" className="mr-2">
-                        {zone}
-                      </Badge>
-                    ))}
+                      {aggregatedData.zones.map((zone: string, index: number) => {
+                        const zoneName = typeof zone === 'string' ? zone : 'Unknown Zone';
+                        return (
+                          <Badge key={`zone-${index}-${zoneName}`} variant="secondary" className="mr-2">
+                            {zoneName}
+                          </Badge>
+                        );
+                      })}
                   </div>
                 </div>
 
@@ -342,11 +354,11 @@ const ProgrammeAIAssistant: React.FC<ProgrammeAIAssistantProps> = ({
                     {aggregatedData.milestones.slice(0, 5).map((milestone, index) => (
                       <div key={index} className="text-sm">
                         <span className="font-medium">{milestone.name}</span>
-                        {milestone.trade && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            {milestone.trade}
-                          </Badge>
-                        )}
+                         {milestone.trade && (
+                           <Badge variant="outline" className="ml-2 text-xs">
+                             {typeof milestone.trade === 'string' ? milestone.trade : (milestone.trade?.name || 'Unknown Trade')}
+                           </Badge>
+                         )}
                       </div>
                     ))}
                     {aggregatedData.milestones.length > 5 && (
