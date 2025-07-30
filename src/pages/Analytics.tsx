@@ -88,12 +88,13 @@ const Analytics = () => {
           </div>
 
           {/* Main Analytics Dashboard */}
-          <ProjectAnalyticsDashboard
-            projects={projects}
-            variations={variations}
-            tasks={tasks}
-            qaInspections={qaInspections}
-          />
+        <ProjectAnalyticsDashboard
+          projects={projects}
+          variations={variations}
+          tasks={tasks}
+          qaInspections={qaInspections}
+          selectedProjectId={projects.length === 1 ? projects[0].id : undefined}
+        />
         </div>
       </main>
     </div>

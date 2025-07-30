@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import { Calendar, TrendingUp, AlertTriangle, CheckCircle, Clock, DollarSign, Target, Activity } from 'lucide-react';
 import { formatCurrency } from '@/utils/variationTransforms';
+import { UnifiedIntelligenceDashboard } from '@/components/intelligence/UnifiedIntelligenceDashboard';
 
 interface ProjectData {
   id: string;
@@ -51,6 +52,7 @@ interface ProjectAnalyticsProps {
   variations: VariationData[];
   tasks: TaskData[];
   qaInspections?: QAData[];
+  selectedProjectId?: string;
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#FF8042', '#0088FE', '#00C49F'];
@@ -59,7 +61,8 @@ const ProjectAnalyticsDashboard: React.FC<ProjectAnalyticsProps> = ({
   projects,
   variations,
   tasks,
-  qaInspections = []
+  qaInspections = [],
+  selectedProjectId
 }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('30');
@@ -302,12 +305,21 @@ const ProjectAnalyticsDashboard: React.FC<ProjectAnalyticsProps> = ({
         </Card>
       </div>
 
+      {/* Unified Intelligence Dashboard for single project view */}
+      {selectedProjectId && (
+        <UnifiedIntelligenceDashboard 
+          projectId={selectedProjectId}
+          projectName={projects.find(p => p.id === selectedProjectId)?.name || 'Project'}
+        />
+      )}
+
       {/* Charts Section */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
+          {selectedProjectId && <TabsTrigger value="intelligence">Intelligence</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -426,6 +438,15 @@ const ProjectAnalyticsDashboard: React.FC<ProjectAnalyticsProps> = ({
             </Card>
           </div>
         </TabsContent>
+
+        {selectedProjectId && (
+          <TabsContent value="intelligence" className="space-y-4">
+            <UnifiedIntelligenceDashboard 
+              projectId={selectedProjectId}
+              projectName={projects.find(p => p.id === selectedProjectId)?.name || 'Project'}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
