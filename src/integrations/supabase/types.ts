@@ -269,80 +269,92 @@ export type Database = {
       }
       document_learning_patterns: {
         Row: {
-          created_at: string | null
+          corrected_text: string
+          correction_type: string
+          created_at: string
+          document_id: string | null
+          document_type: string | null
           id: string
-          organization_id: string | null
-          pattern_data: Json
-          pattern_type: string
+          last_used: string | null
+          original_text: string
+          pattern_hint: string | null
+          success_count: number | null
           success_rate: number | null
-          updated_at: string | null
           usage_count: number | null
         }
         Insert: {
-          created_at?: string | null
+          corrected_text: string
+          correction_type: string
+          created_at?: string
+          document_id?: string | null
+          document_type?: string | null
           id?: string
-          organization_id?: string | null
-          pattern_data?: Json
-          pattern_type: string
+          last_used?: string | null
+          original_text: string
+          pattern_hint?: string | null
+          success_count?: number | null
           success_rate?: number | null
-          updated_at?: string | null
           usage_count?: number | null
         }
         Update: {
-          created_at?: string | null
+          corrected_text?: string
+          correction_type?: string
+          created_at?: string
+          document_id?: string | null
+          document_type?: string | null
           id?: string
-          organization_id?: string | null
-          pattern_data?: Json
-          pattern_type?: string
+          last_used?: string | null
+          original_text?: string
+          pattern_hint?: string | null
+          success_count?: number | null
           success_rate?: number | null
-          updated_at?: string | null
           usage_count?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "document_learning_patterns_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: "fk_document_learning_patterns_document"
+            columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "programme_document_parsing"
             referencedColumns: ["id"]
           },
         ]
       }
       document_parsing_feedback: {
         Row: {
-          confidence_rating: number | null
-          corrected_data: Json | null
-          created_at: string | null
-          document_parsing_id: string | null
-          feedback_notes: string | null
+          corrections: Json | null
+          created_at: string
+          document_id: string
           id: string
-          original_extraction: Json | null
-          user_id: string | null
+          is_correct: boolean
+          updated_at: string
+          user_id: string
+          user_notes: string | null
         }
         Insert: {
-          confidence_rating?: number | null
-          corrected_data?: Json | null
-          created_at?: string | null
-          document_parsing_id?: string | null
-          feedback_notes?: string | null
+          corrections?: Json | null
+          created_at?: string
+          document_id: string
           id?: string
-          original_extraction?: Json | null
-          user_id?: string | null
+          is_correct: boolean
+          updated_at?: string
+          user_id: string
+          user_notes?: string | null
         }
         Update: {
-          confidence_rating?: number | null
-          corrected_data?: Json | null
-          created_at?: string | null
-          document_parsing_id?: string | null
-          feedback_notes?: string | null
+          corrections?: Json | null
+          created_at?: string
+          document_id?: string
           id?: string
-          original_extraction?: Json | null
-          user_id?: string | null
+          is_correct?: boolean
+          updated_at?: string
+          user_id?: string
+          user_notes?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "document_parsing_feedback_document_parsing_id_fkey"
-            columns: ["document_parsing_id"]
+            foreignKeyName: "fk_document_parsing_feedback_document"
+            columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "programme_document_parsing"
             referencedColumns: ["id"]

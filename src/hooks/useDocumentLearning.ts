@@ -24,11 +24,17 @@ interface DocumentFeedback {
 }
 
 interface LearningPattern {
-  pattern: string;
-  category: string;
-  confidence: number;
-  successRate: number;
-  lastUsed: string;
+  id: string;
+  original_text: string;
+  corrected_text: string;
+  correction_type: string;
+  pattern_hint?: string;
+  document_type?: string;
+  success_count: number;
+  usage_count: number;
+  success_rate: number;
+  last_used: string;
+  created_at: string;
 }
 
 export const useDocumentLearning = () => {
@@ -41,11 +47,18 @@ export const useDocumentLearning = () => {
     setIsLearning(true);
     
     try {
+      // Get current user first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Store feedback in database
       const { error: feedbackError } = await supabase
         .from('document_parsing_feedback')
         .insert({
           document_id: feedback.documentId,
+          user_id: user.id,
           is_correct: feedback.isCorrect,
           corrections: feedback.corrections,
           user_notes: feedback.userNotes,
@@ -229,7 +242,7 @@ export const useDocumentLearning = () => {
   }, []);
 
   // Get organization-specific learning insights
-  const getOrganizationInsights = useCallback(async (organizationId: string) => {
+  const getOrganizationInsights = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('document_parsing_feedback')
@@ -241,7 +254,6 @@ export const useDocumentLearning = () => {
             created_at
           )
         `)
-        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
       if (error) {

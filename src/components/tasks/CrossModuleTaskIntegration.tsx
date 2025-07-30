@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useUnifiedIntelligence } from '@/hooks/useUnifiedIntelligence';
 import { useDataCoordination } from '@/hooks/useDataCoordination';
+import { useSimpleWorkflowAutomation } from '@/hooks/useSimpleWorkflowAutomation';
 
 interface CrossModuleTaskIntegrationProps {
   projectId: string;
@@ -32,6 +33,7 @@ export const CrossModuleTaskIntegration: React.FC<CrossModuleTaskIntegrationProp
     healthMetrics 
   } = useUnifiedIntelligence(projectId);
   const { emitDataEvent } = useDataCoordination();
+  const { triggerTaskCompleted } = useSimpleWorkflowAutomation(projectId);
   const [updating, setUpdating] = useState(false);
 
   // Find connections for current task
@@ -50,6 +52,12 @@ export const CrossModuleTaskIntegration: React.FC<CrossModuleTaskIntegrationProp
     setUpdating(true);
     try {
       await syncCrossModuleUpdates('task', completedTaskId, { status: 'completed' });
+      
+      // Trigger workflow automation
+      const task = data.tasks.find(t => t.id === completedTaskId);
+      if (task) {
+        triggerTaskCompleted(task, task.created_by || '');
+      }
       
       // Emit data event for other components
       emitDataEvent({
