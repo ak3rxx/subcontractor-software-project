@@ -174,7 +174,7 @@ serve(async (req) => {
   }
 });
 
-// Enhanced text extraction with preprocessing
+// Enhanced text extraction with Microsoft Project intelligence
 async function enhanceExtractedText(text: string, fileName: string): Promise<string> {
   // Remove excessive whitespace and normalize line breaks
   let enhanced = text.replace(/\s+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
@@ -198,6 +198,102 @@ async function enhanceExtractedText(text: string, fileName: string): Promise<str
   }
   
   return enhanced;
+}
+
+// Microsoft Project document detection and enhancement
+function detectMSProjectDocument(text: string, fileName: string): { isMSProject: boolean; projectType: string; confidence: number } {
+  const msProjectIndicators = [
+    // File format indicators
+    /\.mpp$/i, /\.xml$/i, /\.mspx$/i,
+    // MS Project specific terms
+    /microsoft project/i, /ms project/i, /project professional/i,
+    // Gantt chart indicators
+    /gantt/i, /timeline/i, /critical path/i,
+    // MS Project fields
+    /task name/i, /duration/i, /start date/i, /finish date/i, /predecessors/i, /successors/i,
+    /work breakdown/i, /wbs/i, /baseline/i, /resource names/i,
+    // Table headers common in MS Project
+    /task id|task\s*#/i, /% complete/i, /actual start/i, /actual finish/i,
+    // MS Project specific columns
+    /early start/i, /early finish/i, /late start/i, /late finish/i, /total slack/i, /free slack/i
+  ];
+  
+  const constructionIndicators = [
+    /excavation/i, /formwork/i, /concrete/i, /structural/i, /electrical/i, /plumbing/i,
+    /mechanical/i, /fitout/i, /fit-out/i, /finish/i, /inspection/i, /handover/i,
+    /defects/i, /practical completion/i, /final completion/i
+  ];
+  
+  let score = 0;
+  let projectType = 'general';
+  
+  // Check file name
+  if (msProjectIndicators.some(pattern => pattern.test(fileName))) {
+    score += 30;
+  }
+  
+  // Check content for MS Project indicators
+  const msProjectMatches = msProjectIndicators.filter(pattern => pattern.test(text)).length;
+  score += msProjectMatches * 10;
+  
+  // Check for construction context
+  const constructionMatches = constructionIndicators.filter(pattern => pattern.test(text)).length;
+  if (constructionMatches >= 3) {
+    projectType = 'construction';
+    score += 20;
+  }
+  
+  return {
+    isMSProject: score >= 40,
+    projectType,
+    confidence: Math.min(score / 100, 1.0)
+  };
+}
+
+// Enhanced MS Project specific parsing logic
+function extractMSProjectStructure(text: string): any {
+  const structure = {
+    tasks: [],
+    phases: [],
+    milestones: [],
+    dependencies: [],
+    resources: []
+  };
+  
+  // Extract task table data (common MS Project export format)
+  const taskTableRegex = /(\d+)\s+([^0-9\n]+?)\s+(\d+\.?\d*\s*days?|\d+\.?\d*\s*hrs?|\d+\.?\d*\s*weeks?)\s+([0-9\/\-]+)\s+([0-9\/\-]+)/gi;
+  
+  let match;
+  while ((match = taskTableRegex.exec(text)) !== null) {
+    const [_, id, name, duration, startDate, finishDate] = match;
+    structure.tasks.push({
+      id: id.trim(),
+      name: name.trim(),
+      duration: duration.trim(),
+      startDate: startDate.trim(),
+      finishDate: finishDate.trim()
+    });
+  }
+  
+  // Extract milestone indicators (0 duration tasks)
+  const milestoneRegex = /(milestone|completion|start|finish|review|approval|handover)[^0-9\n]*?([0-9\/\-]+)/gi;
+  while ((match = milestoneRegex.exec(text)) !== null) {
+    structure.milestones.push({
+      name: match[1],
+      date: match[2]
+    });
+  }
+  
+  // Extract dependencies (predecessors/successors)
+  const dependencyRegex = /(\d+)\s*[,;]\s*(\d+)/g;
+  while ((match = dependencyRegex.exec(text)) !== null) {
+    structure.dependencies.push({
+      predecessor: match[1],
+      successor: match[2]
+    });
+  }
+  
+  return structure;
 }
 
 // Enhanced AI parsing with multi-pass approach
@@ -243,45 +339,92 @@ async function parseDocumentWithEnhancedAI(
   throw lastError || new Error('All AI parsing attempts failed');
 }
 
-// Basic parsing with improved prompts
+// Basic parsing with Microsoft Project intelligence
 async function performBasicParsing(
   text: string, 
   fileName: string, 
   apiKey: string,
   fileType: string
 ): Promise<DocumentParsingResult> {
-  const systemPrompt = `You are an expert Australian construction programme parser. Your task is to extract construction milestones and schedule information from documents.
+  // Detect if this is a Microsoft Project document
+  const msProjectDetection = detectMSProjectDocument(text, fileName);
+  
+  // Extract MS Project structure if detected
+  const msProjectStructure = msProjectDetection.isMSProject ? extractMSProjectStructure(text) : null;
+  
+  const baseSystemPrompt = `You are an expert Australian construction programme parser with specialized knowledge of Microsoft Project documents and Australian construction workflows.
 
-Focus on Australian construction terminology:
+MICROSOFT PROJECT EXPERTISE:
+- Understand MS Project terminology: WBS, predecessors, successors, critical path, baseline, slack/float
+- Recognize MS Project layouts: Gantt charts, task tables, resource views, timeline reports
+- Parse MS Project date formats and duration patterns (days, hours, weeks)
+- Identify MS Project task hierarchies and dependency relationships
+
+AUSTRALIAN CONSTRUCTION FOCUS:
 - "fit off" and "fix out" (final carpentry phases)
 - "first fix" and "second fix" carpentry phases  
 - Building references (Building 1, Level 2, Basement, etc.)
 - Trade activities (door install, delivery of skirting, etc.)
 - Australian zones (wet areas, external works, plant room, etc.)
+- Trade sequencing: structural → services → fit-out → finishes
 
-Extract information with HIGH confidence scoring - return 0 confidence if uncertain.
+CONFIDENCE SCORING:
+- Return 0.9+ confidence for well-structured MS Project construction schedules
+- Return 0.7+ confidence for clear construction schedules with dates and trades
+- Return 0.3+ confidence for basic construction information
+- Return 0.1 confidence if minimal or unclear information
 
 Return JSON format:
 {
-  "milestones": [{"name": "string", "trade": "string", "zone": "string", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "duration": number, "priority": "low|medium|high"}],
+  "milestones": [{"name": "string", "trade": "string", "zone": "string", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "duration": number, "dependencies": ["string"], "priority": "low|medium|high"}],
   "trades": ["string"],
   "zones": ["string"], 
-  "projectInfo": {"projectName": "string", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD"},
+  "projectInfo": {"projectName": "string", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "duration": number},
   "confidence": number
 }`;
 
+  let contextualPrompt = '';
+  if (msProjectDetection.isMSProject) {
+    contextualPrompt = `
+MICROSOFT PROJECT DOCUMENT DETECTED (Confidence: ${Math.round(msProjectDetection.confidence * 100)}%)
+Project Type: ${msProjectDetection.projectType}
+
+This appears to be a Microsoft Project export. Focus on:
+1. Task hierarchies and WBS structure
+2. Start/finish dates and durations
+3. Critical path and milestone tasks
+4. Resource assignments and trade information
+5. Dependencies (predecessors/successors)
+6. Australian construction trade sequencing
+
+Pre-extracted MS Project data: ${JSON.stringify(msProjectStructure, null, 2)}
+`;
+  }
+
   const userPrompt = `Parse this ${fileType} construction document: "${fileName}"
+${contextualPrompt}
 
 Document text:
 ${text.substring(0, 4000)}
 
-Focus on:
-1. Milestone activities with dates
-2. Trade types (especially carpentry)
-3. Location/zone references
-4. Dependencies between activities
+PARSING INSTRUCTIONS:
+${msProjectDetection.isMSProject ? `
+- Extract task hierarchies and milestones from MS Project structure
+- Convert MS Project durations to standard format
+- Identify critical path items as high priority milestones  
+- Extract trade information from resource assignments
+- Parse dependencies from predecessor/successor relationships
+` : `
+- Look for milestone activities with dates
+- Identify trade types (especially carpentry)
+- Find location/zone references
+- Detect dependencies between activities
+`}
 
-Return confidence 0.8+ only if you find clear Australian construction terminology and structured schedule data.`;
+QUALITY REQUIREMENTS:
+- Return confidence 0.8+ for clear structured data with dates and trades
+- Return confidence 0.5+ for basic construction information with some structure
+- Return confidence 0.1+ for minimal but valid construction content`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -292,7 +435,7 @@ Return confidence 0.8+ only if you find clear Australian construction terminolog
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: baseSystemPrompt },
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.1,
