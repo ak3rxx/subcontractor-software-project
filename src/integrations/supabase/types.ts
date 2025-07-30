@@ -267,6 +267,88 @@ export type Database = {
           },
         ]
       }
+      document_learning_patterns: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          pattern_data: Json
+          pattern_type: string
+          success_rate: number | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          pattern_data?: Json
+          pattern_type: string
+          success_rate?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          pattern_data?: Json
+          pattern_type?: string
+          success_rate?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_learning_patterns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_parsing_feedback: {
+        Row: {
+          confidence_rating: number | null
+          corrected_data: Json | null
+          created_at: string | null
+          document_parsing_id: string | null
+          feedback_notes: string | null
+          id: string
+          original_extraction: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          confidence_rating?: number | null
+          corrected_data?: Json | null
+          created_at?: string | null
+          document_parsing_id?: string | null
+          feedback_notes?: string | null
+          id?: string
+          original_extraction?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          confidence_rating?: number | null
+          corrected_data?: Json | null
+          created_at?: string | null
+          document_parsing_id?: string | null
+          feedback_notes?: string | null
+          id?: string
+          original_extraction?: Json | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_parsing_feedback_document_parsing_id_fkey"
+            columns: ["document_parsing_id"]
+            isOneToOne: false
+            referencedRelation: "programme_document_parsing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           approval_date: string | null
@@ -2362,6 +2444,95 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_automation_logs: {
+        Row: {
+          event_data: Json | null
+          event_type: string
+          executed_at: string | null
+          id: string
+          project_id: string | null
+          rule_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          event_data?: Json | null
+          event_type: string
+          executed_at?: string | null
+          id?: string
+          project_id?: string | null
+          rule_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          event_data?: Json | null
+          event_type?: string
+          executed_at?: string | null
+          id?: string
+          project_id?: string | null
+          rule_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_automation_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_automation_logs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_automation_rules: {
+        Row: {
+          actions: Json
+          conditions: Json
+          created_at: string | null
+          id: string
+          is_active: boolean
+          name: string
+          project_id: string | null
+          trigger: string
+          updated_at: string | null
+        }
+        Insert: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          project_id?: string | null
+          trigger: string
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          project_id?: string | null
+          trigger?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_automation_rules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
