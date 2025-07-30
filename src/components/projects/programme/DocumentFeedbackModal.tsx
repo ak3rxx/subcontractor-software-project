@@ -231,7 +231,7 @@ const DocumentFeedbackModal: React.FC<DocumentFeedbackModalProps> = ({
                       <div>
                         <Label>Detected Milestones:</Label>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {parsedData.milestones?.map((milestone: any, index: number) => (
+                          {parsedData.milestones?.filter((milestone: any) => milestone && milestone.name)?.map((milestone: any, index: number) => (
                             <Badge key={index} variant="outline">
                               {milestone.name}
                             </Badge>
@@ -241,21 +241,27 @@ const DocumentFeedbackModal: React.FC<DocumentFeedbackModalProps> = ({
                       <div>
                         <Label>Detected Trades:</Label>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {parsedData.trades?.map((trade: string, index: number) => (
-                            <Badge key={index} variant="outline">
-                              {trade}
-                            </Badge>
-                          )) || <span className="text-muted-foreground">None detected</span>}
+                          {parsedData.trades?.map((trade: any, index: number) => {
+                            const tradeName = typeof trade === 'string' ? trade : (trade?.name || 'Unknown Trade');
+                            return (
+                              <Badge key={index} variant="outline">
+                                {tradeName}
+                              </Badge>
+                            );
+                          }) || <span className="text-muted-foreground">None detected</span>}
                         </div>
                       </div>
                       <div>
                         <Label>Detected Zones:</Label>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {parsedData.zones?.map((zone: string, index: number) => (
-                            <Badge key={index} variant="outline">
-                              {zone}
-                            </Badge>
-                          )) || <span className="text-muted-foreground">None detected</span>}
+                          {parsedData.zones?.map((zone: any, index: number) => {
+                            const zoneName = typeof zone === 'string' ? zone : (zone?.name || 'Unknown Zone');
+                            return (
+                              <Badge key={index} variant="outline">
+                                {zoneName}
+                              </Badge>
+                            );
+                          }) || <span className="text-muted-foreground">None detected</span>}
                         </div>
                       </div>
                     </div>
