@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Eye } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Eye, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import DocumentFeedbackModal from './DocumentFeedbackModal';
 
 interface UploadedDocument {
   id: string;
@@ -34,6 +35,8 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedDocumentForFeedback, setSelectedDocumentForFeedback] = useState<UploadedDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -208,9 +211,10 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
       );
 
       if (data.parsing_status === 'completed') {
+        const confidencePercent = Math.round((data.ai_confidence || 0) * 100);
         toast({
           title: "Document Processed",
-          description: `AI parsing completed with ${Math.round((data.ai_confidence || 0) * 100)}% confidence.`
+          description: `AI parsing completed with ${confidencePercent}% confidence. Click the feedback button to help improve accuracy.`
         });
         if (data.parsed_data) {
           onDocumentParsed(documentId, data.parsed_data);
@@ -316,6 +320,16 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const openFeedbackModal = (document: UploadedDocument) => {
+    setSelectedDocumentForFeedback(document);
+    setFeedbackModalOpen(true);
+  };
+
+  const closeFeedbackModal = () => {
+    setFeedbackModalOpen(false);
+    setSelectedDocumentForFeedback(null);
   };
 
   return (
@@ -445,6 +459,16 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
                     <Badge className={getStatusColor(document.parsing_status)}>
                       {document.parsing_status}
                     </Badge>
+                    {document.parsing_status === 'completed' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openFeedbackModal(document)}
+                        title="Provide feedback to improve AI accuracy"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -458,6 +482,17 @@ const ProgrammeDocumentUpload: React.FC<ProgrammeDocumentUploadProps> = ({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Document Feedback Modal */}
+      {selectedDocumentForFeedback && (
+        <DocumentFeedbackModal
+          isOpen={feedbackModalOpen}
+          onClose={closeFeedbackModal}
+          documentId={selectedDocumentForFeedback.id}
+          parsedData={selectedDocumentForFeedback.parsed_data}
+          documentName={selectedDocumentForFeedback.file_name}
+        />
       )}
     </div>
   );
