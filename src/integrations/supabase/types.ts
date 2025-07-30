@@ -81,6 +81,42 @@ export type Database = {
           },
         ]
       }
+      ai_learning_insights: {
+        Row: {
+          applied_count: number | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          insight_data: Json
+          insight_type: string
+          status: string | null
+          success_rate: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          applied_count?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          insight_data: Json
+          insight_type: string
+          status?: string | null
+          success_rate?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          applied_count?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          insight_data?: Json
+          insight_type?: string
+          status?: string | null
+          success_rate?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_learning_patterns: {
         Row: {
           created_at: string | null
@@ -320,6 +356,63 @@ export type Database = {
           },
         ]
       }
+      document_learning_patterns_enhanced: {
+        Row: {
+          confidence_improvement: number | null
+          context_keywords: string[] | null
+          corrected_text: string
+          correction_type: string
+          created_at: string | null
+          document_id: string | null
+          document_type: string | null
+          id: string
+          last_used: string | null
+          original_text: string
+          pattern_hint: string | null
+          success_count: number | null
+          success_rate: number | null
+          updated_at: string | null
+          usage_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          confidence_improvement?: number | null
+          context_keywords?: string[] | null
+          corrected_text: string
+          correction_type: string
+          created_at?: string | null
+          document_id?: string | null
+          document_type?: string | null
+          id?: string
+          last_used?: string | null
+          original_text: string
+          pattern_hint?: string | null
+          success_count?: number | null
+          success_rate?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          confidence_improvement?: number | null
+          context_keywords?: string[] | null
+          corrected_text?: string
+          correction_type?: string
+          created_at?: string | null
+          document_id?: string | null
+          document_type?: string | null
+          id?: string
+          last_used?: string | null
+          original_text?: string
+          pattern_hint?: string | null
+          success_count?: number | null
+          success_rate?: number | null
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       document_parsing_feedback: {
         Row: {
           corrections: Json | null
@@ -360,6 +453,132 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      document_parsing_feedback_enhanced: {
+        Row: {
+          corrections: Json | null
+          created_at: string | null
+          document_id: string
+          feedback_type: string | null
+          id: string
+          is_correct: boolean
+          original_confidence: number | null
+          time_to_review: number | null
+          user_assessed_confidence: number | null
+          user_id: string
+          user_notes: string | null
+        }
+        Insert: {
+          corrections?: Json | null
+          created_at?: string | null
+          document_id: string
+          feedback_type?: string | null
+          id?: string
+          is_correct?: boolean
+          original_confidence?: number | null
+          time_to_review?: number | null
+          user_assessed_confidence?: number | null
+          user_id: string
+          user_notes?: string | null
+        }
+        Update: {
+          corrections?: Json | null
+          created_at?: string | null
+          document_id?: string
+          feedback_type?: string | null
+          id?: string
+          is_correct?: boolean
+          original_confidence?: number | null
+          time_to_review?: number | null
+          user_assessed_confidence?: number | null
+          user_id?: string
+          user_notes?: string | null
+        }
+        Relationships: []
+      }
+      document_processing_analytics: {
+        Row: {
+          ai_model_used: string | null
+          confidence_after_learning: number | null
+          confidence_before_learning: number | null
+          created_at: string | null
+          document_id: string | null
+          extraction_quality_score: number | null
+          failure_indicators: Json | null
+          id: string
+          learned_patterns_applied: number | null
+          processing_method: string | null
+          processing_time_ms: number | null
+          success_indicators: Json | null
+        }
+        Insert: {
+          ai_model_used?: string | null
+          confidence_after_learning?: number | null
+          confidence_before_learning?: number | null
+          created_at?: string | null
+          document_id?: string | null
+          extraction_quality_score?: number | null
+          failure_indicators?: Json | null
+          id?: string
+          learned_patterns_applied?: number | null
+          processing_method?: string | null
+          processing_time_ms?: number | null
+          success_indicators?: Json | null
+        }
+        Update: {
+          ai_model_used?: string | null
+          confidence_after_learning?: number | null
+          confidence_before_learning?: number | null
+          created_at?: string | null
+          document_id?: string | null
+          extraction_quality_score?: number | null
+          failure_indicators?: Json | null
+          id?: string
+          learned_patterns_applied?: number | null
+          processing_method?: string | null
+          processing_time_ms?: number | null
+          success_indicators?: Json | null
+        }
+        Relationships: []
+      }
+      document_smart_suggestions: {
+        Row: {
+          confidence_score: number | null
+          context_data: Json | null
+          created_at: string | null
+          document_id: string | null
+          id: string
+          resolved_at: string | null
+          suggested_value: string | null
+          suggestion_type: string
+          user_action: string | null
+          user_feedback: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          context_data?: Json | null
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          resolved_at?: string | null
+          suggested_value?: string | null
+          suggestion_type: string
+          user_action?: string | null
+          user_feedback?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          context_data?: Json | null
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          resolved_at?: string | null
+          suggested_value?: string | null
+          suggestion_type?: string
+          user_action?: string | null
+          user_feedback?: string | null
+        }
+        Relationships: []
       }
       documents: {
         Row: {
@@ -2558,6 +2777,10 @@ export type Database = {
         Args: { invitation_token: string }
         Returns: Json
       }
+      apply_enhanced_learning_patterns: {
+        Args: { p_extracted_text: string; p_document_type?: string }
+        Returns: Json
+      }
       associate_user_projects_to_org: {
         Args: { user_email: string; target_org_id: string }
         Returns: {
@@ -2584,6 +2807,16 @@ export type Database = {
       calculate_business_days: {
         Args: { start_date: string; days_to_add: number }
         Returns: string
+      }
+      calculate_enhanced_confidence: {
+        Args: {
+          p_extracted_text: string
+          p_milestones_count?: number
+          p_trades_count?: number
+          p_zones_count?: number
+          p_processing_method?: string
+        }
+        Returns: number
       }
       calculate_project_variation_impact: {
         Args: { project_uuid: string }

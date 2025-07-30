@@ -81,22 +81,34 @@ serve(async (req) => {
 
     let extractedText = '';
 
-    // Enhanced multi-engine document processing pipeline with preprocessing
+// Enhanced multi-engine document processing pipeline with preprocessing
+    let processingMethod = 'unknown';
     if (fileType === 'application/pdf') {
       // Multi-engine PDF processing with Australian construction optimization
       extractedText = await extractTextFromPDFEnhanced(fileContent, fileName, OPENAI_API_KEY, supabase, documentId);
+      processingMethod = 'pdf_vision';
     } else if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileName.endsWith('.xlsx') || fileName.endsWith('.csv')) {
       // Enhanced spreadsheet processing for construction schedules
       extractedText = await extractTextFromSpreadsheetEnhanced(fileContent, fileName, documentId, supabase);
+      processingMethod = 'spreadsheet';
     } else if (fileType.includes('image')) {
       // Direct image processing for scanned documents with preprocessing
       extractedText = await extractTextFromImageDirectEnhanced(fileContent, OPENAI_API_KEY, documentId, supabase);
+      processingMethod = 'image_ocr';
     } else {
       throw new Error(`Unsupported file type: ${fileType}`);
     }
 
     // Apply post-processing to improve text quality
     extractedText = await enhanceExtractedText(extractedText, fileName);
+
+    // Apply existing learning patterns before AI processing
+    const learningPatterns = await supabase.rpc('apply_enhanced_learning_patterns', {
+      p_extracted_text: extractedText,
+      p_document_type: detectMSProjectDocument(extractedText, fileName) ? 'ms_project' : 'general'
+    });
+
+    console.log('Applied learning patterns:', learningPatterns);
 
     console.log('Extracted text length:', extractedText.length);
     console.log('First 500 characters of extracted text:', extractedText.substring(0, 500));
@@ -114,9 +126,36 @@ serve(async (req) => {
     const extractionQuality = calculateExtractionQuality(extractedText, validatedData);
     console.log('Extraction quality score:', extractionQuality);
 
-    // Apply confidence calibration
-    const calibratedConfidence = Math.min(1.0, validatedData.confidence + (extractionQuality * CONFIDENCE_CALIBRATION_FACTOR));
-    validatedData.confidence = calibratedConfidence;
+    // Apply enhanced confidence calculation with real quality metrics
+    const enhancedConfidence = await supabase.rpc('calculate_enhanced_confidence', {
+      p_extracted_text: extractedText,
+      p_milestones_count: validatedData.milestones?.length || 0,
+      p_trades_count: validatedData.trades?.length || 0,
+      p_zones_count: validatedData.zones?.length || 0,
+      p_processing_method: processingMethod
+    });
+
+    validatedData.confidence = enhancedConfidence?.data || Math.min(1.0, validatedData.confidence + (extractionQuality * CONFIDENCE_CALIBRATION_FACTOR));
+    
+    // Store processing analytics
+    await supabase
+      .from('document_processing_analytics')
+      .insert({
+        document_id: documentId,
+        processing_method: processingMethod,
+        extraction_quality_score: extractionQuality,
+        ai_model_used: 'gpt-4o-mini',
+        processing_time_ms: Date.now() - parseInt(documentId), // Rough estimate
+        confidence_before_learning: validatedData.confidence - 0.1,
+        confidence_after_learning: validatedData.confidence,
+        learned_patterns_applied: learningPatterns?.data?.applied_patterns_count || 0,
+        success_indicators: {
+          text_length: extractedText.length,
+          has_dates: /\d{1,2}\/\d{1,2}\/\d{4}/.test(extractedText),
+          has_tasks: /task|milestone/i.test(extractedText),
+          processing_method: processingMethod
+        }
+      });
 
     // Store the results
     const { error: updateError } = await supabase
@@ -140,7 +179,7 @@ serve(async (req) => {
       success: true,
       data: validatedData,
       extractionQuality,
-      message: `Document parsed successfully with ${Math.round(calibratedConfidence * 100)}% confidence`
+      message: `Document parsed successfully with ${Math.round(validatedData.confidence * 100)}% confidence`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -404,30 +443,59 @@ Pre-extracted MS Project data: ${JSON.stringify(msProjectStructure, null, 2)}
 `;
   }
 
-  const userPrompt = `Parse this ${fileType} construction document: "${fileName}"
+  const userPrompt = `DOCUMENT ANALYSIS TASK:
+Parse and extract structured construction programme data from: "${fileName}" (${fileType})
+
 ${contextualPrompt}
 
-Document text:
-${text.substring(0, 4000)}
+DOCUMENT CONTENT:
+${text.substring(0, 6000)}
 
-PARSING INSTRUCTIONS:
+INTELLIGENT ANALYSIS REQUIREMENTS:
+
+1. DEEP CONTEXTUAL UNDERSTANDING:
 ${msProjectDetection.isMSProject ? `
-- Extract task hierarchies and milestones from MS Project structure
-- Convert MS Project durations to standard format
-- Identify critical path items as high priority milestones  
-- Extract trade information from resource assignments
-- Parse dependencies from predecessor/successor relationships
+   - This is a Microsoft Project document - extract full project hierarchy
+   - Parse task relationships, resource assignments, and scheduling constraints
+   - Identify critical path activities and convert to high-priority milestones
+   - Extract baseline vs actual dates if present
+   - Understand MS Project duration formats and convert appropriately
 ` : `
-- Look for milestone activities with dates
-- Identify trade types (especially carpentry)
-- Find location/zone references
-- Detect dependencies between activities
+   - Analyze document structure and layout for construction programme patterns
+   - Look for task sequences, milestone activities, and delivery schedules
+   - Identify trade coordination points and handover activities
+   - Extract any scheduling logic or dependency patterns
 `}
 
-QUALITY REQUIREMENTS:
-- Return confidence 0.8+ for clear structured data with dates and trades
-- Return confidence 0.5+ for basic construction information with some structure
-- Return confidence 0.1+ for minimal but valid construction content`;
+2. AUSTRALIAN CONSTRUCTION INTELLIGENCE:
+   - Apply Australian construction sequencing knowledge
+   - Recognize trade-specific terminology and specializations  
+   - Understand building phases: demolition → earthworks → structural → services → fitout → finishes
+   - Identify Australian zones: wet areas, external works, plant rooms, common areas
+   - Parse Australian date formats and work patterns (excluding weekends/holidays)
+
+3. QUALITY EXTRACTION STANDARDS:
+   - Extract ALL milestone activities with dates (start/end)
+   - Identify ALL trade types mentioned or implied
+   - Map ALL zones, levels, buildings, or location references
+   - Parse ALL dependencies and sequencing relationships
+   - Capture project metadata: name, overall duration, key phases
+
+4. CONFIDENCE CALIBRATION:
+   - 0.9+ : Comprehensive MS Project with full data (dates, trades, zones, dependencies)
+   - 0.8+ : Well-structured programme with clear activities and dates
+   - 0.6+ : Good construction document with identifiable milestones and trades
+   - 0.4+ : Basic construction information with some structure
+   - 0.2+ : Minimal construction content but valid
+   - 0.1+ : Poor quality or unclear construction relevance
+
+5. PROCESSING NOTES REQUIREMENT:
+   - Document what type of document this appears to be
+   - Note any quality indicators (clear dates, trade assignments, logical sequencing)
+   - Flag uncertainties or ambiguous content that needs clarification
+   - Suggest improvements or missing information
+
+USE YOUR CONSTRUCTION EXPERTISE TO FILL LOGICAL GAPS AND PROVIDE INTELLIGENT INTERPRETATION.`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -436,13 +504,13 @@ QUALITY REQUIREMENTS:
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o', // Upgraded to more powerful model for better reasoning
       messages: [
         { role: 'system', content: baseSystemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.1,
-      max_tokens: 2000
+      temperature: 0.05, // Lower temperature for more consistent, focused output
+      max_tokens: 3000 // Increased for more detailed extraction
     }),
   });
 
