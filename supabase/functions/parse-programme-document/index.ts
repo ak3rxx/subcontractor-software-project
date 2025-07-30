@@ -794,37 +794,94 @@ Provide comprehensive, accurate text extraction preserving all document structur
   }
 }
 
-// Convert PDF to page images using pdf-lib
+// Convert PDF to high-resolution images using pdfium-wasm
 async function convertPDFToImages(fileContent: string): Promise<string[]> {
   try {
-    console.log('Converting PDF to images for Vision processing...');
+    console.log('Converting PDF to images using pdfium-wasm...');
     
     // Decode base64 content
     const base64Data = fileContent.replace(/^data:application\/pdf;base64,/, '');
     const pdfBytes = new Uint8Array(atob(base64Data).split('').map(char => char.charCodeAt(0)));
     
-    // Load PDF document
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    const pageCount = pdfDoc.getPageCount();
+    // Dynamic import of pdfium-wasm for Edge Function compatibility
+    const { PDFium } = await import('@hyzyla/pdfium');
     
-    console.log(`PDF has ${pageCount} pages`);
+    // Initialize PDFium
+    const pdfium = await PDFium.init();
     
-    // For now, create data URLs representing each page
-    // In a full implementation, this would render each page to canvas
-    const pageImages: string[] = [];
+    // Load the PDF document
+    const doc = pdfium.loadDocument(pdfBytes);
+    const pageCount = Math.min(doc.getPageCount(), 10); // Limit to 10 pages for performance
     
-    for (let i = 0; i < Math.min(pageCount, 10); i++) { // Limit to 10 pages for performance
-      // Create a data URL for Vision API (simulated page image)
-      // In production, you'd render the actual page to canvas/image
-      pageImages.push(`data:text/plain;base64,${btoa(`PDF Page ${i + 1} of ${pageCount} from document`)}`);
+    console.log(`PDF has ${doc.getPageCount()} pages, processing first ${pageCount} pages`);
+    
+    const images: string[] = [];
+    
+    for (let i = 0; i < pageCount; i++) {
+      try {
+        // Load page
+        const page = doc.getPage(i);
+        
+        // Get page dimensions
+        const { width, height } = page.getSize();
+        
+        // Calculate scale for good quality (aim for ~1200-1600 DPI equivalent)
+        const scale = Math.min(2.0, Math.max(1.5, 1600 / Math.max(width, height)));
+        const renderWidth = Math.floor(width * scale);
+        const renderHeight = Math.floor(height * scale);
+        
+        console.log(`Rendering page ${i + 1}: ${renderWidth}x${renderHeight} (scale: ${scale.toFixed(2)})`);
+        
+        // Render page to bitmap
+        const bitmap = page.render({
+          width: renderWidth,
+          height: renderHeight,
+          format: 'RGBA'
+        });
+        
+        // Convert to Canvas and then to base64
+        const canvas = new OffscreenCanvas(renderWidth, renderHeight);
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+          const imageData = new ImageData(
+            new Uint8ClampedArray(bitmap.data),
+            renderWidth,
+            renderHeight
+          );
+          ctx.putImageData(imageData, 0, 0);
+          
+          // Convert to PNG blob then to base64
+          const blob = await canvas.convertToBlob({ type: 'image/png', quality: 0.9 });
+          const arrayBuffer = await blob.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+          const dataUrl = `data:image/png;base64,${base64}`;
+          
+          images.push(dataUrl);
+          console.log(`Page ${i + 1} converted to image (${Math.round(base64.length / 1024)}KB)`);
+        }
+        
+        // Clean up page resources
+        page.destroy();
+        
+      } catch (pageError) {
+        console.error(`Error processing page ${i + 1}:`, pageError);
+        // Continue with other pages
+      }
     }
     
-    return pageImages;
+    // Clean up document
+    doc.destroy();
+    
+    console.log(`Successfully converted ${images.length} pages to images`);
+    return images;
     
   } catch (error) {
-    console.error('PDF to images conversion error:', error);
-    // Fallback to original content
-    return [fileContent];
+    console.error('Error converting PDF to images with pdfium-wasm:', error);
+    
+    // Fallback to original content for text-based processing
+    console.log('Falling back to text-based PDF processing');
+    return [];
   }
 }
 
